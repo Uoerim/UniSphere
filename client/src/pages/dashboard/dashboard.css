@@ -68,8 +68,22 @@
     border: 2px solid white;
 }
 
+.user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .user-name {
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.user-role {
+    font-size: 12px;
+    opacity: 0.9;
+    text-transform: capitalize;
+    color: #ecf0f1;
 }
 
 .logout-btn {
@@ -350,7 +364,7 @@
         padding: 20px;
     }
 
-    .user-name {
+    .user-info {
         display: none;
     }
 

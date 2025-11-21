@@ -6,6 +6,7 @@ import Reservations from '../reservations/Reservations';
 import Users from '../users/Users';
 import Reports from '../reports/Reports';
 import Settings from '../settings/Settings';
+import Timeslots from '../timeslots/Timeslots';
 
 const Dashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -44,14 +45,29 @@ const Dashboard = () => {
         fetchUserData();
     }, []);
 
-    const menuItems = [
+    // Filter menu items based on user role
+    const getAllMenuItems = () => [
         { id: 'home', name: 'Home', icon: '🏠' },
         { id: 'classrooms', name: 'Classrooms', icon: '🏛️' },
         { id: 'reservations', name: 'Reservations', icon: '📅' },
+        { id: 'timeslots', name: 'Timeslots', icon: '⏰' },
         { id: 'users', name: 'Users', icon: '👥' },
         { id: 'reports', name: 'Reports', icon: '📊' },
         { id: 'settings', name: 'Settings', icon: '⚙️' },
     ];
+
+    const getInstructorMenuItems = () => [
+        { id: 'reservations', name: 'Reservations', icon: '📅' },
+    ];
+
+    const menuItems = userData?.role === 'instructor' ? getInstructorMenuItems() : getAllMenuItems();
+
+    // Auto-redirect instructor to reservations page
+    useEffect(() => {
+        if (userData?.role === 'instructor' && currentPage === 'home') {
+            setCurrentPage('reservations');
+        }
+    }, [userData?.role, currentPage]);
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -63,19 +79,30 @@ const Dashboard = () => {
     };
 
     const renderPage = () => {
+        // Only allow instructors to see reservations
+        if (userData?.role === 'instructor' && currentPage !== 'reservations') {
+            return <Reservations />;
+        }
+
         switch (currentPage) {
             case 'classrooms':
-                return <Classrooms />;
+                return userData?.role === 'admin' ? <Classrooms /> : <Reservations />;
             case 'reservations':
                 return <Reservations />;
+            case 'timeslots':
+                return userData?.role === 'admin' ? <Timeslots /> : <Reservations />;
             case 'users':
-                return <Users />;
+                return userData?.role === 'admin' ? <Users /> : <Reservations />;
             case 'reports':
-                return <Reports />;
+                return userData?.role === 'admin' ? <Reports /> : <Reservations />;
             case 'settings':
-                return <Settings />;
+                return userData?.role === 'admin' ? <Settings /> : <Reservations />;
             case 'home':
             default:
+                // Instructors only see reservations, so redirect them
+                if (userData?.role === 'instructor') {
+                    return <Reservations />;
+                }
                 return (
                     <div className="home-page">
                         <h2>Welcome, {userData?.name}!</h2>
@@ -89,6 +116,11 @@ const Dashboard = () => {
                                 <h3>📅 Reservations</h3>
                                 <p>Track all classroom reservations and bookings.</p>
                                 <button onClick={() => setCurrentPage('reservations')}>View Reservations</button>
+                            </div>
+                            <div className="home-card">
+                                <h3>⏰ Timeslots</h3>
+                                <p>View and manage available time slots for reservations.</p>
+                                <button onClick={() => setCurrentPage('timeslots')}>View Timeslots</button>
                             </div>
                             <div className="home-card">
                                 <h3>👥 Users</h3>
@@ -119,7 +151,10 @@ const Dashboard = () => {
                 <div className="navbar-right">
                     <div className="user-profile">
                         <img src="https://via.placeholder.com/40" alt="User" className="user-avatar" />
-                        <span className="user-name">{userData?.name || 'Loading...'}</span>
+                        <div className="user-info">
+                            <span className="user-name">{userData?.name || 'Loading...'}</span>
+                            <span className="user-role">{userData?.role}</span>
+                        </div>
                         <button className="logout-btn" onClick={handleLogout}>Logout</button>
                     </div>
                 </div>

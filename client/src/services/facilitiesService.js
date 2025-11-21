@@ -27,6 +27,22 @@ export const getAllClassrooms = async () => {
   return res.data;
 };
 
+export const createClassroom = async (classroomData) => {
+  const res = await axios.post(API_URL + "classrooms", classroomData, {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
+export const deleteClassroom = async (classroomId) => {
+  const res = await axios.delete(API_URL + `classrooms/${classroomId}`, {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
 export const getAllReservations = async () => {
   const res = await axios.get(API_URL + "reservations", {
     headers: getAuthHeader(),
@@ -35,8 +51,68 @@ export const getAllReservations = async () => {
   return res.data;
 };
 
+export const createReservation = async (reservationData) => {
+  const res = await axios.post(API_URL + "reservations", reservationData, {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
+export const cancelReservation = async (reservationId) => {
+  const res = await axios.patch(
+    API_URL + `reservations/${reservationId}/cancel`,
+    {},
+    {
+      headers: getAuthHeader(),
+    }
+  );
+
+  return res.data;
+};
+
+export const getAllTimeslots = async () => {
+  const res = await axios.get(API_URL + "timeslots", {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
+export const createTimeslot = async (timeslotData) => {
+  const res = await axios.post(API_URL + "timeslots", timeslotData, {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
+export const deleteTimeslot = async (timeslotId) => {
+  const res = await axios.delete(API_URL + `timeslots/${timeslotId}`, {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
 export const getAllUsers = async () => {
   const res = await axios.get(AUTH_API_URL + "users", {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
+export const createUser = async (userData) => {
+  const res = await axios.post(AUTH_API_URL + "users", userData, {
+    headers: getAuthHeader(),
+  });
+
+  return res.data;
+};
+
+export const deleteUser = async (userId) => {
+  const res = await axios.delete(AUTH_API_URL + `users/${userId}`, {
     headers: getAuthHeader(),
   });
 

@@ -95,6 +95,7 @@ exports.adminCreateUser = async (req, res) => {
         });
 
         res.status(201).json({
+            success: true,
             message: "User created successfully",
             user: {
                 id: newUser._id,
@@ -104,6 +105,77 @@ exports.adminCreateUser = async (req, res) => {
             }
         });
 
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+exports.createUser = async (req, res) => {
+    try {
+        const { name, username, password, role } = req.body;
+
+        if (!name || !username || !password || !role) {
+            return res.status(400).json({ message: "Please provide all required fields: name, username, password, role" });
+        }
+
+        if (!['student', 'admin', 'instructor'].includes(role)) {
+            return res.status(400).json({ message: "Invalid role. Must be student, admin, or instructor" });
+        }
+
+        const existingUser = await User.findOne({ username: username.toLowerCase() });
+        if (existingUser) {
+            return res.status(400).json({ message: "Username already exists" });
+        }
+
+        const newUser = await User.create({
+            name,
+            username: username.toLowerCase(),
+            password,
+            role
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "User created successfully",
+            user: {
+                id: newUser._id,
+                name: newUser.name,
+                username: newUser.username,
+                role: newUser.role,
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Don't allow deleting yourself
+        if (req.user._id.toString() === userId) {
+            return res.status(400).json({ message: "Cannot delete your own account" });
+        }
+
+        const user = await User.findByIdAndDelete(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            success: true,
+            message: "User deleted successfully",
+            user: {
+                id: user._id,
+                name: user.name,
+                username: user.username,
+            }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });

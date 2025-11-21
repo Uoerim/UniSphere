@@ -142,3 +142,207 @@ exports.getDatabaseStats = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.createClassroom = async (req, res) => {
+  try {
+    const { name, building, floor, capacity, type, resources } = req.body;
+
+    if (!name || !building || !capacity) {
+      return res.status(400).json({ message: "Please provide required fields: name, building, capacity" });
+    }
+
+    const existingClassroom = await Classroom.findOne({ name });
+    if (existingClassroom) {
+      return res.status(400).json({ message: "Classroom with this name already exists" });
+    }
+
+    const classroom = await Classroom.create({
+      name,
+      building,
+      floor,
+      capacity,
+      type: type || 'lecture',
+      resources: resources || [],
+      isActive: true
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Classroom created successfully",
+      classroom,
+    });
+  } catch (err) {
+    console.error("Error in createClassroom:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.createReservation = async (req, res) => {
+  try {
+    const { classroom, timeslot, date, reservedFor } = req.body;
+
+    if (!classroom || !timeslot || !date || !reservedFor) {
+      return res.status(400).json({ message: "Please provide all required fields" });
+    }
+
+    // Check if classroom and timeslot exist
+    const classroomExists = await Classroom.findById(classroom);
+    const timeslotExists = await Timeslot.findById(timeslot);
+
+    if (!classroomExists || !timeslotExists) {
+      return res.status(400).json({ message: "Invalid classroom or timeslot" });
+    }
+
+    // Check if already reserved
+    const selectedDate = new Date(date);
+    const existingReservation = await Reservation.findOne({
+      classroom,
+      timeslot,
+      date: selectedDate,
+    });
+
+    if (existingReservation) {
+      return res.status(400).json({ message: "This classroom is already reserved for this time slot" });
+    }
+
+    const reservation = await Reservation.create({
+      classroom,
+      timeslot,
+      date: selectedDate,
+      reservedFor,
+      createdBy: req.user._id,
+      status: 'confirmed'
+    });
+
+    await reservation.populate("classroom", "name building capacity");
+    await reservation.populate("timeslot", "startTime endTime dayOfWeek");
+    await reservation.populate("createdBy", "name username");
+
+    res.status(201).json({
+      success: true,
+      message: "Reservation created successfully",
+      reservation,
+    });
+  } catch (err) {
+    console.error("Error in createReservation:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.cancelReservation = async (req, res) => {
+  try {
+    const { reservationId } = req.params;
+
+    const reservation = await Reservation.findByIdAndUpdate(
+      reservationId,
+      { status: 'cancelled' },
+      { new: true }
+    )
+      .populate("classroom", "name building capacity")
+      .populate("timeslot", "startTime endTime dayOfWeek")
+      .populate("createdBy", "name username");
+
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Reservation cancelled successfully",
+      reservation,
+    });
+  } catch (err) {
+    console.error("Error in cancelReservation:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getAllTimeslots = async (req, res) => {
+  try {
+    const timeslots = await Timeslot.find().sort({ dayOfWeek: 1, startTime: 1 });
+
+    res.json({
+      success: true,
+      count: timeslots.length,
+      timeslots,
+    });
+  } catch (err) {
+    console.error("Error in getAllTimeslots:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.createTimeslot = async (req, res) => {
+  try {
+    const { dayOfWeek, startTime, endTime } = req.body;
+
+    if (!dayOfWeek || !startTime || !endTime) {
+      return res.status(400).json({ message: "Please provide all required fields" });
+    }
+
+    const validDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    if (!validDays.includes(dayOfWeek)) {
+      return res.status(400).json({ message: "Invalid day of week" });
+    }
+
+    const timeslot = await Timeslot.create({
+      dayOfWeek,
+      startTime,
+      endTime
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Timeslot created successfully",
+      timeslot,
+    });
+  } catch (err) {
+    console.error("Error in createTimeslot:", err);
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "This timeslot already exists" });
+    }
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.deleteTimeslot = async (req, res) => {
+  try {
+    const { timeslotId } = req.params;
+
+    const timeslot = await Timeslot.findByIdAndDelete(timeslotId);
+
+    if (!timeslot) {
+      return res.status(404).json({ message: "Timeslot not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Timeslot deleted successfully",
+      timeslot,
+    });
+  } catch (err) {
+    console.error("Error in deleteTimeslot:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.deleteClassroom = async (req, res) => {
+  try {
+    const { classroomId } = req.params;
+
+    const classroom = await Classroom.findByIdAndDelete(classroomId);
+
+    if (!classroom) {
+      return res.status(404).json({ message: "Classroom not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Classroom deleted successfully",
+      classroom,
+    });
+  } catch (err) {
+    console.error("Error in deleteClassroom:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
