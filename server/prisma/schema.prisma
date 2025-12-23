@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+
+model Entity {
+  id        String   @id @default(cuid())
+  type      String
+  createdAt DateTime @default(now())
+  values    Value[]
+}
+
+model Attribute {
+  id       String @id @default(cuid())
+  name     String @unique
+  dataType String
+  values   Value[]
+}
+
+model Value {
+  id          String   @id @default(cuid())
+  entityId    String
+  attributeId String
+
+  valueString String?
+  valueNumber Float?
+  valueBool   Boolean?
+  valueDate   DateTime?
+
+  entity    Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([entityId, attributeId])
+  @@index([entityId])
+  @@index([attributeId])
+}

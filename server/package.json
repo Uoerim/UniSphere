@@ -1,27 +1,33 @@
 {
   "name": "server",
   "version": "1.0.0",
+  "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "seed:classroom": "node ./src/scripts/seedSampleClassroom.js",
-    "seed:admin": "node ./src/scripts/createAdmin.js",
-    "seed:timeslots": "node ./src/scripts/seedTimeslots.js",
-    "seed:reservations": "node ./src/scripts/seedReservations.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "ts-node-dev src/server.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "type": "commonjs",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
+    "@prisma/adapter-mariadb": "^7.2.0",
+    "@prisma/client": "^7.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.20.1"
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "mariadb": "^3.4.5",
+    "morgan": "^1.10.1",
+    "prisma": "^7.2.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
   }
 }
