@@ -56,7 +56,7 @@ export default function DashboardLayout() {
           { title: 'Administration', items: [adminNav[2]] },
           { title: 'Academic', items: academicNav },
           { title: 'Facilities', items: facilitiesNav },
-          { title: 'Community', items: communityNav },
+          { title: 'Community', items: [communityNav[0], communityNav[2]] }, // Announcements, Messages only
         ];
       case 'STUDENT':
         return [
