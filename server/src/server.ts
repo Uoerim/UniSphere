@@ -8,6 +8,11 @@ import { dashboardRouter } from "./routes/dashboard.routes";
 import { facilitiesRouter } from "./routes/facilities.routes";
 import { curriculumRouter } from "./routes/curriculum.routes";
 import { communityRouter } from "./routes/community.routes";
+import { studentRouter } from "./routes/student.routes";
+import { departmentRouter } from "./routes/department.routes";
+import { parentRouter } from "./routes/parent.routes";
+import { assessmentRouter } from "./routes/assessment.routes";
+import { assignmentRouter } from "./routes/assignment.routes";
 import cors from "cors";
 
 
@@ -27,6 +32,11 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/facilities", facilitiesRouter);
 app.use("/api/curriculum", curriculumRouter);
 app.use("/api/community", communityRouter);
+app.use("/api/students", studentRouter);
+app.use("/api/departments", departmentRouter);
+app.use("/api/parents", parentRouter);
+app.use("/api/assessments", assessmentRouter);
+app.use("/api/assignments", assignmentRouter);
 
 ////
 
