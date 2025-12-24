@@ -84,9 +84,29 @@ export default function StudentCourses() {
     }
   };
 
+  // Helper: get course prerequisites
+  const getPrerequisites = (course: Course) => {
+    // If course has a prerequisites array, use it; else, try to infer from allCourses
+    if ((course as any).prerequisites) return (course as any).prerequisites;
+    // Try to infer from allCourses (if available)
+    return [];
+  };
+
+  // Helper: check if prerequisites are met
+  const hasPrerequisitesMet = (course: Course) => {
+    const prereqs = getPrerequisites(course);
+    if (!prereqs || prereqs.length === 0) return true;
+    return prereqs.every((pr: any) => enrolledCourseIds.has(pr.id));
+  };
+
+  // Helper: check if enrolling would exceed credit limit
+  const wouldExceedCreditLimit = (course: Course) => {
+    const credits = course.credits || 0;
+    return totalCredits + credits > 15;
+  };
+
   const handleEnroll = async (courseId: string) => {
     setEnrollingCourseId(courseId);
-    
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:4000/api/curriculum/${courseId}/enroll`, {
@@ -358,60 +378,76 @@ export default function StudentCourses() {
             </div>
           ) : (
             <div className={styles.coursesGrid}>
-              {availableCourses.map(course => (
-                <div key={course.id} className={styles.courseCard}>
-                  <div className={styles.cardHeader}>
-                    <div className={styles.courseCode}>{course.code}</div>
-                    <div className={`${styles.statusBadge} ${styles.info}`}>
-                      {course.enrolledStudents}/{course.capacity || 30}
+              {availableCourses.map(course => {
+                const prereqs = getPrerequisites(course);
+                const prereqMet = hasPrerequisitesMet(course);
+                const creditLimit = wouldExceedCreditLimit(course);
+                const isFull = course.enrolledStudents >= (course.capacity || 30);
+                let enrollDisabled = enrollingCourseId === course.id || isFull || !prereqMet || creditLimit;
+                let enrollMsg = '';
+                if (!prereqMet) {
+                  enrollMsg = `Missing prerequisites: ${(prereqs || []).map((p: any) => p.name || p.code).join(', ')}`;
+                } else if (creditLimit) {
+                  enrollMsg = 'Credit hour limit exceeded (15)';
+                } else if (isFull) {
+                  enrollMsg = 'Full';
+                }
+                return (
+                  <div key={course.id} className={styles.courseCard}>
+                    <div className={styles.cardHeader}>
+                      <div className={styles.courseCode}>{course.code}</div>
+                      <div className={`${styles.statusBadge} ${styles.info}`}>
+                        {course.enrolledStudents}/{course.capacity || 30}
+                      </div>
                     </div>
-                  </div>
-                  <h3 className={styles.courseName}>{course.name}</h3>
-                  {course.description && (
-                    <p className={styles.courseDescription}>{course.description}</p>
-                  )}
-                  <div className={styles.courseMeta}>
-                    {course.department && (
-                      <span className={styles.metaItem}>🏛️ {course.department}</span>
+                    <h3 className={styles.courseName}>{course.name}</h3>
+                    {course.description && (
+                      <p className={styles.courseDescription}>{course.description}</p>
                     )}
-                    {course.credits && (
-                      <span className={styles.metaItem}>📊 {course.credits} Credits</span>
-                    )}
-                    {course.semester && (
-                      <span className={styles.metaItem}>📅 {course.semester}</span>
-                    )}
-                  </div>
-                  <div className={styles.courseDetails}>
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Instructor:</span>
-                      <span className={styles.detailValue}>
-                        {course.instructor?.name || 'TBD'}
-                      </span>
+                    <div className={styles.courseMeta}>
+                      {course.department && (
+                        <span className={styles.metaItem}>🏛️ {course.department}</span>
+                      )}
+                      {course.credits && (
+                        <span className={styles.metaItem}>📊 {course.credits} Credits</span>
+                      )}
+                      {course.semester && (
+                        <span className={styles.metaItem}>📅 {course.semester}</span>
+                      )}
                     </div>
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Room:</span>
-                      <span className={styles.detailValue}>{course.room || 'TBD'}</span>
+                    <div className={styles.courseDetails}>
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>Instructor:</span>
+                        <span className={styles.detailValue}>
+                          {course.instructor?.name || 'TBD'}
+                        </span>
+                      </div>
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>Room:</span>
+                        <span className={styles.detailValue}>{course.room || 'TBD'}</span>
+                      </div>
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>Schedule:</span>
+                        <span className={styles.detailValue}>{course.schedule || 'TBD'}</span>
+                      </div>
                     </div>
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Schedule:</span>
-                      <span className={styles.detailValue}>{course.schedule || 'TBD'}</span>
+                    <div className={styles.cardActions}>
+                      <button 
+                        className={styles.addButton}
+                        onClick={() => handleEnroll(course.id)}
+                        disabled={enrollDisabled}
+                      >
+                        {enrollingCourseId === course.id 
+                          ? 'Enrolling...' 
+                          : enrollMsg || '✓ Enroll'}
+                      </button>
+                      {enrollMsg && enrollMsg !== 'Full' && (
+                        <div style={{ color: 'red', fontSize: 12, marginTop: 4 }}>{enrollMsg}</div>
+                      )}
                     </div>
                   </div>
-                  <div className={styles.cardActions}>
-                    <button 
-                      className={styles.addButton}
-                      onClick={() => handleEnroll(course.id)}
-                      disabled={enrollingCourseId === course.id || course.enrolledStudents >= (course.capacity || 30)}
-                    >
-                      {enrollingCourseId === course.id 
-                        ? 'Enrolling...' 
-                        : course.enrolledStudents >= (course.capacity || 30) 
-                          ? 'Full' 
-                          : '✓ Enroll'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
