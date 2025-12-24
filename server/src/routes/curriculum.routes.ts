@@ -759,7 +759,7 @@ router.delete("/:id", authenticateToken, requireAdminOrStaff, async (req, res) =
 });
 
 // ENROLL student in course
-router.post("/:id/enroll", authenticateToken, requireAdminOrStaff, async (req, res) => {
+router.post("/:id/enroll", authenticateToken, async (req, res) => {
   try {
     const courseId = req.params.id as string;
     let { studentId } = req.body;
@@ -865,7 +865,7 @@ router.post("/:id/enroll", authenticateToken, requireAdminOrStaff, async (req, r
 });
 
 // UNENROLL student from course
-router.delete("/:id/unenroll/:studentId", authenticateToken, requireAdminOrStaff, async (req, res) => {
+router.delete("/:id/unenroll/:studentId", authenticateToken, async (req, res) => {
   try {
     const courseId = req.params.id as string;
     const studentId = req.params.studentId as string;
