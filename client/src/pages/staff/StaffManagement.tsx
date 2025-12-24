@@ -46,7 +46,7 @@ export default function StaffManagement() {
   // Staff list state
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
 
   // Selected staff member
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -59,7 +59,6 @@ export default function StaffManagement() {
   // Filters and sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
-  const [filterRole, setFilterRole] = useState('all');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -209,10 +208,6 @@ export default function StaffManagement() {
       result = result.filter(s => s.department === filterDepartment);
     }
 
-    if (filterRole !== 'all') {
-      result = result.filter(s => s.role === filterRole);
-    }
-
     result.sort((a, b) => {
       let aVal: any = a[sortField] || '';
       let bVal: any = b[sortField] || '';
@@ -233,21 +228,12 @@ export default function StaffManagement() {
     });
 
     return result;
-  }, [staffList, searchTerm, filterDepartment, filterRole, sortField, sortDirection]);
+  }, [staffList, searchTerm, filterDepartment, sortField, sortDirection]);
 
   const departments = useMemo(() => {
     const deps = new Set(staffList.map(s => s.department).filter(Boolean));
     return Array.from(deps);
   }, [staffList]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
 
   const handleAddStaff = async () => {
     if (!formData.email || !formData.firstName || !formData.lastName) {
@@ -528,6 +514,22 @@ export default function StaffManagement() {
               {departments.map(dep => (
                 <option key={dep} value={dep}>{dep}</option>
               ))}
+            </select>
+            <select
+              value={`${sortField}-${sortDirection}`}
+              onChange={(e) => {
+                const [field, dir] = e.target.value.split('-') as [SortField, SortDirection];
+                setSortField(field);
+                setSortDirection(dir);
+              }}
+              className={styles.filterSelect}
+            >
+              <option value="createdAt-desc">Newest First</option>
+              <option value="createdAt-asc">Oldest First</option>
+              <option value="email-asc">Email A-Z</option>
+              <option value="email-desc">Email Z-A</option>
+              <option value="department-asc">Department A-Z</option>
+              <option value="department-desc">Department Z-A</option>
             </select>
           </div>
 
