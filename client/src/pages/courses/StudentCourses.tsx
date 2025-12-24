@@ -115,7 +115,7 @@ export default function StudentCourses() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({ studentId: user?.id })
+        body: JSON.stringify({}) // Let backend use current user entity
       });
 
       if (!response.ok) {
