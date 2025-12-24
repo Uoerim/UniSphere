@@ -171,7 +171,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>📚 My Courses</h2>
-            <button className={styles.viewAllBtn}>Manage Courses</button>
+            {/* Manage Courses button removed */}
           </div>
           <div className={styles.courseList}>
             {courses.map((course: Course) => (
@@ -186,7 +186,7 @@ export default function StaffDashboard() {
                   <span>📍 {course.room}</span>
                 </div>
                 <div className={styles.courseActions}>
-                  <button className={styles.smallBtn}>View Class</button>
+                  {/* View Class button removed */}
                   <button className={styles.smallBtn}>Grades</button>
                   <button className={styles.smallBtn}>Materials</button>
                 </div>
