@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
@@ -5,10 +6,13 @@ import styles from './RoleDashboard.module.css';
 interface Course {
   id: string;
   name: string;
-  code: string;
-  instructor: string;
-  schedule: string;
-  progress: number;
+  code?: string;
+  instructor?: any;
+  schedule?: string;
+  description?: string;
+  isActive?: boolean;
+  enrolledStudents?: number;
+  [key: string]: any;
 }
 
 interface Assignment {
@@ -28,34 +32,83 @@ interface Announcement {
   type: 'general' | 'course' | 'urgent';
 }
 
-export default function StudentDashboard() {
-  const { user } = useAuth();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const { user, token } = useAuth();
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mock data for demo - in production, fetch from API
-    setCourses([
-      { id: '1', name: 'Introduction to Programming', code: 'CS101', instructor: 'Dr. Smith', schedule: 'Mon/Wed 10:00 AM', progress: 75 },
-      { id: '2', name: 'Calculus I', code: 'MATH201', instructor: 'Prof. Johnson', schedule: 'Tue/Thu 2:00 PM', progress: 60 },
-      { id: '3', name: 'Physics Fundamentals', code: 'PHY101', instructor: 'Dr. Williams', schedule: 'Mon/Wed/Fri 9:00 AM', progress: 45 },
-      { id: '4', name: 'English Composition', code: 'ENG101', instructor: 'Ms. Davis', schedule: 'Tue/Thu 11:00 AM', progress: 90 },
-    ]);
-
+    const fetchCourses = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Fetch all courses
+        const resAll = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum`, {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+        });
+        const all = await resAll.json();
+        // Fetch enrolled courses
+        const resEnrolled = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+        });
+        const enrolled = await resEnrolled.json();
+        setAllCourses(all);
+        setEnrolledCourses(enrolled);
+      } catch (err: any) {
+        setError('Failed to load courses');
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (token) fetchCourses();
+    // Keep assignments and announcements as mock/demo for now
     setAssignments([
       { id: '1', title: 'Programming Project 3', course: 'CS101', dueDate: '2025-12-26', status: 'pending' },
       { id: '2', title: 'Calculus Problem Set 5', course: 'MATH201', dueDate: '2025-12-25', status: 'pending' },
       { id: '3', title: 'Lab Report 4', course: 'PHY101', dueDate: '2025-12-24', status: 'submitted' },
       { id: '4', title: 'Essay Draft', course: 'ENG101', dueDate: '2025-12-20', status: 'graded', grade: 'A-' },
     ]);
-
     setAnnouncements([
       { id: '1', title: 'Winter Break Schedule', content: 'Campus will be closed from Dec 25 to Jan 2', date: '2025-12-23', type: 'general' },
       { id: '2', title: 'CS101 Final Exam', content: 'Final exam will be held on Jan 5, Room 302', date: '2025-12-22', type: 'course' },
       { id: '3', title: 'Library Extended Hours', content: 'Library open 24/7 during finals week', date: '2025-12-21', type: 'general' },
     ]);
-  }, []);
+  }, [token]);
+
+  // Helper to check if student is enrolled in a course
+  const isEnrolled = (courseId: string) => enrolledCourses.some(c => c.id === courseId);
+
+  // Register for a course
+  const handleRegister = async (courseId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      // Get student entityId (from enrolledCourses or user)
+      // Backend uses current user if not provided, so just call API
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/${courseId}/enroll`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ studentId: null }) // null lets backend use current user
+      });
+      if (!res.ok) throw new Error('Failed to enroll');
+      // Refresh enrolled courses
+      const resEnrolled = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+      });
+      const enrolled = await resEnrolled.json();
+      setEnrolledCourses(enrolled);
+    } catch (err: any) {
+      setError('Failed to enroll in course');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -131,35 +184,68 @@ export default function StudentDashboard() {
       </div>
 
       <div className={styles.mainGrid}>
-        {/* My Courses */}
+        {/* My Courses (enrolled) */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>📚 My Courses</h2>
-            <button className={styles.viewAllBtn}>View All</button>
           </div>
           <div className={styles.courseList}>
-            {courses.map(course => (
-              <div key={course.id} className={styles.courseItem}>
-                <div className={styles.courseInfo}>
-                  <div className={styles.courseCode}>{course.code}</div>
-                  <div className={styles.courseName}>{course.name}</div>
-                  <div className={styles.courseDetails}>
-                    <span>👨‍🏫 {course.instructor}</span>
-                    <span>🕐 {course.schedule}</span>
+            {enrolledCourses.length === 0 ? (
+              <div>No enrolled courses yet.</div>
+            ) : (
+              enrolledCourses.map(course => (
+                <div key={course.id} className={styles.courseItem}>
+                  <div className={styles.courseInfo}>
+                    <div className={styles.courseCode}>{course.code}</div>
+                    <div className={styles.courseName}>{course.name}</div>
+                    <div className={styles.courseDetails}>
+                      <span>👨‍🏫 {course.instructor?.name || course.instructor || 'N/A'}</span>
+                      <span>🕐 {course.schedule || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
-                <div className={styles.progressSection}>
-                  <div className={styles.progressLabel}>Progress</div>
-                  <div className={styles.progressBar}>
-                    <div 
-                      className={styles.progressFill} 
-                      style={{ width: `${course.progress}%` }}
-                    />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* All Courses (available for registration) */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2>📝 Register for Courses</h2>
+          </div>
+          <div className={styles.courseList}>
+            {loading ? (
+              <div>Loading courses...</div>
+            ) : error ? (
+              <div style={{ color: 'red' }}>{error}</div>
+            ) : (
+              allCourses.length === 0 ? (
+                <div>No courses available.</div>
+              ) : (
+                allCourses.map(course => (
+                  <div key={course.id} className={styles.courseItem}>
+                    <div className={styles.courseInfo}>
+                      <div className={styles.courseCode}>{course.code}</div>
+                      <div className={styles.courseName}>{course.name}</div>
+                      <div className={styles.courseDetails}>
+                        <span>👨‍🏫 {course.instructor?.name || course.instructor || 'N/A'}</span>
+                        <span>🕐 {course.schedule || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div>
+                      {isEnrolled(course.id) ? (
+                        <span style={{ color: 'green' }}>Enrolled</span>
+                      ) : (
+                        <button onClick={() => handleRegister(course.id)} style={{ marginLeft: 8 }}>
+                          Register
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className={styles.progressValue}>{course.progress}%</div>
-                </div>
-              </div>
-            ))}
+                ))
+              )
+            )}
           </div>
         </div>
 
