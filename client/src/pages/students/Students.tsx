@@ -59,56 +59,33 @@ export default function Students() {
   const pages = getRolePages();
 
   return (
-    <div className={styles.dashboardContainer}>
-      {/* Sidebar */}
-      <div className={styles.sidebar}>
-        <h2 className={styles.sidebarTitle}>{user?.role} Portal</h2>
-        <nav className={styles.nav}>
-          {pages.map((page) => (
-            <Link
-              key={page.path}
-              to={page.path}
-              className={styles.navLink}
-            >
-              {page.name}
-            </Link>
-          ))}
-        </nav>
-        <button onClick={logout} className={styles.logoutBtn}>
-          Logout
-        </button>
-      </div>
+    <div className={styles.content}>
+      <h1>Students</h1>
+      <p className={styles.subtitle}>Manage student information and records</p>
 
-      {/* Main Content */}
-      <div className={styles.content}>
-        <h1>Students</h1>
-        <p className={styles.subtitle}>Manage student information and records</p>
-
-        {/* Registered Students in Staff's Courses */}
-        <div className={styles.tableContainer} style={{ marginBottom: 32 }}>
-          <h2 style={{ margin: '16px 0 8px 0' }}>Registered Students in Your Courses</h2>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Course</th>
+      {/* Registered Students in Staff's Courses */}
+      <div className={styles.tableContainer} style={{ marginBottom: 32 }}>
+        <h2 style={{ margin: '16px 0 8px 0' }}>Registered Students in Your Courses</h2>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Course</th>
+            </tr>
+          </thead>
+          <tbody>
+            {registeredStudents.map((student) => (
+              <tr key={student.id}>
+                <td>{student.id}</td>
+                <td>{student.name}</td>
+                <td>{student.email}</td>
+                <td>{student.course}</td>
               </tr>
-            </thead>
-            <tbody>
-              {registeredStudents.map((student) => (
-                <tr key={student.id}>
-                  <td>{student.id}</td>
-                  <td>{student.name}</td>
-                  <td>{student.email}</td>
-                  <td>{student.course}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
