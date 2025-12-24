@@ -1,6 +1,7 @@
 import express from "express";
 import { prisma } from "./prisma";
 import { staffRouter } from "./routes/staff.routes";
+import { staffCoursesRouter } from "./routes/staff-courses.routes";
 import { authRouter } from "./routes/auth.routes";
 import { usersRouter } from "./routes/users.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
@@ -19,6 +20,7 @@ app.use(cors());
 ////
 
 app.use("/api/staff", staffRouter);
+app.use("/api/staff-courses", staffCoursesRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/dashboard", dashboardRouter);

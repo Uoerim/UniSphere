@@ -23,7 +23,16 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-// GET all courses
+// Admin/Staff only middleware
+const requireAdminOrStaff = (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  if (!user || (user.role !== "ADMIN" && user.role !== "STAFF")) {
+    return res.status(403).json({ error: "Access denied. Admin or Staff role required." });
+  }
+  next();
+};
+
+// GET all courses with enrollment and instructor data
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const courses = await prisma.entity.findMany({
@@ -31,22 +40,65 @@ router.get("/", authenticateToken, async (req, res) => {
       include: {
         values: {
           include: { attribute: true }
+        },
+        relationsTo: {
+          where: { relationType: { in: ['TEACHES', 'ENROLLED_IN'] }, isActive: true },
+          include: {
+            fromEntity: {
+              include: {
+                values: { include: { attribute: true } },
+                account: { select: { email: true, id: true } }
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    const formattedCourses = courses.map(course => {
+    const formattedCourses = courses.map((course: any) => {
       const attrs: Record<string, string | number | boolean | Date | null> = {};
-      course.values.forEach(v => {
-        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      course.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate || v.valueDateTime || v.valueText;
       });
+      
+      // Find instructor (TEACHES relation)
+      const instructorRelation = course.relationsTo.find((r: any) => r.relationType === 'TEACHES');
+      let instructor = null;
+      if (instructorRelation) {
+        const instructorEntity = instructorRelation.fromEntity;
+        const instrAttrs: Record<string, any> = {};
+        instructorEntity.values.forEach((v: any) => {
+          instrAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+        instructor = {
+          id: instructorEntity.id,
+          name: instrAttrs.firstName && instrAttrs.lastName 
+            ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+            : instructorEntity.account?.email || 'Unknown',
+          email: instructorEntity.account?.email
+        };
+      }
+      
+      // Count enrolled students
+      const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
+
       return {
         id: course.id,
         name: course.name,
         description: course.description,
         isActive: course.isActive,
         createdAt: course.createdAt,
+        code: attrs.courseCode || attrs.code,
+        credits: attrs.credits,
+        department: attrs.department,
+        semester: attrs.semester,
+        courseType: attrs.courseType || attrs.type,
+        capacity: attrs.capacity || 30,
+        room: attrs.room,
+        schedule: attrs.schedule,
+        instructor,
+        enrolledStudents,
         ...attrs
       };
     });
@@ -58,17 +110,29 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-// GET single course
+// GET single course with full details
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!id) {
       return res.status(400).json({ error: "Course ID is required" });
     }
+    
     const course = await prisma.entity.findUnique({
       where: { id },
       include: {
-        values: { include: { attribute: true } }
+        values: { include: { attribute: true } },
+        relationsTo: {
+          where: { isActive: true },
+          include: {
+            fromEntity: {
+              include: {
+                values: { include: { attribute: true } },
+                account: { select: { email: true, id: true } }
+              }
+            }
+          }
+        }
       }
     });
 
@@ -77,9 +141,47 @@ router.get("/:id", authenticateToken, async (req, res) => {
     }
 
     const attrs: Record<string, string | number | boolean | Date | null> = {};
-    course.values.forEach(v => {
-      attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+    course.values.forEach((v: any) => {
+      attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate || v.valueDateTime || v.valueText;
     });
+
+    // Get instructor
+    const instructorRelation = (course as any).relationsTo.find((r: any) => r.relationType === 'TEACHES');
+    let instructor = null;
+    if (instructorRelation) {
+      const instructorEntity = instructorRelation.fromEntity;
+      const instrAttrs: Record<string, any> = {};
+      instructorEntity.values.forEach((v: any) => {
+        instrAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      instructor = {
+        id: instructorEntity.id,
+        name: instrAttrs.firstName && instrAttrs.lastName 
+          ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+          : instructorEntity.account?.email || 'Unknown',
+        email: instructorEntity.account?.email
+      };
+    }
+
+    // Get enrolled students
+    const enrolledStudents = (course as any).relationsTo
+      .filter((r: any) => r.relationType === 'ENROLLED_IN')
+      .map((r: any) => {
+        const student = r.fromEntity;
+        const studentAttrs: Record<string, any> = {};
+        student.values.forEach((v: any) => {
+          studentAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+        return {
+          id: student.id,
+          name: studentAttrs.firstName && studentAttrs.lastName 
+            ? `${studentAttrs.firstName} ${studentAttrs.lastName}` 
+            : student.account?.email || 'Unknown',
+          email: student.account?.email,
+          enrollmentId: r.id,
+          metadata: r.metadata ? JSON.parse(r.metadata) : {}
+        };
+      });
 
     res.json({
       id: course.id,
@@ -87,6 +189,16 @@ router.get("/:id", authenticateToken, async (req, res) => {
       description: course.description,
       isActive: course.isActive,
       createdAt: course.createdAt,
+      code: attrs.courseCode || attrs.code,
+      credits: attrs.credits,
+      department: attrs.department,
+      semester: attrs.semester,
+      courseType: attrs.courseType || attrs.type,
+      capacity: attrs.capacity || 30,
+      room: attrs.room,
+      schedule: attrs.schedule,
+      instructor,
+      enrolledStudents,
       ...attrs
     });
   } catch (error) {
@@ -95,10 +207,56 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// CREATE course
-router.post("/", authenticateToken, async (req, res) => {
+// GET available instructors (staff members)
+router.get("/instructors/available", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { name, description, code, credits, department, semester, type } = req.body;
+    const staffAccounts = await prisma.account.findMany({
+      where: { role: 'STAFF', isActive: true },
+      include: {
+        entity: {
+          include: {
+            values: { include: { attribute: true } }
+          }
+        }
+      }
+    });
+
+    const instructors = staffAccounts.map((account: any) => {
+      if (!account.entity) {
+        return {
+          id: null,
+          accountId: account.id,
+          email: account.email,
+          name: account.email.split('@')[0]
+        };
+      }
+      
+      const attrs: Record<string, any> = {};
+      account.entity.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      
+      return {
+        id: account.entity.id,
+        accountId: account.id,
+        email: account.email,
+        name: attrs.firstName && attrs.lastName 
+          ? `${attrs.firstName} ${attrs.lastName}` 
+          : account.email.split('@')[0]
+      };
+    });
+
+    res.json(instructors);
+  } catch (error) {
+    console.error("Get instructors error:", error);
+    res.status(500).json({ error: "Failed to fetch instructors" });
+  }
+});
+
+// CREATE course
+router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
+  try {
+    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, instructorId } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Course name is required" });
@@ -119,11 +277,14 @@ router.post("/", authenticateToken, async (req, res) => {
       { name: 'credits', value: credits, dataType: 'NUMBER' },
       { name: 'department', value: department, dataType: 'STRING' },
       { name: 'semester', value: semester, dataType: 'STRING' },
-      { name: 'courseType', value: type, dataType: 'STRING' },
+      { name: 'courseType', value: courseType, dataType: 'STRING' },
+      { name: 'capacity', value: capacity, dataType: 'NUMBER' },
+      { name: 'room', value: room, dataType: 'STRING' },
+      { name: 'schedule', value: schedule, dataType: 'STRING' },
     ];
 
     for (const attrData of attributeData) {
-      if (attrData.value) {
+      if (attrData.value !== undefined && attrData.value !== null && attrData.value !== '') {
         let attr = await prisma.attribute.findFirst({ 
           where: { name: attrData.name } 
         });
@@ -132,7 +293,7 @@ router.post("/", authenticateToken, async (req, res) => {
           attr = await prisma.attribute.create({
             data: {
               name: attrData.name,
-              displayName: attrData.name.charAt(0).toUpperCase() + attrData.name.slice(1),
+              displayName: attrData.name.charAt(0).toUpperCase() + attrData.name.slice(1).replace(/([A-Z])/g, ' $1'),
               entityTypes: JSON.stringify(['COURSE']),
               dataType: attrData.dataType as any,
               category: 'ACADEMIC',
@@ -145,12 +306,24 @@ router.post("/", authenticateToken, async (req, res) => {
             entityId: course.id,
             attributeId: attr.id,
             ...(attrData.dataType === 'NUMBER' 
-              ? { valueNumber: parseFloat(attrData.value) } 
-              : { valueString: attrData.value }
+              ? { valueNumber: parseFloat(String(attrData.value)) } 
+              : { valueString: String(attrData.value) }
             )
           }
         });
       }
+    }
+
+    // Assign instructor if provided
+    if (instructorId) {
+      await prisma.entityRelation.create({
+        data: {
+          fromEntityId: instructorId,
+          toEntityId: course.id,
+          relationType: 'TEACHES',
+          startDate: new Date()
+        }
+      });
     }
 
     res.status(201).json({ 
@@ -165,21 +338,107 @@ router.post("/", authenticateToken, async (req, res) => {
 });
 
 // UPDATE course
-router.put("/:id", authenticateToken, async (req, res) => {
+router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, description, isActive } = req.body;
+    const id = req.params.id as string;
+    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, instructorId } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Course ID is required" });
     }
 
+    // Update entity
     const course = await prisma.entity.update({
       where: { id },
-      data: { name, description, isActive }
+      data: { 
+        name: name || undefined, 
+        description: description || undefined, 
+        isActive: isActive !== undefined ? isActive : undefined 
+      }
     });
 
-    res.json(course);
+    // Update attribute values
+    const attributeData = [
+      { name: 'courseCode', value: code, dataType: 'STRING' },
+      { name: 'credits', value: credits, dataType: 'NUMBER' },
+      { name: 'department', value: department, dataType: 'STRING' },
+      { name: 'semester', value: semester, dataType: 'STRING' },
+      { name: 'courseType', value: courseType, dataType: 'STRING' },
+      { name: 'capacity', value: capacity, dataType: 'NUMBER' },
+      { name: 'room', value: room, dataType: 'STRING' },
+      { name: 'schedule', value: schedule, dataType: 'STRING' },
+    ];
+
+    for (const attrData of attributeData) {
+      if (attrData.value !== undefined) {
+        let attr = await prisma.attribute.findFirst({ 
+          where: { name: attrData.name } 
+        });
+        
+        if (!attr) {
+          attr = await prisma.attribute.create({
+            data: {
+              name: attrData.name,
+              displayName: attrData.name.charAt(0).toUpperCase() + attrData.name.slice(1).replace(/([A-Z])/g, ' $1'),
+              entityTypes: JSON.stringify(['COURSE']),
+              dataType: attrData.dataType as any,
+              category: 'ACADEMIC',
+            }
+          });
+        }
+
+        // Upsert value
+        await prisma.value.upsert({
+          where: {
+            entityId_attributeId: {
+              entityId: id,
+              attributeId: attr.id
+            }
+          },
+          update: {
+            ...(attrData.dataType === 'NUMBER' 
+              ? { valueNumber: attrData.value !== '' ? parseFloat(String(attrData.value)) : null, valueString: null } 
+              : { valueString: String(attrData.value), valueNumber: null }
+            )
+          },
+          create: {
+            entityId: id,
+            attributeId: attr.id,
+            ...(attrData.dataType === 'NUMBER' 
+              ? { valueNumber: parseFloat(String(attrData.value)) } 
+              : { valueString: String(attrData.value) }
+            )
+          }
+        });
+      }
+    }
+
+    // Update instructor assignment if provided
+    if (instructorId !== undefined) {
+      // Remove existing instructor
+      await prisma.entityRelation.updateMany({
+        where: {
+          toEntityId: id,
+          relationType: 'TEACHES',
+          isActive: true
+        },
+        data: { isActive: false, endDate: new Date() }
+      });
+
+      // Add new instructor if provided
+      if (instructorId) {
+        await prisma.entityRelation.create({
+          data: {
+            fromEntityId: instructorId,
+            toEntityId: id,
+            relationType: 'TEACHES',
+            startDate: new Date()
+          }
+        });
+      }
+    }
+
+    res.json({ ...course, message: "Course updated successfully" });
   } catch (error) {
     console.error("Update course error:", error);
     res.status(500).json({ error: "Failed to update course" });
@@ -187,9 +446,9 @@ router.put("/:id", authenticateToken, async (req, res) => {
 });
 
 // DELETE course
-router.delete("/:id", authenticateToken, async (req, res) => {
+router.delete("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       return res.status(400).json({ error: "Course ID is required" });
@@ -208,6 +467,115 @@ router.delete("/:id", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Delete course error:", error);
     res.status(500).json({ error: "Failed to delete course" });
+  }
+});
+
+// ENROLL student in course
+router.post("/:id/enroll", authenticateToken, requireAdminOrStaff, async (req, res) => {
+  try {
+    const courseId = req.params.id as string;
+    const { studentId } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ error: "Student ID is required" });
+    }
+
+    // Check if already enrolled
+    const existing = await prisma.entityRelation.findFirst({
+      where: {
+        fromEntityId: studentId,
+        toEntityId: courseId,
+        relationType: 'ENROLLED_IN',
+        isActive: true
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: "Student is already enrolled in this course" });
+    }
+
+    const enrollment = await prisma.entityRelation.create({
+      data: {
+        fromEntityId: studentId,
+        toEntityId: courseId,
+        relationType: 'ENROLLED_IN',
+        startDate: new Date(),
+        metadata: JSON.stringify({ enrolledAt: new Date().toISOString() })
+      }
+    });
+
+    res.status(201).json({ message: "Student enrolled successfully", enrollmentId: enrollment.id });
+  } catch (error) {
+    console.error("Enroll student error:", error);
+    res.status(500).json({ error: "Failed to enroll student" });
+  }
+});
+
+// UNENROLL student from course
+router.delete("/:id/unenroll/:studentId", authenticateToken, requireAdminOrStaff, async (req, res) => {
+  try {
+    const courseId = req.params.id as string;
+    const studentId = req.params.studentId as string;
+
+    const result = await prisma.entityRelation.updateMany({
+      where: {
+        fromEntityId: studentId,
+        toEntityId: courseId,
+        relationType: 'ENROLLED_IN',
+        isActive: true
+      },
+      data: { isActive: false, endDate: new Date() }
+    });
+
+    if (result.count === 0) {
+      return res.status(404).json({ error: "Enrollment not found" });
+    }
+
+    res.json({ message: "Student unenrolled successfully" });
+  } catch (error) {
+    console.error("Unenroll student error:", error);
+    res.status(500).json({ error: "Failed to unenroll student" });
+  }
+});
+
+// GET course statistics
+router.get("/stats/overview", authenticateToken, async (req, res) => {
+  try {
+    const totalCourses = await prisma.entity.count({ where: { type: 'COURSE' } });
+    const activeCourses = await prisma.entity.count({ where: { type: 'COURSE', isActive: true } });
+    const totalEnrollments = await prisma.entityRelation.count({ 
+      where: { relationType: 'ENROLLED_IN', isActive: true } 
+    });
+    const totalInstructors = await prisma.entityRelation.count({
+      where: { relationType: 'TEACHES', isActive: true }
+    });
+
+    // Get departments (unique values)
+    const courses = await prisma.entity.findMany({
+      where: { type: 'COURSE' },
+      include: {
+        values: {
+          where: { attribute: { name: 'department' } },
+          include: { attribute: true }
+        }
+      }
+    });
+
+    const departments = new Set(
+      courses.flatMap((c: any) => c.values.map((v: any) => v.valueString).filter(Boolean))
+    );
+
+    res.json({
+      totalCourses,
+      activeCourses,
+      inactiveCourses: totalCourses - activeCourses,
+      totalEnrollments,
+      totalInstructors,
+      departmentCount: departments.size
+    });
+  } catch (error) {
+    console.error("Get course stats error:", error);
+    res.status(500).json({ error: "Failed to fetch course statistics" });
   }
 });
 
