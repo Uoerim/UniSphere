@@ -9,6 +9,7 @@ interface Course {
   students: number;
   schedule: string;
   room: string;
+  registeredStudents: Student[];
 }
 
 interface Task {
@@ -45,10 +46,24 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     // Mock data - in production, fetch from API
+    // Example students for each course
+    const cs101Students: Student[] = [
+      { id: '1', name: 'John Smith', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
+      { id: '3', name: 'Michael Brown', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
+      { id: '5', name: 'Anna Lee', course: 'CS101', lastSubmission: 'Quiz 2', grade: 'B' },
+    ];
+    const cs201Students: Student[] = [
+      { id: '2', name: 'Emily Chen', course: 'CS201', lastSubmission: 'Assignment 5', grade: 'A' },
+      { id: '6', name: 'David Kim', course: 'CS201', lastSubmission: 'Assignment 4', grade: 'A-' },
+    ];
+    const cs301Students: Student[] = [
+      { id: '4', name: 'Sarah Davis', course: 'CS301', lastSubmission: 'Lab Report', grade: 'B+' },
+      { id: '7', name: 'Liam Patel', course: 'CS301', lastSubmission: 'Lab 2', grade: 'A' },
+    ];
     setCourses([
-      { id: '1', name: 'Introduction to Programming', code: 'CS101', students: 45, schedule: 'Mon/Wed 10:00 AM', room: 'Lab 102' },
-      { id: '2', name: 'Data Structures', code: 'CS201', students: 38, schedule: 'Tue/Thu 2:00 PM', room: 'Room 305' },
-      { id: '3', name: 'Web Development', code: 'CS301', students: 32, schedule: 'Mon/Wed 2:00 PM', room: 'Lab 104' },
+      { id: '1', name: 'Introduction to Programming', code: 'CS101', students: cs101Students.length, schedule: 'Mon/Wed 10:00 AM', room: 'Lab 102', registeredStudents: cs101Students },
+      { id: '2', name: 'Data Structures', code: 'CS201', students: cs201Students.length, schedule: 'Tue/Thu 2:00 PM', room: 'Room 305', registeredStudents: cs201Students },
+      { id: '3', name: 'Web Development', code: 'CS301', students: cs301Students.length, schedule: 'Mon/Wed 2:00 PM', room: 'Lab 104', registeredStudents: cs301Students },
     ]);
 
     setTasks([
@@ -191,6 +206,20 @@ export default function StaffDashboard() {
                   <button className={styles.smallBtn}>View Class</button>
                   <button className={styles.smallBtn}>Grades</button>
                   <button className={styles.smallBtn}>Materials</button>
+                </div>
+                {/* Registered Students for this course */}
+                <div className={styles.registeredStudentsSection}>
+                  <div className={styles.registeredStudentsHeader}>
+                    <span className={styles.registeredStudentsIcon} aria-label="students">👥</span>
+                    <span className={styles.registeredStudentsTitle}>Registered Students</span>
+                  </div>
+                  <ul className={styles.registeredStudentsList}>
+                    {course.registeredStudents.map(student => (
+                      <li key={student.id} className={styles.registeredStudentItem}>
+                        <span className={styles.registeredStudentName}>{student.name}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             ))}
