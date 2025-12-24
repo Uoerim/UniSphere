@@ -100,9 +100,7 @@ export default function Classrooms() {
           <h1 className={styles.pageTitle}>Classrooms & Facilities</h1>
           <p className={styles.pageSubtitle}>Manage classrooms, laboratories, and other university facilities</p>
         </div>
-        <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setIsModalOpen(true)}>
-          + Add Classroom
-        </button>
+        {/* Removed Add Classroom button */}
       </div>
 
       {/* Stats */}
@@ -146,9 +144,7 @@ export default function Classrooms() {
             <div className={styles.emptyIcon}>🏫</div>
             <div className={styles.emptyTitle}>No Classrooms</div>
             <div className={styles.emptyText}>Add your first classroom to get started</div>
-            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setIsModalOpen(true)}>
-              Add Classroom
-            </button>
+            {/* Removed Add Classroom button in empty state */}
           </div>
         </div>
       ) : (
@@ -181,88 +177,7 @@ export default function Classrooms() {
       )}
 
       {/* Add Classroom Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Add New Classroom"
-        footer={
-          <>
-            <button className={`${modalStyles.btn} ${modalStyles.secondary}`} onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-            <button 
-              className={`${modalStyles.btn} ${modalStyles.primary}`} 
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating...' : 'Create Classroom'}
-            </button>
-          </>
-        }
-      >
-        <form onSubmit={handleSubmit}>
-          <div className={modalStyles.formGroup}>
-            <label>Room Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Room 101"
-              required
-            />
-          </div>
-          <div className={modalStyles.formGroup}>
-            <label>Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Room description..."
-            />
-          </div>
-          <div className={modalStyles.formRow}>
-            <div className={modalStyles.formGroup}>
-              <label>Capacity</label>
-              <input
-                type="number"
-                value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                placeholder="30"
-              />
-            </div>
-            <div className={modalStyles.formGroup}>
-              <label>Room Type</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              >
-                {roomTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className={modalStyles.formRow}>
-            <div className={modalStyles.formGroup}>
-              <label>Building</label>
-              <input
-                type="text"
-                value={formData.building}
-                onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                placeholder="Main Building"
-              />
-            </div>
-            <div className={modalStyles.formGroup}>
-              <label>Floor</label>
-              <input
-                type="text"
-                value={formData.floor}
-                onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                placeholder="1"
-              />
-            </div>
-          </div>
-        </form>
-      </Modal>
+      {/* Removed Add Classroom Modal */}
     </div>
   );
 }
