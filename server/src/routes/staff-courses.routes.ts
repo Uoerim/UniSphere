@@ -58,7 +58,7 @@ const requireAdminOrStaff = (req: Request, res: Response, next: NextFunction) =>
  */
 staffCoursesRouter.get("/:staffId", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { staffId } = req.params;
+    const staffId = req.params.staffId as string;
 
     // Find staff entity
     const staffEntity = await prisma.entity.findFirst({
@@ -91,10 +91,10 @@ staffCoursesRouter.get("/:staffId", authenticateToken, requireAdminOrStaff, asyn
     });
 
     // Normalize course data
-    const courses = courseRelations.map(relation => {
+    const courses = courseRelations.map((relation: any) => {
       const course = relation.toEntity;
       const values = Object.fromEntries(
-        course.values.map(v => [
+        course.values.map((v: any) => [
           v.attribute.name,
           v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText
         ])
@@ -123,7 +123,7 @@ staffCoursesRouter.get("/:staffId", authenticateToken, requireAdminOrStaff, asyn
  */
 staffCoursesRouter.post("/:staffId/assign", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { staffId } = req.params;
+    const staffId = req.params.staffId as string;
     const { courseId, semester, year, schedule } = req.body;
 
     if (!courseId) {
@@ -189,7 +189,8 @@ staffCoursesRouter.post("/:staffId/assign", authenticateToken, requireAdminOrSta
  */
 staffCoursesRouter.delete("/:staffId/unassign/:courseId", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { staffId, courseId } = req.params;
+    const staffId = req.params.staffId as string;
+    const courseId = req.params.courseId as string;
 
     // Find and deactivate the relation
     const relation = await prisma.entityRelation.updateMany({
@@ -222,7 +223,7 @@ staffCoursesRouter.delete("/:staffId/unassign/:courseId", authenticateToken, req
  */
 staffCoursesRouter.get("/:staffId/students", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { staffId } = req.params;
+    const staffId = req.params.staffId as string;
 
     // Get all courses taught by this staff member
     const courseRelations = await prisma.entityRelation.findMany({
@@ -233,7 +234,7 @@ staffCoursesRouter.get("/:staffId/students", authenticateToken, requireAdminOrSt
       }
     });
 
-    const courseIds = courseRelations.map(r => r.toEntityId);
+    const courseIds = courseRelations.map((r: any) => r.toEntityId);
 
     if (courseIds.length === 0) {
       return res.json([]);
@@ -265,19 +266,19 @@ staffCoursesRouter.get("/:staffId/students", authenticateToken, requireAdminOrSt
     });
 
     // Normalize student data
-    const students = studentRelations.map(relation => {
+    const students = studentRelations.map((relation: any) => {
       const student = relation.fromEntity;
       const course = relation.toEntity;
 
       const studentValues = Object.fromEntries(
-        student.values.map(v => [
+        student.values.map((v: any) => [
           v.attribute.name,
           v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText
         ])
       );
 
       const courseValues = Object.fromEntries(
-        course.values.map(v => [
+        course.values.map((v: any) => [
           v.attribute.name,
           v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText
         ])
@@ -309,7 +310,7 @@ staffCoursesRouter.get("/:staffId/students", authenticateToken, requireAdminOrSt
  */
 staffCoursesRouter.get("/:staffId/schedule", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { staffId } = req.params;
+    const staffId = req.params.staffId as string;
 
     // Get all courses taught by this staff member with schedule info
     const courseRelations = await prisma.entityRelation.findMany({
@@ -330,10 +331,10 @@ staffCoursesRouter.get("/:staffId/schedule", authenticateToken, requireAdminOrSt
     });
 
     // Build schedule from course data
-    const schedule = courseRelations.map(relation => {
+    const schedule = courseRelations.map((relation: any) => {
       const course = relation.toEntity;
       const values = Object.fromEntries(
-        course.values.map(v => [
+        course.values.map((v: any) => [
           v.attribute.name,
           v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText
         ])
@@ -364,7 +365,7 @@ staffCoursesRouter.get("/:staffId/schedule", authenticateToken, requireAdminOrSt
  */
 staffCoursesRouter.get("/:staffId/performance", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { staffId } = req.params;
+    const staffId = req.params.staffId as string;
 
     // Get courses taught
     const courseRelations = await prisma.entityRelation.findMany({
@@ -375,7 +376,7 @@ staffCoursesRouter.get("/:staffId/performance", authenticateToken, requireAdminO
       }
     });
 
-    const courseIds = courseRelations.map(r => r.toEntityId);
+    const courseIds = courseRelations.map((r: any) => r.toEntityId);
 
     // Get student count
     const studentCount = await prisma.entityRelation.count({
