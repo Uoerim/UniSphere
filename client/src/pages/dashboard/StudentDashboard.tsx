@@ -1,3 +1,23 @@
+// Helper to format schedule JSON to readable string
+function formatSchedule(schedule: string | undefined): string {
+  if (!schedule) return 'TBD';
+  try {
+    const arr = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+    if (Array.isArray(arr)) {
+      return arr.map((item: any) => {
+        const days = Array.isArray(item.days) ? item.days.map((d: string) => dayName(d)).join(', ') : '';
+        return `${days}${item.startTime && item.endTime ? `, ${item.startTime}–${item.endTime}` : ''}`;
+      }).join(' | ');
+    }
+  } catch {}
+  return schedule;
+}
+
+// Helper to convert short day to full name
+function dayName(short: string): string {
+  const map: Record<string, string> = { Su: 'Sunday', Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday' };
+  return map[short] || short;
+}
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -184,6 +204,7 @@ export default function StudentDashboard() {
       </div>
 
       <div className={styles.mainGrid}>
+
         {/* My Courses (enrolled) */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
@@ -200,7 +221,7 @@ export default function StudentDashboard() {
                     <div className={styles.courseName}>{course.name}</div>
                     <div className={styles.courseDetails}>
                       <span>👨‍🏫 {course.instructor?.name || course.instructor || 'N/A'}</span>
-                      <span>🕐 {course.schedule || 'N/A'}</span>
+                      <span>🕐 {formatSchedule(course.schedule)}</span>
                     </div>
                   </div>
                 </div>
@@ -209,45 +230,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* All Courses (available for registration) */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2>📝 Register for Courses</h2>
-          </div>
-          <div className={styles.courseList}>
-            {loading ? (
-              <div>Loading courses...</div>
-            ) : error ? (
-              <div style={{ color: 'red' }}>{error}</div>
-            ) : (
-              allCourses.length === 0 ? (
-                <div>No courses available.</div>
-              ) : (
-                allCourses.map(course => (
-                  <div key={course.id} className={styles.courseItem}>
-                    <div className={styles.courseInfo}>
-                      <div className={styles.courseCode}>{course.code}</div>
-                      <div className={styles.courseName}>{course.name}</div>
-                      <div className={styles.courseDetails}>
-                        <span>👨‍🏫 {course.instructor?.name || course.instructor || 'N/A'}</span>
-                        <span>🕐 {course.schedule || 'N/A'}</span>
-                      </div>
-                    </div>
-                    <div>
-                      {isEnrolled(course.id) ? (
-                        <span style={{ color: 'green' }}>Enrolled</span>
-                      ) : (
-                        <button onClick={() => handleRegister(course.id)} style={{ marginLeft: 8 }}>
-                          Register
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )
-            )}
-          </div>
-        </div>
+
 
         {/* Upcoming Assignments */}
         <div className={styles.card}>
@@ -275,33 +258,36 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Today's Schedule */}
+        {/* Today's Schedule - from enrolled courses */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📅 Today's Schedule</h2>
+            <h2>📅 Schedule</h2>
           </div>
           <div className={styles.scheduleList}>
-            <div className={styles.scheduleItem}>
-              <div className={styles.scheduleTime}>9:00 AM</div>
-              <div className={styles.scheduleContent}>
-                <div className={styles.scheduleTitle}>Physics Fundamentals</div>
-                <div className={styles.scheduleLocation}>📍 Room 201, Science Building</div>
-              </div>
-            </div>
-            <div className={styles.scheduleItem}>
-              <div className={styles.scheduleTime}>10:00 AM</div>
-              <div className={styles.scheduleContent}>
-                <div className={styles.scheduleTitle}>Introduction to Programming</div>
-                <div className={styles.scheduleLocation}>📍 Lab 102, Computer Center</div>
-              </div>
-            </div>
-            <div className={styles.scheduleItem}>
-              <div className={styles.scheduleTime}>2:00 PM</div>
-              <div className={styles.scheduleContent}>
-                <div className={styles.scheduleTitle}>Study Group - Calculus</div>
-                <div className={styles.scheduleLocation}>📍 Library, Floor 2</div>
-              </div>
-            </div>
+            {enrolledCourses.length === 0 ? (
+              <div>No enrolled courses with schedule.</div>
+            ) : (
+              enrolledCourses
+                .filter(course => !!course.schedule)
+                .map((course, idx, arr) => {
+                  // Check for schedule conflicts
+                  const conflicts = arr.filter((c, i) => i !== idx && c.schedule === course.schedule);
+                  return (
+                    <div key={course.id} className={styles.scheduleItem}>
+                      <div className={styles.scheduleTime}>{formatSchedule(course.schedule)}</div>
+                      <div className={styles.scheduleContent}>
+                        <div className={styles.scheduleTitle}>{course.name}</div>
+                        <div className={styles.scheduleLocation}>📍 {course.room || 'TBD'}</div>
+                        {conflicts.length > 0 && (
+                          <div style={{ color: 'orange', fontWeight: 'bold', marginTop: 4 }}>
+                            ⚠️ Schedule conflict with: {conflicts.map(c => c.name).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+            )}
           </div>
         </div>
 
