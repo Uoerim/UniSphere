@@ -8,6 +8,7 @@ import Students from './pages/students/Students';
 import Courses from './pages/courses/Courses';
 import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
+import StaffManagement from './pages/staff/StaffManagement';
 import Classrooms from './pages/classrooms/Classrooms';
 import Curriculum from './pages/curriculum/Curriculum';
 import Announcements from './pages/announcements/Announcements';
@@ -32,7 +33,8 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<Users />} />
             <Route path="students" element={<Students />} />
-            <Route path="staff" element={<Staff />} />
+            <Route path="staff" element={<StaffManagement />} />
+            <Route path="staff-old" element={<Staff />} />
             <Route path="courses" element={<Courses />} />
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="curriculum" element={<Curriculum />} />
