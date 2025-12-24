@@ -12,27 +12,26 @@ export default function DashboardLayout() {
     ];
 
     const adminNav = [
-      { name: 'Users', path: '/users', icon: '👥' },
-      { name: 'Staff', path: '/staff', icon: '👨‍🏫' },
-      { name: 'Students', path: '/students', icon: '🎓' },
+      { name: 'ADMIN: Users', path: '/users', icon: '👥' },
+      { name: 'ADMIN: Staff', path: '/staff', icon: '👨‍🏫' },
+      { name: 'ADMIN: Students', path: '/students', icon: '🎓' },
+      { name: 'ADMIN: Parents', path: '/parents', icon: '👨‍👩‍👧' },
     ];
 
     const academicNav = [
       { name: 'Courses', path: '/courses', icon: '📚' },
-      { name: 'Curriculum', path: '/curriculum', icon: '📋' },
+      { name: 'Departments', path: '/departments', icon: '🏛️' },
       { name: 'Assessments', path: '/assessments', icon: '📝' },
+      { name: 'Assignments', path: '/assignments', icon: '📋' },
     ];
 
     const facilitiesNav = [
-      { name: 'Classrooms', path: '/classrooms', icon: '🏫' },
-      { name: 'Resources', path: '/resources', icon: '🔧' },
-      { name: 'Schedule', path: '/schedule', icon: '📅' },
+      { name: 'Facilities', path: '/facilities', icon: '🏫' },
     ];
 
     const communityNav = [
       { name: 'Announcements', path: '/announcements', icon: '📢' },
       { name: 'Events', path: '/events', icon: '🎉' },
-      { name: 'Messages', path: '/messages', icon: '💬' },
     ];
 
     const settingsNav = [
@@ -52,20 +51,19 @@ export default function DashboardLayout() {
       case 'STAFF':
         return [
           { title: 'Main', items: mainNav },
-          // Only show Students under Administration for staff, not Staff management
-          { title: 'Administration', items: [adminNav[2]] },
           { title: 'Academic', items: academicNav },
           { title: 'Facilities', items: facilitiesNav },
-          { title: 'Community', items: [communityNav[0], communityNav[2]] }, // Announcements, Messages only
+          { title: 'Community', items: communityNav },
         ];
       case 'STUDENT':
         return [
           { title: 'Main', items: mainNav },
           { title: 'Academic', items: [
             { name: 'My Courses', path: '/courses', icon: '📚' },
-            { name: 'Grades', path: '/grades', icon: '📊' },
+            { name: 'My Assignments', path: '/assignments', icon: '📋' },
+            { name: 'My Assessments', path: '/assessments', icon: '📝' },
           ]},
-          { title: 'Community', items: [communityNav[0], communityNav[1]] },
+          { title: 'Community', items: communityNav },
         ];
       case 'PARENT':
         return [
@@ -75,10 +73,7 @@ export default function DashboardLayout() {
             { name: 'Attendance', path: '/attendance', icon: '✅' },
             { name: 'Grades', path: '/grades', icon: '📊' },
           ]},
-          { title: 'Communication', items: [
-            { name: 'Messages', path: '/messages', icon: '💬' },
-            { name: 'Announcements', path: '/announcements', icon: '📢' },
-          ]},
+          { title: 'Communication', items: communityNav },
         ];
       default:
         return [{ title: 'Main', items: mainNav }];
@@ -134,9 +129,8 @@ export default function DashboardLayout() {
       <div className={styles.mainWrapper}>
         {/* Top Header */}
         <header className={styles.topHeader}>
-          <div className={styles.searchBar}>
-            <span className={styles.searchIcon}>🔍</span>
-            <input type="text" placeholder="Search..." />
+          <div className={styles.headerLeft}>
+            <span className={styles.welcomeText}>Welcome back, {user?.email?.split('@')[0]}!</span>
           </div>
           
           <div className={styles.headerRight}>

@@ -1,7 +1,38 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './StaffManagement.module.css';
+import api from '../../lib/api';
+
+// Country codes for phone picker
+const COUNTRY_CODES = [
+  { code: '+1', country: 'US' },
+  { code: '+44', country: 'UK' },
+  { code: '+20', country: 'EG' },
+  { code: '+966', country: 'SA' },
+  { code: '+971', country: 'AE' },
+  { code: '+974', country: 'QA' },
+  { code: '+965', country: 'KW' },
+  { code: '+973', country: 'BH' },
+  { code: '+968', country: 'OM' },
+  { code: '+962', country: 'JO' },
+  { code: '+961', country: 'LB' },
+  { code: '+91', country: 'IN' },
+  { code: '+86', country: 'CN' },
+  { code: '+81', country: 'JP' },
+  { code: '+82', country: 'KR' },
+  { code: '+49', country: 'DE' },
+  { code: '+33', country: 'FR' },
+  { code: '+39', country: 'IT' },
+  { code: '+34', country: 'ES' },
+  { code: '+31', country: 'NL' },
+];
 
 // Types
+interface Department {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface StaffMember {
   id: string;
   email: string;
@@ -13,8 +44,10 @@ interface StaffMember {
   firstName?: string;
   lastName?: string;
   department?: string;
+  departmentId?: string;
   position?: string;
   phone?: string;
+  phoneCountry?: string;
   office?: string;
   hireDate?: string;
 }
@@ -45,6 +78,7 @@ type SortDirection = 'asc' | 'desc';
 export default function StaffManagement() {
   // Staff list state
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [departmentsList, setDepartmentsList] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [, setError] = useState('');
 
@@ -73,8 +107,10 @@ export default function StaffManagement() {
     lastName: '',
     email: '',
     department: '',
+    departmentId: '',
     position: '',
     phone: '',
+    phoneCountry: '+1',
     office: '',
   });
   const [formError, setFormError] = useState('');
@@ -82,7 +118,17 @@ export default function StaffManagement() {
 
   useEffect(() => {
     fetchStaffList();
+    fetchDepartments();
   }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await api.get('/departments');
+      setDepartmentsList(res.data);
+    } catch (err) {
+      console.error('Failed to fetch departments:', err);
+    }
+  };
 
   useEffect(() => {
     if (selectedStaff) {
@@ -301,10 +347,13 @@ export default function StaffManagement() {
   };
 
   const handleUpdateStaff = async () => {
-    if (!selectedStaff?.entityId) {
-      setFormError('No staff entity to update');
+    if (!selectedStaff) {
+      setFormError('No staff selected');
       return;
     }
+
+    // Use entityId if available, otherwise use account id
+    const updateId = selectedStaff.entityId || selectedStaff.id;
 
     setIsSubmitting(true);
     setFormError('');
@@ -312,7 +361,7 @@ export default function StaffManagement() {
     try {
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:4000/api/staff/${selectedStaff.entityId}`, {
+      const response = await fetch(`http://localhost:4000/api/staff/${updateId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -320,6 +369,7 @@ export default function StaffManagement() {
         },
         body: JSON.stringify({
           attributes: {
+            email: selectedStaff.email,
             firstName: formData.firstName,
             lastName: formData.lastName,
             department: formData.department,
@@ -334,13 +384,17 @@ export default function StaffManagement() {
         throw new Error('Failed to update staff profile');
       }
 
+      // Get the entityId from response if created
+      const result = await response.json();
+
       await fetchStaffList();
       setShowEditModal(false);
       
-      // Update selected staff
+      // Update selected staff with new data and entityId
       setSelectedStaff(prev => prev ? {
         ...prev,
         ...formData,
+        entityId: result.entityId || prev.entityId,
       } : null);
     } catch (err: any) {
       setFormError(err.message);
@@ -379,8 +433,10 @@ export default function StaffManagement() {
         lastName: selectedStaff.lastName || '',
         email: selectedStaff.email,
         department: selectedStaff.department || '',
+        departmentId: selectedStaff.departmentId || '',
         position: selectedStaff.position || '',
         phone: selectedStaff.phone || '',
+        phoneCountry: selectedStaff.phoneCountry || '+1',
         office: selectedStaff.office || '',
       });
       setShowEditModal(true);
@@ -393,8 +449,10 @@ export default function StaffManagement() {
       lastName: '',
       email: '',
       department: '',
+      departmentId: '',
       position: '',
       phone: '',
+      phoneCountry: '+1',
       office: '',
     });
     setFormError('');
@@ -890,18 +948,20 @@ export default function StaffManagement() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                    value={formData.departmentId}
+                    onChange={(e) => {
+                      const dept = departmentsList.find(d => d.id === e.target.value);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        departmentId: e.target.value,
+                        department: dept?.name || ''
+                      }));
+                    }}
                   >
                     <option value="">Select Department</option>
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Biology">Biology</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="Business">Business</option>
-                    <option value="Arts">Arts</option>
+                    {departmentsList.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -917,6 +977,7 @@ export default function StaffManagement() {
                     <option value="Lecturer">Lecturer</option>
                     <option value="Teaching Assistant">Teaching Assistant</option>
                     <option value="Lab Instructor">Lab Instructor</option>
+                    <option value="Advisor">Advisor</option>
                   </select>
                 </div>
               </div>
@@ -924,12 +985,24 @@ export default function StaffManagement() {
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+1 (555) 123-4567"
-                  />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <select
+                      value={formData.phoneCountry}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
+                      style={{ width: '110px', flexShrink: 0 }}
+                    >
+                      {COUNTRY_CODES.map(cc => (
+                        <option key={cc.code} value={cc.code}>{cc.code} ({cc.country})</option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="Phone number"
+                      style={{ flex: 1 }}
+                    />
+                  </div>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Office</label>
@@ -995,18 +1068,20 @@ export default function StaffManagement() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                    value={formData.departmentId}
+                    onChange={(e) => {
+                      const dept = departmentsList.find(d => d.id === e.target.value);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        departmentId: e.target.value,
+                        department: dept?.name || ''
+                      }));
+                    }}
                   >
                     <option value="">Select Department</option>
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Biology">Biology</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="Business">Business</option>
-                    <option value="Arts">Arts</option>
+                    {departmentsList.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -1022,6 +1097,7 @@ export default function StaffManagement() {
                     <option value="Lecturer">Lecturer</option>
                     <option value="Teaching Assistant">Teaching Assistant</option>
                     <option value="Lab Instructor">Lab Instructor</option>
+                    <option value="Advisor">Advisor</option>
                   </select>
                 </div>
               </div>
@@ -1029,11 +1105,24 @@ export default function StaffManagement() {
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <select
+                      value={formData.phoneCountry}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
+                      style={{ width: '110px', flexShrink: 0 }}
+                    >
+                      {COUNTRY_CODES.map(cc => (
+                        <option key={cc.code} value={cc.code}>{cc.code} ({cc.country})</option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="Phone number"
+                      style={{ flex: 1 }}
+                    />
+                  </div>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Office</label>

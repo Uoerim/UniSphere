@@ -1,0 +1,176 @@
+.schedulePickerContainer {
+  border: 1px solid var(--border-color, #e1e5eb);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--bg-tertiary, #f8f9fa);
+}
+
+.schedulePickerLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #1a1f36);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.scheduleSlots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scheduleSlot {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-primary, #ffffff);
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e1e5eb);
+}
+
+.daySelector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dayButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color, #e1e5eb);
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-secondary, #697386);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dayButton:hover {
+  border-color: var(--primary-color, #7c3aed);
+  color: var(--primary-color, #7c3aed);
+}
+
+.dayButton.selected {
+  background: var(--primary-color, #7c3aed);
+  border-color: var(--primary-color, #7c3aed);
+  color: white;
+}
+
+.timeInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeInput label {
+  font-size: 12px;
+  color: var(--text-secondary, #697386);
+  white-space: nowrap;
+}
+
+.timeInput input {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color, #e1e5eb);
+  border-radius: 6px;
+  font-size: 14px;
+  width: 110px;
+  background: var(--bg-primary, #ffffff);
+}
+
+.timeInput input:focus {
+  outline: none;
+  border-color: var(--primary-color, #7c3aed);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+}
+
+.removeSlotBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: var(--danger-light, #fee2e2);
+  color: var(--danger-color, #dc2626);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.removeSlotBtn:hover {
+  background: var(--danger-color, #dc2626);
+  color: white;
+}
+
+.addSlotBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px dashed var(--border-color, #e1e5eb);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #697386);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.addSlotBtn:hover {
+  border-color: var(--primary-color, #7c3aed);
+  color: var(--primary-color, #7c3aed);
+  background: var(--primary-light, #f5f3ff);
+}
+
+.schedulePreview {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-primary, #ffffff);
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e1e5eb);
+}
+
+.schedulePreviewTitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #697386);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.schedulePreviewText {
+  font-size: 14px;
+  color: var(--text-primary, #1a1f36);
+  line-height: 1.6;
+}
+
+.schedulePreviewEmpty {
+  font-size: 13px;
+  color: var(--text-muted, #a3aed0);
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .scheduleSlot {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .daySelector {
+    justify-content: center;
+  }
+  
+  .timeInput {
+    justify-content: center;
+  }
+}
