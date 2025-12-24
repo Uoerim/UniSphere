@@ -17,5 +17,5 @@ COPY . .
 
 EXPOSE 4000
 
-# Generate Prisma Client and start server
-CMD npx prisma generate && npm run dev
+# Generate Prisma Client, run migrations, create admin (idempotent), and start server
+CMD npx prisma generate && npx prisma db push --accept-data-loss && npm run create-admin && npm run dev
