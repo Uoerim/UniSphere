@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
 
+// Types
 interface Course {
   id: string;
   name: string;
@@ -10,7 +12,6 @@ interface Course {
   schedule: string;
   room: string;
 }
-
 interface Task {
   id: string;
   title: string;
@@ -18,7 +19,6 @@ interface Task {
   dueDate: string;
   priority: 'high' | 'medium' | 'low';
 }
-
 interface Student {
   id: string;
   name: string;
@@ -26,7 +26,6 @@ interface Student {
   lastSubmission: string;
   grade: string;
 }
-
 interface Message {
   id: string;
   from: string;
@@ -44,36 +43,34 @@ export default function StaffDashboard() {
   const [messages, setMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    // Mock data - in production, fetch from API
+    // Mock data for demonstration
     setCourses([
-      { id: '1', name: 'Introduction to Programming', code: 'CS101', students: 45, schedule: 'Mon/Wed 10:00 AM', room: 'Lab 102' },
-      { id: '2', name: 'Data Structures', code: 'CS201', students: 38, schedule: 'Tue/Thu 2:00 PM', room: 'Room 305' },
-      { id: '3', name: 'Web Development', code: 'CS301', students: 32, schedule: 'Mon/Wed 2:00 PM', room: 'Lab 104' },
+      { id: '1', name: 'Intro to Programming', code: 'CS101', students: 45, schedule: 'Mon/Wed 10:00', room: 'Lab 102' },
+      { id: '2', name: 'Data Structures', code: 'CS201', students: 38, schedule: 'Tue/Thu 2:00', room: 'Room 305' },
+      { id: '3', name: 'Web Development', code: 'CS301', students: 32, schedule: 'Mon/Wed 2:00', room: 'Lab 104' },
     ]);
-
     setTasks([
-      { id: '1', title: 'Grade CS101 Final Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
+      { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
       { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
       { id: '3', title: 'Prepare Spring Syllabus', type: 'preparation', dueDate: '2025-12-30', priority: 'medium' },
       { id: '4', title: 'Submit Research Grant', type: 'admin', dueDate: '2026-01-05', priority: 'medium' },
       { id: '5', title: 'Review TA Applications', type: 'admin', dueDate: '2026-01-10', priority: 'low' },
     ]);
-
     setRecentStudents([
       { id: '1', name: 'John Smith', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
       { id: '2', name: 'Emily Chen', course: 'CS201', lastSubmission: 'Assignment 5', grade: 'A' },
       { id: '3', name: 'Michael Brown', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
       { id: '4', name: 'Sarah Davis', course: 'CS301', lastSubmission: 'Lab Report', grade: 'B+' },
     ]);
-
     setMessages([
-      { id: '1', from: 'Dean Wilson', subject: 'Spring Semester Planning', preview: 'Please review the attached...', time: '2h ago', unread: true },
-      { id: '2', from: 'Student - John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
-      { id: '3', from: 'HR Department', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
+      { id: '1', from: 'Dean Wilson', subject: 'Spring Planning', preview: 'Please review the attached...', time: '2h ago', unread: true },
+      { id: '2', from: 'John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
+      { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
     ]);
   }, []);
 
-  const getPriorityColor = (priority: string) => {
+  // Helpers
+  const getPriorityColor = (priority: Task['priority']) => {
     switch (priority) {
       case 'high': return styles.danger;
       case 'medium': return styles.warning;
@@ -81,8 +78,7 @@ export default function StaffDashboard() {
       default: return '';
     }
   };
-
-  const getTaskIcon = (type: string) => {
+  const getTaskIcon = (type: Task['type']) => {
     switch (type) {
       case 'grading': return '📝';
       case 'meeting': return '👥';
@@ -92,9 +88,9 @@ export default function StaffDashboard() {
     }
   };
 
-  const totalStudents = courses.reduce((sum, c) => sum + c.students, 0);
-  const pendingGrading = recentStudents.filter(s => s.grade === 'Pending').length;
-  const unreadMessages = messages.filter(m => m.unread).length;
+  const totalStudents = courses.reduce((sum: number, c: Course) => sum + c.students, 0);
+  const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Pending').length;
+  const unreadMessages = messages.filter((m: Message) => m.unread).length;
 
   return (
     <div className={styles.container}>
@@ -102,7 +98,7 @@ export default function StaffDashboard() {
       <div className={`${styles.welcomeBanner} ${styles.staffBanner}`}>
         <div className={styles.welcomeContent}>
           <h1>Welcome, {user?.email?.split('@')[0] || 'Professor'}! 👨‍🏫</h1>
-          <p>You have {tasks.filter(t => t.priority === 'high').length} high-priority tasks and {unreadMessages} unread messages.</p>
+          <p>You have {tasks.filter((t: Task) => t.priority === 'high').length} high-priority tasks and {unreadMessages} unread messages.</p>
         </div>
         <div className={styles.welcomeStats}>
           <div className={styles.welcomeStat}>
@@ -176,7 +172,7 @@ export default function StaffDashboard() {
             <button className={styles.viewAllBtn}>Manage Courses</button>
           </div>
           <div className={styles.courseList}>
-            {courses.map(course => (
+            {courses.map((course: Course) => (
               <div key={course.id} className={styles.staffCourseItem}>
                 <div className={styles.courseHeader}>
                   <span className={styles.courseCode}>{course.code}</span>
@@ -204,7 +200,7 @@ export default function StaffDashboard() {
             <button className={styles.viewAllBtn}>All Tasks</button>
           </div>
           <div className={styles.taskList}>
-            {tasks.map(task => (
+            {tasks.map((task: Task) => (
               <div key={task.id} className={styles.taskItem}>
                 <div className={styles.taskIcon}>{getTaskIcon(task.type)}</div>
                 <div className={styles.taskContent}>
@@ -226,10 +222,10 @@ export default function StaffDashboard() {
             <button className={styles.viewAllBtn}>View All</button>
           </div>
           <div className={styles.studentList}>
-            {recentStudents.map(student => (
+            {recentStudents.map((student: Student) => (
               <div key={student.id} className={styles.studentItem}>
                 <div className={styles.studentAvatar}>
-                  {student.name.split(' ').map(n => n[0]).join('')}
+                  {student.name.split(' ').map((n) => n[0]).join('')}
                 </div>
                 <div className={styles.studentInfo}>
                   <div className={styles.studentName}>{student.name}</div>
@@ -250,7 +246,7 @@ export default function StaffDashboard() {
             <button className={styles.viewAllBtn}>Inbox</button>
           </div>
           <div className={styles.messageList}>
-            {messages.map(message => (
+            {messages.map((message: Message) => (
               <div key={message.id} className={`${styles.messageItem} ${message.unread ? styles.unread : ''}`}>
                 <div className={styles.messageContent}>
                   <div className={styles.messageFrom}>{message.from}</div>
