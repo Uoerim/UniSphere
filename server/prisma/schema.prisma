@@ -6,6 +6,10 @@ datasource db {
   provider = "mysql"
 }
 
+// ============================================
+// ENUMERATIONS
+// ============================================
+
 enum Role {
   ADMIN
   STAFF
@@ -13,43 +17,188 @@ enum Role {
   FACULTY
 }
 
-model Account {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  role      Role
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum EntityType {
+  STUDENT
+  FACULTY
+  STAFF
+  COURSE
+  DEPARTMENT
+  BUILDING
+  ROOM
+  EVENT
+  ANNOUNCEMENT
+  ENROLLMENT
+  GRADE
+  ATTENDANCE
 }
 
+enum AttributeDataType {
+  STRING
+  NUMBER
+  BOOLEAN
+  DATE
+  DATETIME
+  TEXT
+  EMAIL
+  PHONE
+  URL
+}
+
+enum AttributeCategory {
+  PERSONAL
+  ACADEMIC
+  CONTACT
+  EMPLOYMENT
+  FACILITY
+  SCHEDULE
+  FINANCIAL
+  SYSTEM
+}
+
+// ============================================
+// AUTHENTICATION & AUTHORIZATION
+// ============================================
+
+model Account {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  role              Role
+  isActive          Boolean   @default(true)
+  mustChangePassword Boolean  @default(false)
+  lastLogin         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Link to Entity for extended profile data (EAV pattern)
+  entityId          String?   @unique
+  entity            Entity?   @relation(fields: [entityId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([role])
+  @@map("accounts")
+}
+
+// ============================================
+// EAV (Entity-Attribute-Value) PATTERN
+// ============================================
+
 model Entity {
-  id        String   @id @default(cuid())
-  type      String
-  createdAt DateTime @default(now())
-  values    Value[]
+  id          String     @id @default(cuid())
+  type        EntityType
+  name        String?    // Display name for the entity
+  description String?    @db.Text
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relationships
+  values      Value[]
+  account     Account?
+  
+  // Self-referential for hierarchical structures (e.g., Department -> SubDepartment)
+  parentId    String?
+  parent      Entity?   @relation("EntityHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Entity[]  @relation("EntityHierarchy")
+
+  // Many-to-many relationships between entities (e.g., Student enrolled in Course)
+  relationsFrom EntityRelation[] @relation("FromEntity")
+  relationsTo   EntityRelation[] @relation("ToEntity")
+
+  @@index([type])
+  @@index([parentId])
+  @@index([isActive])
+  @@map("entities")
 }
 
 model Attribute {
-  id       String @id @default(cuid())
-  name     String @unique
-  dataType String
-  values   Value[]
+  id          String            @id @default(cuid())
+  name        String            @unique
+  displayName String            // User-friendly name
+  description String?           @db.Text
+  dataType    AttributeDataType
+  category    AttributeCategory
+  isRequired  Boolean           @default(false)
+  isUnique    Boolean           @default(false)
+  isSearchable Boolean          @default(true)
+  
+  // Applicable entity types (JSON array of EntityType values)
+  entityTypes String            @db.Text // e.g., ["STUDENT", "FACULTY"]
+  
+  // Validation rules (JSON)
+  validationRules String?       @db.Text // e.g., {"min": 0, "max": 100, "pattern": "^[A-Z]"}
+  
+  // Default value
+  defaultValue String?
+  
+  // Display order for UI
+  displayOrder Int             @default(0)
+  
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relationships
+  values      Value[]
+
+  @@index([category])
+  @@index([dataType])
+  @@index([isActive])
+  @@map("attributes")
 }
 
 model Value {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   entityId    String
   attributeId String
 
-  valueString String?
-  valueNumber Float?
-  valueBool   Boolean?
-  valueDate   DateTime?
+  // Multi-type value storage (only one should be populated based on attribute.dataType)
+  valueString  String?   @db.VarChar(500)
+  valueNumber  Float?
+  valueBool    Boolean?
+  valueDate    DateTime? @db.Date
+  valueDateTime DateTime?
+  valueText    String?   @db.Text
 
-  entity    Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
-  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  entity      Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 
   @@unique([entityId, attributeId])
   @@index([entityId])
   @@index([attributeId])
+  @@map("values")
+}
+
+// ============================================
+// ENTITY RELATIONSHIPS (Many-to-Many with metadata)
+// ============================================
+
+model EntityRelation {
+  id            String    @id @default(cuid())
+  fromEntityId  String
+  toEntityId    String
+  relationType  String    // e.g., "ENROLLED_IN", "TEACHES", "BELONGS_TO", "LOCATED_IN"
+  
+  // Metadata about the relationship
+  metadata      String?   @db.Text // JSON field for additional data
+  
+  isActive      Boolean   @default(true)
+  startDate     DateTime?
+  endDate       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  fromEntity    Entity    @relation("FromEntity", fields: [fromEntityId], references: [id], onDelete: Cascade)
+  toEntity      Entity    @relation("ToEntity", fields: [toEntityId], references: [id], onDelete: Cascade)
+
+  @@unique([fromEntityId, toEntityId, relationType])
+  @@index([fromEntityId])
+  @@index([toEntityId])
+  @@index([relationType])
+  @@map("entity_relations")
 }

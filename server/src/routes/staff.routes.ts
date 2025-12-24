@@ -1,7 +1,17 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
+import type { AttributeDataType } from "@prisma/client";
 
 export const staffRouter = Router();
+
+// Helper function to map JS types to Prisma AttributeDataType enum
+function getAttributeDataType(value: any): AttributeDataType {
+  if (typeof value === "string") return "STRING";
+  if (typeof value === "number") return "NUMBER";
+  if (typeof value === "boolean") return "BOOLEAN";
+  if (value instanceof Date) return "DATE";
+  return "STRING";
+}
 
 /**
  * POST /api/staff
@@ -11,16 +21,22 @@ staffRouter.post("/", async (req, res) => {
   const attributes = req.body?.attributes ?? {};
 
   const entity = await prisma.entity.create({
-    data: { type: "staff" },
+    data: { type: "STAFF" },
   });
 
   for (const [name, raw] of Object.entries(attributes)) {
-    const dataType = typeof raw;
+    const dataType = getAttributeDataType(raw);
 
     const attr = await prisma.attribute.upsert({
       where: { name },
       update: {},
-      create: { name, dataType },
+      create: { 
+        name, 
+        displayName: name,
+        dataType,
+        category: "PERSONAL",
+        entityTypes: JSON.stringify(["STAFF"])
+      },
     });
 
     await prisma.value.upsert({
@@ -42,7 +58,7 @@ staffRouter.post("/", async (req, res) => {
 /** GET /api/staff */
 staffRouter.get("/", async (_req, res) => {
   const staff = await prisma.entity.findMany({
-    where: { type: "staff" },
+    where: { type: "STAFF" },
     include: { values: { include: { attribute: true } } },
   });
 
@@ -51,7 +67,7 @@ staffRouter.get("/", async (_req, res) => {
     ...Object.fromEntries(
       s.values.map((v) => [
         v.attribute.name,
-        v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate,
+        v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText,
       ])
     ),
   }));
@@ -65,7 +81,7 @@ staffRouter.get("/:id", async (req, res) => {
   const { id } = req.params;
 
   const staff = await prisma.entity.findFirst({
-    where: { id, type: "staff" },
+    where: { id, type: "STAFF" },
     include: { values: { include: { attribute: true } } },
   });
 
@@ -76,7 +92,7 @@ staffRouter.get("/:id", async (req, res) => {
     ...Object.fromEntries(
       staff.values.map((v) => [
         v.attribute.name,
-        v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate,
+        v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText,
       ])
     ),
   };
@@ -89,14 +105,20 @@ staffRouter.patch("/:id", async (req, res) => {
   const { id } = req.params;
   const attributes = req.body?.attributes ?? {};
 
-  const exists = await prisma.entity.findFirst({ where: { id, type: "staff" } });
+  const exists = await prisma.entity.findFirst({ where: { id, type: "STAFF" } });
   if (!exists) return res.status(404).json({ message: "Not found" });
 
   for (const [name, raw] of Object.entries(attributes)) {
     const attr = await prisma.attribute.upsert({
       where: { name },
       update: {},
-      create: { name, dataType: typeof raw },
+      create: { 
+        name, 
+        displayName: name,
+        dataType: getAttributeDataType(raw),
+        category: "PERSONAL",
+        entityTypes: JSON.stringify(["STAFF"])
+      },
     });
 
     await prisma.value.upsert({
@@ -125,9 +147,18 @@ function toValueCreate(v: any) {
   if (typeof v === "string") return { valueString: v };
   if (typeof v === "number") return { valueNumber: v };
   if (typeof v === "boolean") return { valueBool: v };
+  if (v instanceof Date) return { valueDate: v };
   return { valueString: String(v) };
 }
 
 function toValueUpdate(v: any) {
-  return { valueString: null, valueNumber: null, valueBool: null, valueDate: null, ...toValueCreate(v) };
+  return { 
+    valueString: null, 
+    valueNumber: null, 
+    valueBool: null, 
+    valueDate: null, 
+    valueDateTime: null,
+    valueText: null,
+    ...toValueCreate(v) 
+  };
 }

@@ -1,6 +1,8 @@
 services:
+  # MySQL Database
   mysql:
     image: mysql:8.0
+    container_name: unisphere-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ums
@@ -8,6 +10,55 @@ services:
       - "3306:3306"
     volumes:
       - ums_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - unisphere-network
+
+  # Backend Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: unisphere-server
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: "mysql://root:root@mysql:3306/ums?allowPublicKeyRetrieval=true&useSSL=false"
+      JWT_SECRET: "your-secret-key-change-in-production"
+      NODE_ENV: "development"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - unisphere-network
+
+  # Frontend Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: unisphere-client
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: "http://localhost:4000"
+    depends_on:
+      - server
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - unisphere-network
 
 volumes:
   ums_mysql:
+
+networks:
+  unisphere-network:
+    driver: bridge
