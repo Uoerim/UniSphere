@@ -31,7 +31,7 @@ interface Announcement {
   date: string;
   type: 'general' | 'course' | 'urgent';
 }
-
+export default function StudentDashboard() {
   const { user, token } = useAuth();
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
@@ -156,7 +156,7 @@ interface Announcement {
         <div className={styles.statCard}>
           <div className={`${styles.statIcon} ${styles.primary}`}>📖</div>
           <div className={styles.statInfo}>
-            <div className={styles.statValue}>{courses.length}</div>
+            <div className={styles.statValue}>{enrolledCourses.length}</div>
             <div className={styles.statTitle}>Enrolled Courses</div>
           </div>
         </div>
