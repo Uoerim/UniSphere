@@ -270,6 +270,17 @@ router.get("/", authenticateToken, async (req, res) => {
               }
             }
           }
+        },
+        // Prerequisites: this course requires these other courses
+        relationsFrom: {
+          where: { relationType: 'PREREQUISITE', isActive: true },
+          include: {
+            toEntity: {
+              include: {
+                values: { include: { attribute: true } }
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -302,6 +313,22 @@ router.get("/", authenticateToken, async (req, res) => {
       // Count enrolled students
       const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
 
+      // Get prerequisites
+      const prerequisites = course.relationsFrom
+        .filter((r: any) => r.relationType === 'PREREQUISITE')
+        .map((r: any) => {
+          const prereqCourse = r.toEntity;
+          const prereqAttrs: Record<string, any> = {};
+          prereqCourse.values.forEach((v: any) => {
+            prereqAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+          });
+          return {
+            id: prereqCourse.id,
+            name: prereqCourse.name,
+            code: prereqAttrs.courseCode || prereqAttrs.code
+          };
+        });
+
       return {
         id: course.id,
         name: course.name,
@@ -318,6 +345,7 @@ router.get("/", authenticateToken, async (req, res) => {
         schedule: attrs.schedule,
         instructor,
         enrolledStudents,
+        prerequisites,
         ...attrs
       };
     });
@@ -475,7 +503,7 @@ router.get("/instructors/available", authenticateToken, requireAdminOrStaff, asy
 // CREATE course
 router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, instructorId } = req.body;
+    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Course name is required" });
@@ -545,6 +573,20 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       });
     }
 
+    // Create prerequisite relations
+    if (prerequisiteIds && Array.isArray(prerequisiteIds) && prerequisiteIds.length > 0) {
+      for (const prereqId of prerequisiteIds) {
+        await prisma.entityRelation.create({
+          data: {
+            fromEntityId: course.id,
+            toEntityId: prereqId,
+            relationType: 'PREREQUISITE',
+            startDate: new Date()
+          }
+        });
+      }
+    }
+
     res.status(201).json({ 
       id: course.id, 
       name: course.name, 
@@ -560,7 +602,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
 router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
     const id = req.params.id as string;
-    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, instructorId } = req.body;
+    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Course ID is required" });
@@ -654,6 +696,33 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
             startDate: new Date()
           }
         });
+      }
+    }
+
+    // Update prerequisite relations if provided
+    if (prerequisiteIds !== undefined) {
+      // Remove existing prerequisites
+      await prisma.entityRelation.updateMany({
+        where: {
+          fromEntityId: id,
+          relationType: 'PREREQUISITE',
+          isActive: true
+        },
+        data: { isActive: false, endDate: new Date() }
+      });
+
+      // Add new prerequisites
+      if (Array.isArray(prerequisiteIds) && prerequisiteIds.length > 0) {
+        for (const prereqId of prerequisiteIds) {
+          await prisma.entityRelation.create({
+            data: {
+              fromEntityId: id,
+              toEntityId: prereqId,
+              relationType: 'PREREQUISITE',
+              startDate: new Date()
+            }
+          });
+        }
       }
     }
 

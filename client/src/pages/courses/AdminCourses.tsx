@@ -9,6 +9,12 @@ interface Instructor {
   accountId?: string;
 }
 
+interface PrerequisiteCourse {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 interface Course {
   id: string;
   name: string;
@@ -25,6 +31,7 @@ interface Course {
   createdAt: string;
   instructor?: Instructor | null;
   enrolledStudents: number;
+  prerequisites?: PrerequisiteCourse[];
 }
 
 interface CourseStats {
@@ -81,6 +88,7 @@ export default function AdminCourses() {
     room: '',
     schedule: '',
     instructorId: '',
+    prerequisiteIds: [] as string[],
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -214,6 +222,7 @@ export default function AdminCourses() {
       room: '',
       schedule: '',
       instructorId: '',
+      prerequisiteIds: [],
     });
     setFormError('');
   };
@@ -354,6 +363,7 @@ export default function AdminCourses() {
       room: course.room || '',
       schedule: course.schedule || '',
       instructorId: course.instructor?.id || '',
+      prerequisiteIds: course.prerequisites?.map(p => p.id) || [],
     });
     setFormError('');
     setShowEditModal(true);
@@ -559,6 +569,14 @@ export default function AdminCourses() {
                       {course.enrolledStudents} / {course.capacity || 30}
                     </span>
                   </div>
+                  {course.prerequisites && course.prerequisites.length > 0 && (
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>Prerequisites:</span>
+                      <span className={styles.detailValue}>
+                        {course.prerequisites.map(p => p.code || p.name).join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className={styles.cardActions}>
                   <button className={styles.viewBtn} onClick={() => openDetailsModal(course)}>
@@ -776,6 +794,28 @@ export default function AdminCourses() {
                     rows={3}
                   />
                 </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Prerequisites</label>
+                  <div className={styles.prerequisitesSelect}>
+                    {courses.filter(c => c.id !== selectedCourse?.id).map(course => (
+                      <label key={course.id} className={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={formData.prerequisiteIds.includes(course.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, prerequisiteIds: [...formData.prerequisiteIds, course.id] });
+                            } else {
+                              setFormData({ ...formData, prerequisiteIds: formData.prerequisiteIds.filter(id => id !== course.id) });
+                            }
+                          }}
+                        />
+                        <span>{course.code} - {course.name}</span>
+                      </label>
+                    ))}
+                    {courses.length === 0 && <span className={styles.noData}>No courses available</span>}
+                  </div>
+                </div>
               </div>
             </div>
             <div className={styles.modalFooter}>
@@ -915,6 +955,28 @@ export default function AdminCourses() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
                   />
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Prerequisites</label>
+                  <div className={styles.prerequisitesSelect}>
+                    {courses.filter(c => c.id !== selectedCourse?.id).map(course => (
+                      <label key={course.id} className={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={formData.prerequisiteIds.includes(course.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, prerequisiteIds: [...formData.prerequisiteIds, course.id] });
+                            } else {
+                              setFormData({ ...formData, prerequisiteIds: formData.prerequisiteIds.filter(id => id !== course.id) });
+                            }
+                          }}
+                        />
+                        <span>{course.code} - {course.name}</span>
+                      </label>
+                    ))}
+                    {courses.length <= 1 && <span className={styles.noData}>No other courses available</span>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1067,6 +1129,21 @@ export default function AdminCourses() {
                     <p className={styles.description}>{selectedCourse.description}</p>
                   </div>
                 )}
+
+                <div className={`${styles.detailsSection} ${styles.fullWidth}`}>
+                  <h3>Prerequisites</h3>
+                  {selectedCourse.prerequisites && selectedCourse.prerequisites.length > 0 ? (
+                    <div className={styles.prerequisitesList}>
+                      {selectedCourse.prerequisites.map(prereq => (
+                        <span key={prereq.id} className={styles.prerequisiteBadge}>
+                          📚 {prereq.code || prereq.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={styles.noData}>No prerequisites required</p>
+                  )}
+                </div>
 
                 <div className={styles.detailsSection}>
                   <h3>Timeline</h3>
