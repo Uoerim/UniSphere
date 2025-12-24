@@ -141,20 +141,55 @@ export default function StaffManagement() {
   };
 
   const fetchStaffDetails = async (staffId: string) => {
-    // Mock data for now - replace with actual API calls
-    setStaffCourses([
-      { id: '1', name: 'Introduction to Computer Science', code: 'CS101', department: 'Computer Science', students: 45, schedule: 'Mon/Wed 9:00 AM', semester: 'Fall 2025' },
-      { id: '2', name: 'Data Structures', code: 'CS201', department: 'Computer Science', students: 38, schedule: 'Tue/Thu 11:00 AM', semester: 'Fall 2025' },
-      { id: '3', name: 'Algorithms', code: 'CS301', department: 'Computer Science', students: 32, schedule: 'Mon/Wed 2:00 PM', semester: 'Fall 2025' },
-    ]);
+    const token = localStorage.getItem('token');
+    
+    // Fetch courses from API
+    try {
+      const coursesResponse = await fetch(`http://localhost:4000/api/staff-courses/${staffId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (coursesResponse.ok) {
+        const courses = await coursesResponse.json();
+        setStaffCourses(courses.map((c: any) => ({
+          id: c.id,
+          name: c.name || 'Unnamed Course',
+          code: c.code || 'N/A',
+          department: c.department || 'Not Assigned',
+          students: c.students || 0,
+          schedule: c.metadata?.schedule || c.schedule || 'TBD',
+          semester: c.metadata?.semester || 'Current'
+        })));
+      } else {
+        // Use placeholder data if no courses assigned
+        setStaffCourses([]);
+      }
+    } catch {
+      setStaffCourses([]);
+    }
 
-    setStaffStudents([
-      { id: '1', name: 'John Smith', email: 'john.smith@uni.edu', course: 'CS101', grade: 'A', attendance: 95 },
-      { id: '2', name: 'Emily Johnson', email: 'emily.j@uni.edu', course: 'CS101', grade: 'B+', attendance: 88 },
-      { id: '3', name: 'Michael Brown', email: 'm.brown@uni.edu', course: 'CS201', grade: 'A-', attendance: 92 },
-      { id: '4', name: 'Sarah Davis', email: 's.davis@uni.edu', course: 'CS201', grade: 'B', attendance: 85 },
-      { id: '5', name: 'David Wilson', email: 'd.wilson@uni.edu', course: 'CS301', grade: 'A', attendance: 98 },
-    ]);
+    // Fetch students from API
+    try {
+      const studentsResponse = await fetch(`http://localhost:4000/api/staff-courses/${staffId}/students`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (studentsResponse.ok) {
+        const students = await studentsResponse.json();
+        setStaffStudents(students.map((s: any) => ({
+          id: s.id,
+          name: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : s.name || 'Unknown',
+          email: s.email || 'No email',
+          course: s.course?.code || 'N/A',
+          grade: s.enrollmentMetadata?.grade || 'N/A',
+          attendance: s.enrollmentMetadata?.attendance || 0
+        })));
+      } else {
+        setStaffStudents([]);
+      }
+    } catch {
+      setStaffStudents([]);
+    }
   };
 
   // Filtered and sorted staff list
