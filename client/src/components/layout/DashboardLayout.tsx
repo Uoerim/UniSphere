@@ -52,7 +52,8 @@ export default function DashboardLayout() {
       case 'STAFF':
         return [
           { title: 'Main', items: mainNav },
-          { title: 'Administration', items: [adminNav[1], adminNav[2]] },
+          // Only show Students under Administration for staff, not Staff management
+          { title: 'Administration', items: [adminNav[2]] },
           { title: 'Academic', items: academicNav },
           { title: 'Facilities', items: facilitiesNav },
           { title: 'Community', items: communityNav },

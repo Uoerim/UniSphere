@@ -94,7 +94,6 @@ export default function Students() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Course</th>
-                <th>Grade</th>
               </tr>
             </thead>
             <tbody>
@@ -104,7 +103,6 @@ export default function Students() {
                   <td>{student.name}</td>
                   <td>{student.email}</td>
                   <td>{student.course}</td>
-                  <td>{student.grade}</td>
                 </tr>
               ))}
             </tbody>
