@@ -109,33 +109,6 @@ export default function Students() {
           </table>
         </div>
 
-        {/* Other students table (existing) */}
-        <div className={styles.tableContainer}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Grade</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dummyStudents.map((student) => (
-                <tr key={student.id}>
-                  <td>{student.id}</td>
-                  <td>{student.name}</td>
-                  <td>{student.email}</td>
-                  <td>{student.grade}</td>
-                  <td>
-                    <button className={styles.viewBtn}>View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
