@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `Account` ADD COLUMN `firstName` VARCHAR(191) NULL,
+    ADD COLUMN `isActive` BOOLEAN NOT NULL DEFAULT true,
+    ADD COLUMN `lastLogin` DATETIME(3) NULL,
+    ADD COLUMN `lastName` VARCHAR(191) NULL,
+    ADD COLUMN `mustChangePassword` BOOLEAN NOT NULL DEFAULT true;

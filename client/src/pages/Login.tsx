@@ -1,17 +1,35 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { Navigate } from "react-router-dom";
 import styles from "./Login.module.css";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: "",
     email: "",
     password: "",
   });
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, user } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already logged in
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await login(formData.email, formData.password);
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,6 +49,11 @@ export default function Login() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className={styles["login-form"]}>
+            {error && (
+              <div className={styles["error-message"]}>
+                {error}
+              </div>
+            )}
 
             <div className={styles["input-group"]}>
               <input
@@ -41,6 +64,8 @@ export default function Login() {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 className={styles["form-input"]}
+                required
+                disabled={isLoading}
               />
             </div>
 
@@ -48,6 +73,8 @@ export default function Login() {
               className={`${styles["input-group"]} ${styles["password-group"]}`}
             >
               <input
+                required
+                disabled={isLoading}
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={formData.password}
@@ -88,8 +115,8 @@ export default function Login() {
               </button>
             </div>
 
-            <button type="submit" className={styles["submit-btn"]}>
-              Login
+            <button type="submit" className={styles["submit-btn"]} disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
             </button>
           </form>
         </div>

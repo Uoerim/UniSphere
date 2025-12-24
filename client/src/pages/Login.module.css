@@ -125,14 +125,29 @@
 
 }
 
-.submit-btn:hover {
+.submit-btn:hover:not(:disabled) {
   background: var(--primary-hover);
   box-shadow: var(--shadow-primary-hover);
   transform: translateY(-2px);
 }
 
-.submit-btn:active {
+.submit-btn:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  padding: var(--spacing-md);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: #dc2626;
+  font-size: var(--font-size-sm);
+  text-align: center;
 }
 
 .login-footer {
