@@ -9,14 +9,14 @@ export default function Dashboard() {
 
   const getRolePages = () => {
     switch (user?.role) {
-      case 'STAFF':
+      case 'ADMIN':
         return [
           { name: 'Dashboard', path: '/dashboard' },
           { name: 'Users', path: '/users' },
           { name: 'Students', path: '/students' },
           { name: 'Courses', path: '/courses' },
         ];
-      case 'ADMIN':
+      case 'STAFF':
         return [
           { name: 'Dashboard', path: '/dashboard' },
           { name: 'Students', path: '/students' },
@@ -40,7 +40,7 @@ export default function Dashboard() {
   };
 
   const pages = getRolePages();
-  
+
 //////////////////////////////////////////////////// --------- ROLES
 
   return (
