@@ -3,10 +3,16 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/login/Login';
 import DashboardLayout from './components/layout/DashboardLayout';
-import DashboardHome from './pages/dashboard/DashboardHome';
+import Dashboard from './pages/dashboard/Dashboard';
 import Students from './pages/students/Students';
 import Courses from './pages/courses/Courses';
 import Users from './pages/users/Users';
+import Staff from './pages/staff/Staff';
+import Classrooms from './pages/classrooms/Classrooms';
+import Curriculum from './pages/curriculum/Curriculum';
+import Announcements from './pages/announcements/Announcements';
+import Events from './pages/events/Events';
+import Settings from './pages/settings/Settings';
 
 export default function App() {
   return (
@@ -23,10 +29,16 @@ export default function App() {
             }
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardHome />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<Users />} />
             <Route path="students" element={<Students />} />
+            <Route path="staff" element={<Staff />} />
             <Route path="courses" element={<Courses />} />
+            <Route path="classrooms" element={<Classrooms />} />
+            <Route path="curriculum" element={<Curriculum />} />
+            <Route path="announcements" element={<Announcements />} />
+            <Route path="events" element={<Events />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
