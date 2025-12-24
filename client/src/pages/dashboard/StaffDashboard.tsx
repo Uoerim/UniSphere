@@ -207,20 +207,6 @@ export default function StaffDashboard() {
                   <button className={styles.smallBtn}>Grades</button>
                   <button className={styles.smallBtn}>Materials</button>
                 </div>
-                {/* Registered Students for this course */}
-                <div className={styles.registeredStudentsSection}>
-                  <div className={styles.registeredStudentsHeader}>
-                    <span className={styles.registeredStudentsIcon} aria-label="students">👥</span>
-                    <span className={styles.registeredStudentsTitle}>Registered Students</span>
-                  </div>
-                  <ul className={styles.registeredStudentsList}>
-                    {course.registeredStudents.map(student => (
-                      <li key={student.id} className={styles.registeredStudentItem}>
-                        <span className={styles.registeredStudentName}>{student.name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               </div>
             ))}
           </div>
