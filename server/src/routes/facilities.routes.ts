@@ -158,20 +158,6 @@ router.delete("/rooms/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// GET all resources
-router.get("/resources", authenticateToken, async (req, res) => {
-  try {
-    // For now, return mock data - in production this would use EAV pattern
-    const resources = [
-      { id: '1', name: 'Projector A', type: 'Equipment', status: 'Available', location: 'Room 101' },
-      { id: '2', name: 'Laptop Cart B', type: 'Equipment', status: 'In Use', location: 'Lab 202' },
-      { id: '3', name: 'Software License - MATLAB', type: 'Software', status: 'Available', location: 'N/A' },
-    ];
-    res.json(resources);
-  } catch (error) {
-    console.error("Get resources error:", error);
-    res.status(500).json({ error: "Failed to fetch resources" });
-  }
-});
+// Resources route has been removed
 
 export const facilitiesRouter = router;

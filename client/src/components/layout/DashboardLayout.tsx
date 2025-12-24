@@ -25,7 +25,7 @@ export default function DashboardLayout() {
 
     const facilitiesNav = [
       { name: 'Classrooms', path: '/classrooms', icon: '🏫' },
-      { name: 'Resources', path: '/resources', icon: '🔧' },
+    // ...existing code...
       { name: 'Schedule', path: '/schedule', icon: '📅' },
     ];
 
