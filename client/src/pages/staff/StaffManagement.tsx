@@ -301,10 +301,13 @@ export default function StaffManagement() {
   };
 
   const handleUpdateStaff = async () => {
-    if (!selectedStaff?.entityId) {
-      setFormError('No staff entity to update');
+    if (!selectedStaff) {
+      setFormError('No staff selected');
       return;
     }
+
+    // Use entityId if available, otherwise use account id
+    const updateId = selectedStaff.entityId || selectedStaff.id;
 
     setIsSubmitting(true);
     setFormError('');
@@ -312,7 +315,7 @@ export default function StaffManagement() {
     try {
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:4000/api/staff/${selectedStaff.entityId}`, {
+      const response = await fetch(`http://localhost:4000/api/staff/${updateId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -320,6 +323,7 @@ export default function StaffManagement() {
         },
         body: JSON.stringify({
           attributes: {
+            email: selectedStaff.email,
             firstName: formData.firstName,
             lastName: formData.lastName,
             department: formData.department,
@@ -334,13 +338,17 @@ export default function StaffManagement() {
         throw new Error('Failed to update staff profile');
       }
 
+      // Get the entityId from response if created
+      const result = await response.json();
+
       await fetchStaffList();
       setShowEditModal(false);
       
-      // Update selected staff
+      // Update selected staff with new data and entityId
       setSelectedStaff(prev => prev ? {
         ...prev,
         ...formData,
+        entityId: result.entityId || prev.entityId,
       } : null);
     } catch (err: any) {
       setFormError(err.message);
@@ -917,6 +925,7 @@ export default function StaffManagement() {
                     <option value="Lecturer">Lecturer</option>
                     <option value="Teaching Assistant">Teaching Assistant</option>
                     <option value="Lab Instructor">Lab Instructor</option>
+                    <option value="Advisor">Advisor</option>
                   </select>
                 </div>
               </div>
@@ -1022,6 +1031,7 @@ export default function StaffManagement() {
                     <option value="Lecturer">Lecturer</option>
                     <option value="Teaching Assistant">Teaching Assistant</option>
                     <option value="Lab Instructor">Lab Instructor</option>
+                    <option value="Advisor">Advisor</option>
                   </select>
                 </div>
               </div>

@@ -15,10 +15,12 @@ function getAttributeDataType(value: any): AttributeDataType {
 
 /**
  * POST /api/staff
- * body: { attributes: { name: "Dr", email: "...", office_hours: "...", salary_grade: 2 } }
+ * body: { attributes: { name: "Dr", email: "...", office_hours: "...", salary_grade: 2 }, accountId?: string }
  */
 staffRouter.post("/", async (req, res) => {
   const attributes = req.body?.attributes ?? {};
+  const accountId = req.body?.accountId;
+  const email = attributes.email as string | undefined;
 
   const entity = await prisma.entity.create({
     data: { type: "STAFF" },
@@ -50,6 +52,23 @@ staffRouter.post("/", async (req, res) => {
         ...toValueCreate(raw),
       },
     });
+  }
+
+  // Link entity to account if accountId provided, or find by email
+  if (accountId) {
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { entityId: entity.id }
+    });
+  } else if (email) {
+    // Try to find account by email and link
+    const account = await prisma.account.findUnique({ where: { email } });
+    if (account) {
+      await prisma.account.update({
+        where: { id: account.id },
+        data: { entityId: entity.id }
+      });
+    }
   }
 
   res.status(201).json({ id: entity.id });
@@ -101,12 +120,42 @@ staffRouter.get("/:id", async (req, res) => {
 });
 
 // PATCH /api/staff/:id  (update/overwrite attributes)
+// id can be either an entity ID or an account ID
 staffRouter.patch("/:id", async (req, res) => {
   const { id } = req.params;
   const attributes = req.body?.attributes ?? {};
 
-  const exists = await prisma.entity.findFirst({ where: { id, type: "STAFF" } });
-  if (!exists) return res.status(404).json({ message: "Not found" });
+  // First try to find as entity
+  let entity = await prisma.entity.findFirst({ where: { id, type: "STAFF" } });
+  
+  // If not found as entity, try to find account and get/create entity
+  if (!entity) {
+    const account = await prisma.account.findFirst({ 
+      where: { id, role: "STAFF" },
+      include: { entity: true }
+    });
+    
+    if (account) {
+      if (account.entity) {
+        entity = account.entity;
+      } else {
+        // Create entity for this account
+        entity = await prisma.entity.create({
+          data: { type: "STAFF" },
+        });
+        
+        // Link account to entity
+        await prisma.account.update({
+          where: { id: account.id },
+          data: { entityId: entity.id }
+        });
+      }
+    }
+  }
+  
+  if (!entity) {
+    return res.status(404).json({ message: "Staff not found" });
+  }
 
   for (const [name, raw] of Object.entries(attributes)) {
     const attr = await prisma.attribute.upsert({
@@ -122,13 +171,13 @@ staffRouter.patch("/:id", async (req, res) => {
     });
 
     await prisma.value.upsert({
-      where: { entityId_attributeId: { entityId: id, attributeId: attr.id } },
+      where: { entityId_attributeId: { entityId: entity.id, attributeId: attr.id } },
       update: toValueUpdate(raw),
-      create: { entityId: id, attributeId: attr.id, ...toValueCreate(raw) },
+      create: { entityId: entity.id, attributeId: attr.id, ...toValueCreate(raw) },
     });
   }
 
-  res.json({ ok: true });
+  res.json({ ok: true, entityId: entity.id });
 });
 
 // DELETE /api/staff/:id

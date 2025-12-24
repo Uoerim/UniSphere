@@ -8,6 +8,7 @@ import { dashboardRouter } from "./routes/dashboard.routes";
 import { facilitiesRouter } from "./routes/facilities.routes";
 import { curriculumRouter } from "./routes/curriculum.routes";
 import { communityRouter } from "./routes/community.routes";
+import { studentRouter } from "./routes/student.routes";
 import cors from "cors";
 
 
@@ -27,6 +28,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/facilities", facilitiesRouter);
 app.use("/api/curriculum", curriculumRouter);
 app.use("/api/community", communityRouter);
+app.use("/api/students", studentRouter);
 
 ////
 
