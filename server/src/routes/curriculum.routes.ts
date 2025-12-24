@@ -867,4 +867,4 @@ router.get("/stats/overview", authenticateToken, async (req, res) => {
   }
 });
 
-export const curriculumRouter = router;
+// ...existing code...

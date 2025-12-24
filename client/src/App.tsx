@@ -10,7 +10,7 @@ import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
 import StaffManagement from './pages/staff/StaffManagement';
 import Classrooms from './pages/classrooms/Classrooms';
-import Curriculum from './pages/curriculum/Curriculum';
+// ...existing code...
 import Announcements from './pages/announcements/Announcements';
 import Events from './pages/events/Events';
 import Settings from './pages/settings/Settings';
@@ -37,7 +37,7 @@ export default function App() {
             <Route path="staff-old" element={<Staff />} />
             <Route path="courses" element={<CoursesRouter />} />
             <Route path="classrooms" element={<Classrooms />} />
-            <Route path="curriculum" element={<Curriculum />} />
+// ...existing code...
             <Route path="announcements" element={<Announcements />} />
             <Route path="events" element={<Events />} />
             <Route path="settings" element={<Settings />} />

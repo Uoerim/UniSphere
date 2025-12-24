@@ -6,7 +6,7 @@ import { authRouter } from "./routes/auth.routes";
 import { usersRouter } from "./routes/users.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
 import { facilitiesRouter } from "./routes/facilities.routes";
-import { curriculumRouter } from "./routes/curriculum.routes";
+// ...existing code...
 import { communityRouter } from "./routes/community.routes";
 import cors from "cors";
 
@@ -25,7 +25,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/facilities", facilitiesRouter);
-app.use("/api/curriculum", curriculumRouter);
+// ...existing code...
 app.use("/api/community", communityRouter);
 
 ////
