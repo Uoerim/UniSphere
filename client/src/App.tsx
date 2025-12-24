@@ -3,6 +3,8 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/login/Login';
 import Dashboard from './pages/dashboard/Dashboard';
+import Students from './pages/students/Students';
+import Courses from './pages/courses/Courses';
 
 export default function App() {
   return (
@@ -15,6 +17,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/students"
+            element={
+              <ProtectedRoute>
+                <Students />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courses"
+            element={
+              <ProtectedRoute>
+                <Courses />
               </ProtectedRoute>
             }
           />

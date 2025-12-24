@@ -1,22 +1,26 @@
-import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
-import styles from './Dashboard.module.css';
+import { useAuth } from '../../context/AuthContext';
+import styles from './Courses.module.css';
 
-export default function Dashboard() {
+export default function Courses() {
   const { user, logout } = useAuth();
 
-//////////////////////////////////////////////////// --------- ROLES
+  const dummyCourses = [
+    { id: 1, name: 'Mathematics 101', instructor: 'Dr. Smith', students: 32 },
+    { id: 2, name: 'Physics 201', instructor: 'Prof. Johnson', students: 28 },
+    { id: 3, name: 'Chemistry 101', instructor: 'Dr. Williams', students: 35 },
+  ];
 
   const getRolePages = () => {
     switch (user?.role) {
-      case 'STAFF':
+      case 'ADMIN':
         return [
           { name: 'Dashboard', path: '/dashboard' },
           { name: 'Users', path: '/users' },
           { name: 'Students', path: '/students' },
           { name: 'Courses', path: '/courses' },
         ];
-      case 'ADMIN':
+      case 'STAFF':
         return [
           { name: 'Dashboard', path: '/dashboard' },
           { name: 'Students', path: '/students' },
@@ -40,8 +44,6 @@ export default function Dashboard() {
   };
 
   const pages = getRolePages();
-  
-//////////////////////////////////////////////////// --------- ROLES
 
   return (
     <div className={styles.dashboardContainer}>
@@ -66,14 +68,18 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className={styles.content}>
-        <h1>Welcome, {user?.email}!</h1>
-        <p className={styles.roleText}>Role: {user?.role}</p>
+        <h1>Courses</h1>
+        <p className={styles.subtitle}>View and manage course information</p>
         
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <h3>Quick Overview</h3>
-            <p>Your personalized dashboard content will appear here</p>
-          </div>
+        <div className={styles.coursesGrid}>
+          {dummyCourses.map((course) => (
+            <div key={course.id} className={styles.courseCard}>
+              <h3>{course.name}</h3>
+              <p className={styles.instructor}>Instructor: {course.instructor}</p>
+              <p className={styles.students}>{course.students} students enrolled</p>
+              <button className={styles.detailsBtn}>View Details</button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
