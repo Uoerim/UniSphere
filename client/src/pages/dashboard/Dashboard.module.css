@@ -45,6 +45,11 @@
   transform: translateX(4px);
 }
 
+.navLink.active {
+  background: #5b8dee;
+  color: white;
+}
+
 .logoutBtn {
   margin-top: 20px;
   padding: 12px 16px;
