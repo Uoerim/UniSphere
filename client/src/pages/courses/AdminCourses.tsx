@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './Courses.module.css';
+import SchedulePicker from '../../components/ui/SchedulePicker';
 
 // Types
 interface Instructor {
@@ -22,11 +23,11 @@ interface Course {
   code?: string;
   credits?: number;
   department?: string;
-  semester?: string;
   courseType?: string;
   capacity?: number;
   room?: string;
   schedule?: string;
+  scheduleDisplay?: string;
   isActive: boolean;
   createdAt: string;
   instructor?: Instructor | null;
@@ -63,7 +64,7 @@ export default function AdminCourses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [filterSemester, setFilterSemester] = useState('all');
+  const [filterCourseType, setFilterCourseType] = useState('all');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -82,11 +83,11 @@ export default function AdminCourses() {
     code: '',
     credits: 3,
     department: '',
-    semester: '',
     courseType: '',
     capacity: 30,
     room: '',
     schedule: '',
+    scheduleDisplay: '',
     instructorId: '',
     prerequisiteIds: [] as string[],
   });
@@ -173,8 +174,8 @@ export default function AdminCourses() {
       result = result.filter(c => filterStatus === 'active' ? c.isActive : !c.isActive);
     }
 
-    if (filterSemester !== 'all') {
-      result = result.filter(c => c.semester === filterSemester);
+    if (filterCourseType !== 'all') {
+      result = result.filter(c => c.courseType === filterCourseType);
     }
 
     result.sort((a, b) => {
@@ -197,16 +198,16 @@ export default function AdminCourses() {
     });
 
     return result;
-  }, [courses, searchTerm, filterDepartment, filterStatus, filterSemester, sortField, sortDirection]);
+  }, [courses, searchTerm, filterDepartment, filterStatus, filterCourseType, sortField, sortDirection]);
 
   const departments = useMemo(() => {
     const deps = new Set(courses.map(c => c.department).filter(Boolean));
     return Array.from(deps) as string[];
   }, [courses]);
 
-  const semesters = useMemo(() => {
-    const sems = new Set(courses.map(c => c.semester).filter(Boolean));
-    return Array.from(sems) as string[];
+  const courseTypes = useMemo(() => {
+    const types = new Set(courses.map(c => c.courseType).filter(Boolean));
+    return Array.from(types) as string[];
   }, [courses]);
 
   const resetForm = () => {
@@ -216,11 +217,11 @@ export default function AdminCourses() {
       code: '',
       credits: 3,
       department: '',
-      semester: '',
       courseType: '',
       capacity: 30,
       room: '',
       schedule: '',
+      scheduleDisplay: '',
       instructorId: '',
       prerequisiteIds: [],
     });
@@ -357,11 +358,11 @@ export default function AdminCourses() {
       code: course.code || '',
       credits: course.credits || 3,
       department: course.department || '',
-      semester: course.semester || '',
       courseType: course.courseType || '',
       capacity: course.capacity || 30,
       room: course.room || '',
       schedule: course.schedule || '',
+      scheduleDisplay: course.scheduleDisplay || '',
       instructorId: course.instructor?.id || '',
       prerequisiteIds: course.prerequisites?.map(p => p.id) || [],
     });
@@ -482,13 +483,13 @@ export default function AdminCourses() {
           ))}
         </select>
         <select
-          value={filterSemester}
-          onChange={(e) => setFilterSemester(e.target.value)}
+          value={filterCourseType}
+          onChange={(e) => setFilterCourseType(e.target.value)}
           className={styles.filterSelect}
         >
-          <option value="all">All Semesters</option>
-          {semesters.map(sem => (
-            <option key={sem} value={sem}>{sem}</option>
+          <option value="all">All Types</option>
+          {courseTypes.map(type => (
+            <option key={type} value={type}>{type}</option>
           ))}
         </select>
         <select
@@ -552,8 +553,8 @@ export default function AdminCourses() {
                   {course.credits && (
                     <span className={styles.metaItem}>📊 {course.credits} Credits</span>
                   )}
-                  {course.semester && (
-                    <span className={styles.metaItem}>📅 {course.semester}</span>
+                  {course.courseType && (
+                    <span className={styles.metaItem}>📚 {course.courseType}</span>
                   )}
                 </div>
                 <div className={styles.courseDetails}>
@@ -569,6 +570,14 @@ export default function AdminCourses() {
                       {course.enrolledStudents} / {course.capacity || 30}
                     </span>
                   </div>
+                  {(course.scheduleDisplay || course.schedule) && (
+                    <div className={styles.detailRow}>
+                      <span className={styles.detailLabel}>Schedule:</span>
+                      <span className={styles.detailValue}>
+                        {course.scheduleDisplay || course.schedule}
+                      </span>
+                    </div>
+                  )}
                   {course.prerequisites && course.prerequisites.length > 0 && (
                     <div className={styles.detailRow}>
                       <span className={styles.detailLabel}>Prerequisites:</span>
@@ -633,7 +642,7 @@ export default function AdminCourses() {
                   <td>
                     <div className={styles.nameCell}>
                       <span className={styles.courseName}>{course.name}</span>
-                      {course.semester && <span className={styles.semester}>{course.semester}</span>}
+                      {course.courseType && <span className={styles.courseTypeTag}>{course.courseType}</span>}
                     </div>
                   </td>
                   <td>{course.department || '-'}</td>
@@ -716,31 +725,17 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Semester</label>
-                  <select
-                    value={formData.semester}
-                    onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                  >
-                    <option value="">Select Semester</option>
-                    <option value="Fall 2025">Fall 2025</option>
-                    <option value="Spring 2025">Spring 2025</option>
-                    <option value="Summer 2025">Summer 2025</option>
-                    <option value="Fall 2024">Fall 2024</option>
-                    <option value="Spring 2024">Spring 2024</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
                   <label>Course Type</label>
                   <select
                     value={formData.courseType}
                     onChange={(e) => setFormData({ ...formData, courseType: e.target.value })}
                   >
                     <option value="">Select Type</option>
-                    <option value="Required">Required</option>
-                    <option value="Elective">Elective</option>
-                    <option value="Core">Core</option>
+                    <option value="Lecture">Lecture</option>
                     <option value="Lab">Lab</option>
+                    <option value="Tutorial">Tutorial</option>
                     <option value="Seminar">Seminar</option>
+                    <option value="Workshop">Workshop</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -763,15 +758,6 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Schedule</label>
-                  <input
-                    type="text"
-                    value={formData.schedule}
-                    onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                    placeholder="e.g., MWF 9:00-10:00 AM"
-                  />
-                </div>
-                <div className={styles.formGroup}>
                   <label>Instructor</label>
                   <select
                     value={formData.instructorId}
@@ -784,6 +770,13 @@ export default function AdminCourses() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <SchedulePicker
+                    value={formData.schedule}
+                    onChange={(json, display) => setFormData({ ...formData, schedule: json, scheduleDisplay: display })}
+                    label="Schedule"
+                  />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Description</label>
@@ -881,31 +874,17 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Semester</label>
-                  <select
-                    value={formData.semester}
-                    onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                  >
-                    <option value="">Select Semester</option>
-                    <option value="Fall 2025">Fall 2025</option>
-                    <option value="Spring 2025">Spring 2025</option>
-                    <option value="Summer 2025">Summer 2025</option>
-                    <option value="Fall 2024">Fall 2024</option>
-                    <option value="Spring 2024">Spring 2024</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
                   <label>Course Type</label>
                   <select
                     value={formData.courseType}
                     onChange={(e) => setFormData({ ...formData, courseType: e.target.value })}
                   >
                     <option value="">Select Type</option>
-                    <option value="Required">Required</option>
-                    <option value="Elective">Elective</option>
-                    <option value="Core">Core</option>
+                    <option value="Lecture">Lecture</option>
                     <option value="Lab">Lab</option>
+                    <option value="Tutorial">Tutorial</option>
                     <option value="Seminar">Seminar</option>
+                    <option value="Workshop">Workshop</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -927,14 +906,6 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Schedule</label>
-                  <input
-                    type="text"
-                    value={formData.schedule}
-                    onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
                   <label>Instructor</label>
                   <select
                     value={formData.instructorId}
@@ -947,6 +918,13 @@ export default function AdminCourses() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <SchedulePicker
+                    value={formData.schedule}
+                    onChange={(json, display) => setFormData({ ...formData, schedule: json, scheduleDisplay: display })}
+                    label="Schedule"
+                  />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Description</label>
@@ -1053,10 +1031,6 @@ export default function AdminCourses() {
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Credits:</span>
                       <span>{selectedCourse.credits || 0}</span>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>Semester:</span>
-                      <span>{selectedCourse.semester || 'Not specified'}</span>
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Type:</span>

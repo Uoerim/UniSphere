@@ -10,8 +10,11 @@ import CoursesRouter from './pages/courses/CoursesRouter';
 import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
 import StaffManagement from './pages/staff/StaffManagement';
-import Classrooms from './pages/classrooms/Classrooms';
-import Curriculum from './pages/curriculum/Curriculum';
+import Facilities from './pages/classrooms/Facilities';
+import Departments from './pages/departments/Departments';
+import ParentManagement from './pages/parents/ParentManagement';
+import Assessments from './pages/assessments/Assessments';
+import Assignments from './pages/assignments/Assignments';
 import Announcements from './pages/announcements/Announcements';
 import Events from './pages/events/Events';
 import Settings from './pages/settings/Settings';
@@ -46,8 +49,11 @@ export default function App() {
             <Route path="staff" element={<StaffManagement />} />
             <Route path="staff-old" element={<Staff />} />
             <Route path="courses" element={<CoursesRouter />} />
-            <Route path="classrooms" element={<Classrooms />} />
-            <Route path="curriculum" element={<Curriculum />} />
+            <Route path="facilities" element={<Facilities />} />
+            <Route path="departments" element={<Departments />} />
+            <Route path="parents" element={<ParentManagement />} />
+            <Route path="assessments" element={<Assessments />} />
+            <Route path="assignments" element={<Assignments />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="events" element={<Events />} />
             <Route path="settings" element={<Settings />} />
