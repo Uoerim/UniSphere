@@ -46,41 +46,18 @@ export default function Courses() {
   const pages = getRolePages();
 
   return (
-    <div className={styles.dashboardContainer}>
-      {/* Sidebar */}
-      <div className={styles.sidebar}>
-        <h2 className={styles.sidebarTitle}>{user?.role} Portal</h2>
-        <nav className={styles.nav}>
-          {pages.map((page) => (
-            <Link
-              key={page.path}
-              to={page.path}
-              className={styles.navLink}
-            >
-              {page.name}
-            </Link>
-          ))}
-        </nav>
-        <button onClick={logout} className={styles.logoutBtn}>
-          Logout
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className={styles.content}>
-        <h1>Courses</h1>
-        <p className={styles.subtitle}>View and manage course information</p>
-        
-        <div className={styles.coursesGrid}>
-          {dummyCourses.map((course) => (
-            <div key={course.id} className={styles.courseCard}>
-              <h3>{course.name}</h3>
-              <p className={styles.instructor}>Instructor: {course.instructor}</p>
-              <p className={styles.students}>{course.students} students enrolled</p>
-              <button className={styles.detailsBtn}>View Details</button>
-            </div>
-          ))}
-        </div>
+    <div className={styles.content}>
+      <h1>Courses</h1>
+      <p className={styles.subtitle}>View and manage course information</p>
+      <div className={styles.coursesGrid}>
+        {dummyCourses.map((course) => (
+          <div key={course.id} className={styles.courseCard}>
+            <h3>{course.name}</h3>
+            <p className={styles.instructor}>Instructor: {course.instructor}</p>
+            <p className={styles.students}>{course.students} students enrolled</p>
+            <button className={styles.detailsBtn}>View Details</button>
+          </div>
+        ))}
       </div>
     </div>
   );
