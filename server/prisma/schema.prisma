@@ -14,12 +14,12 @@ enum Role {
   ADMIN
   STAFF
   STUDENT
-  FACULTY
+  PARENT
 }
 
 enum EntityType {
   STUDENT
-  FACULTY
+  PARENT
   STAFF
   COURSE
   DEPARTMENT
