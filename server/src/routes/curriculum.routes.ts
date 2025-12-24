@@ -759,13 +759,22 @@ router.delete("/:id", authenticateToken, requireAdminOrStaff, async (req, res) =
 });
 
 // ENROLL student in course
-router.post("/:id/enroll", authenticateToken, requireAdminOrStaff, async (req, res) => {
+router.post("/:id/enroll", authenticateToken, async (req, res) => {
   try {
     const courseId = req.params.id as string;
-    const { studentId } = req.body;
-
+    let { studentId } = req.body;
+    const user = (req as any).user;
+    // If studentId is not provided, use current user
     if (!studentId) {
-      return res.status(400).json({ error: "Student ID is required" });
+      // Find the user's entity via account relation
+      const account = await prisma.account.findUnique({
+        where: { id: user.id },
+        include: { entity: true }
+      });
+      if (!account?.entity) {
+        return res.status(400).json({ error: "Student entity not found" });
+      }
+      studentId = account.entity.id;
     }
 
     // Check if already enrolled
@@ -777,11 +786,67 @@ router.post("/:id/enroll", authenticateToken, requireAdminOrStaff, async (req, r
         isActive: true
       }
     });
-
     if (existing) {
       return res.status(400).json({ error: "Student is already enrolled in this course" });
     }
 
+    // Get the course and its prerequisites
+    const course = await prisma.entity.findUnique({
+      where: { id: courseId },
+      include: {
+        relationsFrom: {
+          where: { relationType: 'PREREQUISITE', isActive: true },
+          include: { toEntity: true }
+        },
+        values: { include: { attribute: true } }
+      }
+    });
+    if (!course) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    // Get all active enrollments for the student
+    const activeEnrollments = await prisma.entityRelation.findMany({
+      where: {
+        fromEntityId: studentId,
+        relationType: 'ENROLLED_IN',
+        isActive: true
+      },
+      include: {
+        toEntity: {
+          include: { values: { include: { attribute: true } } }
+        }
+      }
+    });
+
+    // Calculate total credits
+    let totalCredits = 0;
+    for (const enr of activeEnrollments) {
+      const courseVals = enr.toEntity.values;
+      const creditsAttr = courseVals.find((v: any) => v.attribute.name === 'credits');
+      if (creditsAttr) {
+        totalCredits += Number(creditsAttr.valueNumber || creditsAttr.valueString || 0);
+      }
+    }
+    // Credits for the course to enroll
+    const thisCourseCreditsAttr = course.values.find((v: any) => v.attribute.name === 'credits');
+    const thisCourseCredits = thisCourseCreditsAttr ? Number(thisCourseCreditsAttr.valueNumber || thisCourseCreditsAttr.valueString || 0) : 0;
+    if (totalCredits + thisCourseCredits > 15) {
+      return res.status(400).json({ error: "Credit hour limit exceeded. You can only take up to 15 credits per term." });
+    }
+
+    // Check prerequisites
+    const prereqs = course.relationsFrom.map((r: any) => r.toEntity);
+    if (prereqs.length > 0) {
+      // Get all completed courses for the student (for now, treat enrolled as completed; you can add a 'finished' flag if needed)
+      const completedCourseIds = new Set(activeEnrollments.map((enr: any) => enr.toEntity.id));
+      const missing = prereqs.filter((pr: any) => !completedCourseIds.has(pr.id));
+      if (missing.length > 0) {
+        return res.status(400).json({ error: `Missing prerequisites: ${missing.map((m: any) => m.name).join(', ')}` });
+      }
+    }
+
+    // Enroll
     const enrollment = await prisma.entityRelation.create({
       data: {
         fromEntityId: studentId,
@@ -800,7 +865,7 @@ router.post("/:id/enroll", authenticateToken, requireAdminOrStaff, async (req, r
 });
 
 // UNENROLL student from course
-router.delete("/:id/unenroll/:studentId", authenticateToken, requireAdminOrStaff, async (req, res) => {
+router.delete("/:id/unenroll/:studentId", authenticateToken, async (req, res) => {
   try {
     const courseId = req.params.id as string;
     const studentId = req.params.studentId as string;
