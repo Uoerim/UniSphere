@@ -27,9 +27,9 @@ enum EntityType {
   ROOM
   EVENT
   ANNOUNCEMENT
-  ENROLLMENT
-  GRADE
-  ATTENDANCE
+  ASSESSMENT
+  ASSIGNMENT
+  COURSE_CONTENT
 }
 
 enum AttributeDataType {
@@ -42,6 +42,7 @@ enum AttributeDataType {
   EMAIL
   PHONE
   URL
+  JSON
 }
 
 enum AttributeCategory {
@@ -53,6 +54,7 @@ enum AttributeCategory {
   SCHEDULE
   FINANCIAL
   SYSTEM
+  CONTENT
 }
 
 // ============================================
@@ -87,60 +89,53 @@ model Account {
 model Entity {
   id          String     @id @default(cuid())
   type        EntityType
-  name        String?    // Display name for the entity
+  name        String?
+  code        String?
   description String?    @db.Text
   isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  // Relationships
-  values      Value[]
-  account     Account?
+  values        Value[]
+  account       Account?
   
-  // Self-referential for hierarchical structures (e.g., Department -> SubDepartment)
-  parentId    String?
-  parent      Entity?   @relation("EntityHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Entity[]  @relation("EntityHierarchy")
+  parentId      String?
+  parent        Entity?   @relation("EntityHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Entity[]  @relation("EntityHierarchy")
 
-  // Many-to-many relationships between entities (e.g., Student enrolled in Course)
   relationsFrom EntityRelation[] @relation("FromEntity")
   relationsTo   EntityRelation[] @relation("ToEntity")
 
   @@index([type])
+  @@index([code])
   @@index([parentId])
   @@index([isActive])
   @@map("entities")
 }
 
 model Attribute {
-  id          String            @id @default(cuid())
-  name        String            @unique
-  displayName String            // User-friendly name
-  description String?           @db.Text
-  dataType    AttributeDataType
-  category    AttributeCategory
-  isRequired  Boolean           @default(false)
-  isUnique    Boolean           @default(false)
-  isSearchable Boolean          @default(true)
+  id           String            @id @default(cuid())
+  name         String            @unique
+  displayName  String
+  description  String?           @db.Text
+  dataType     AttributeDataType
+  category     AttributeCategory
+  isRequired   Boolean           @default(false)
+  isUnique     Boolean           @default(false)
+  isSearchable Boolean           @default(true)
   
-  // Applicable entity types (JSON array of EntityType values)
-  entityTypes String            @db.Text // e.g., ["STUDENT", "FACULTY"]
+  entityTypes     String         @db.Text
+  validationRules String?        @db.Text
+  options         String?        @db.Text
   
-  // Validation rules (JSON)
-  validationRules String?       @db.Text // e.g., {"min": 0, "max": 100, "pattern": "^[A-Z]"}
-  
-  // Default value
   defaultValue String?
+  displayOrder Int               @default(0)
   
-  // Display order for UI
-  displayOrder Int             @default(0)
-  
-  isActive    Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
-  // Relationships
-  values      Value[]
+  values       Value[]
 
   @@index([category])
   @@index([dataType])
@@ -149,24 +144,23 @@ model Attribute {
 }
 
 model Value {
-  id          String    @id @default(cuid())
-  entityId    String
-  attributeId String
+  id           String    @id @default(cuid())
+  entityId     String
+  attributeId  String
 
-  // Multi-type value storage (only one should be populated based on attribute.dataType)
-  valueString  String?   @db.VarChar(500)
-  valueNumber  Float?
-  valueBool    Boolean?
-  valueDate    DateTime? @db.Date
+  valueString   String?   @db.VarChar(500)
+  valueNumber   Float?
+  valueBool     Boolean?
+  valueDate     DateTime? @db.Date
   valueDateTime DateTime?
-  valueText    String?   @db.Text
+  valueText     String?   @db.Text
+  valueJson     String?   @db.Text
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  // Relationships
-  entity      Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
-  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  entity       Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  attribute    Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 
   @@unique([entityId, attributeId])
   @@index([entityId])

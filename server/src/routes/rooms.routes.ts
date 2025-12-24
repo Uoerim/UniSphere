@@ -125,4 +125,4 @@ router.post("/rooms", authenticateToken, async (req, res) => {
   }
 });
 
-export const facilitiesRouter = router;
+export default router;
