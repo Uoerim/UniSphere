@@ -17,6 +17,7 @@ export default function Announcements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -49,11 +50,16 @@ export default function Announcements() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/community/announcements', {
-        method: 'POST',
+      const url = editingAnnouncement
+        ? `http://localhost:4000/api/community/announcements/${editingAnnouncement.id}`
+        : 'http://localhost:4000/api/community/announcements';
+      const method = editingAnnouncement ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -62,20 +68,36 @@ export default function Announcements() {
       });
 
       if (response.ok) {
-        setIsModalOpen(false);
-        setFormData({ title: '', content: '', priority: 'normal', targetAudience: 'all' });
+        closeModal();
         fetchAnnouncements();
       }
     } catch (error) {
-      console.error('Failed to create announcement:', error);
+      console.error('Failed to save announcement:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const openEditModal = (announcement: Announcement) => {
+    setEditingAnnouncement(announcement);
+    setFormData({
+      title: announcement.title,
+      content: announcement.content || '',
+      priority: announcement.priority || 'normal',
+      targetAudience: announcement.targetAudience || 'all'
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingAnnouncement(null);
+    setFormData({ title: '', content: '', priority: 'normal', targetAudience: 'all' });
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this announcement?')) return;
-    
+
     try {
       const token = localStorage.getItem('token');
       await fetch(`http://localhost:4000/api/community/announcements/${id}`, {
@@ -212,7 +234,7 @@ export default function Announcements() {
                 </div>
               </div>
               <div className={styles.actions}>
-                <button className={styles.iconBtn}>✏️</button>
+                <button className={styles.iconBtn} onClick={() => openEditModal(announcement)}>✏️</button>
                 <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(announcement.id)}>
                   🗑️
                 </button>
@@ -222,23 +244,23 @@ export default function Announcements() {
         </div>
       )}
 
-      {/* Create Announcement Modal */}
+      {/* Create/Edit Announcement Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Create Announcement"
+        onClose={closeModal}
+        title={editingAnnouncement ? 'Edit Announcement' : 'Create Announcement'}
         size="lg"
         footer={
           <>
-            <button className={`${modalStyles.btn} ${modalStyles.secondary}`} onClick={() => setIsModalOpen(false)}>
+            <button className={`${modalStyles.btn} ${modalStyles.secondary}`} onClick={closeModal}>
               Cancel
             </button>
-            <button 
-              className={`${modalStyles.btn} ${modalStyles.primary}`} 
+            <button
+              className={`${modalStyles.btn} ${modalStyles.primary}`}
               onClick={handleSubmit}
               disabled={isSubmitting || !formData.title}
             >
-              {isSubmitting ? 'Publishing...' : 'Publish Announcement'}
+              {isSubmitting ? 'Saving...' : (editingAnnouncement ? 'Save Changes' : 'Publish Announcement')}
             </button>
           </>
         }

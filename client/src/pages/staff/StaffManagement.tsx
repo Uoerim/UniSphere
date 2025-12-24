@@ -124,7 +124,7 @@ export default function StaffManagement() {
   const fetchDepartments = async () => {
     try {
       const res = await api.get('/departments');
-      setDepartmentsList(res.data);
+      setDepartmentsList(res.data as Department[]);
     } catch (err) {
       console.error('Failed to fetch departments:', err);
     }
@@ -140,7 +140,7 @@ export default function StaffManagement() {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      
+
       // Fetch accounts with STAFF role
       const response = await fetch('http://localhost:4000/api/users', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -187,13 +187,13 @@ export default function StaffManagement() {
 
   const fetchStaffDetails = async (staffId: string) => {
     const token = localStorage.getItem('token');
-    
+
     // Fetch courses from API
     try {
       const coursesResponse = await fetch(`http://localhost:4000/api/staff-courses/${staffId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (coursesResponse.ok) {
         const courses = await coursesResponse.json();
         setStaffCourses(courses.map((c: any) => ({
@@ -218,7 +218,7 @@ export default function StaffManagement() {
       const studentsResponse = await fetch(`http://localhost:4000/api/staff-courses/${staffId}/students`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (studentsResponse.ok) {
         const students = await studentsResponse.json();
         setStaffStudents(students.map((s: any) => ({
@@ -389,7 +389,7 @@ export default function StaffManagement() {
 
       await fetchStaffList();
       setShowEditModal(false);
-      
+
       // Update selected staff with new data and entityId
       setSelectedStaff(prev => prev ? {
         ...prev,
@@ -912,7 +912,7 @@ export default function StaffManagement() {
             </div>
             <div className={styles.modalBody}>
               {formError && <div className={styles.formError}>⚠️ {formError}</div>}
-              
+
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>First Name *</label>
@@ -951,8 +951,8 @@ export default function StaffManagement() {
                     value={formData.departmentId}
                     onChange={(e) => {
                       const dept = departmentsList.find(d => d.id === e.target.value);
-                      setFormData(prev => ({ 
-                        ...prev, 
+                      setFormData(prev => ({
+                        ...prev,
                         departmentId: e.target.value,
                         department: dept?.name || ''
                       }));
@@ -982,37 +982,36 @@ export default function StaffManagement() {
                 </div>
               </div>
 
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Phone</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <select
-                      value={formData.phoneCountry}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
-                      style={{ width: '110px', flexShrink: 0 }}
-                    >
-                      {COUNTRY_CODES.map(cc => (
-                        <option key={cc.code} value={cc.code}>{cc.code} ({cc.country})</option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="Phone number"
-                      style={{ flex: 1 }}
-                    />
-                  </div>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Office</label>
+              <div className={styles.formGroup}>
+                <label>Phone</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <select
+                    value={formData.phoneCountry}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
+                    style={{ width: '110px', flexShrink: 0 }}
+                  >
+                    {COUNTRY_CODES.map(cc => (
+                      <option key={cc.code} value={cc.code}>{cc.code} ({cc.country})</option>
+                    ))}
+                  </select>
                   <input
-                    type="text"
-                    value={formData.office}
-                    onChange={(e) => setFormData(prev => ({ ...prev, office: e.target.value }))}
-                    placeholder="Building A, Room 301"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Phone number"
+                    style={{ flex: 1 }}
                   />
                 </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Office</label>
+                <input
+                  type="text"
+                  value={formData.office}
+                  onChange={(e) => setFormData(prev => ({ ...prev, office: e.target.value }))}
+                  placeholder="Building A, Room 301"
+                />
               </div>
 
               <p className={styles.formNote}>
@@ -1039,7 +1038,7 @@ export default function StaffManagement() {
             </div>
             <div className={styles.modalBody}>
               {formError && <div className={styles.formError}>⚠️ {formError}</div>}
-              
+
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>First Name *</label>
@@ -1071,8 +1070,8 @@ export default function StaffManagement() {
                     value={formData.departmentId}
                     onChange={(e) => {
                       const dept = departmentsList.find(d => d.id === e.target.value);
-                      setFormData(prev => ({ 
-                        ...prev, 
+                      setFormData(prev => ({
+                        ...prev,
                         departmentId: e.target.value,
                         department: dept?.name || ''
                       }));
@@ -1102,36 +1101,36 @@ export default function StaffManagement() {
                 </div>
               </div>
 
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Phone</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <select
-                      value={formData.phoneCountry}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
-                      style={{ width: '110px', flexShrink: 0 }}
-                    >
-                      {COUNTRY_CODES.map(cc => (
-                        <option key={cc.code} value={cc.code}>{cc.code} ({cc.country})</option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="Phone number"
-                      style={{ flex: 1 }}
-                    />
-                  </div>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Office</label>
+              <div className={styles.formGroup}>
+                <label>Phone</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <select
+                    value={formData.phoneCountry}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
+                    style={{ width: '110px', flexShrink: 0 }}
+                  >
+                    {COUNTRY_CODES.map(cc => (
+                      <option key={cc.code} value={cc.code}>{cc.code} ({cc.country})</option>
+                    ))}
+                  </select>
                   <input
-                    type="text"
-                    value={formData.office}
-                    onChange={(e) => setFormData(prev => ({ ...prev, office: e.target.value }))}
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Phone number"
+                    style={{ flex: 1 }}
                   />
                 </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Office</label>
+                <input
+                  type="text"
+                  value={formData.office}
+                  onChange={(e) => setFormData(prev => ({ ...prev, office: e.target.value }))}
+                  placeholder="Building A, Room 301"
+                />
               </div>
             </div>
             <div className={styles.modalFooter}>

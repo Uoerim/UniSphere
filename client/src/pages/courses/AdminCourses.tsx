@@ -16,6 +16,17 @@ interface PrerequisiteCourse {
   code?: string;
 }
 
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  building?: string;
+}
+
 interface Course {
   id: string;
   name: string;
@@ -57,6 +68,8 @@ export default function AdminCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [stats, setStats] = useState<CourseStats | null>(null);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [departmentsList, setDepartmentsList] = useState<Department[]>([]);
+  const [roomsList, setRoomsList] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -90,6 +103,10 @@ export default function AdminCourses() {
     scheduleDisplay: '',
     instructorId: '',
     prerequisiteIds: [] as string[],
+    courseContent: '',
+    hasLecture: true,
+    hasTutorial: false,
+    hasLab: false,
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,6 +115,8 @@ export default function AdminCourses() {
     fetchCourses();
     fetchStats();
     fetchInstructors();
+    fetchDepartments();
+    fetchRooms();
   }, []);
 
   const fetchCourses = async () => {
@@ -149,6 +168,38 @@ export default function AdminCourses() {
       }
     } catch (err) {
       console.error('Failed to fetch instructors:', err);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/departments', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDepartmentsList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch departments:', err);
+    }
+  };
+
+  const fetchRooms = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/facilities/rooms', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRoomsList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch rooms:', err);
     }
   };
 
@@ -224,6 +275,10 @@ export default function AdminCourses() {
       scheduleDisplay: '',
       instructorId: '',
       prerequisiteIds: [],
+      courseContent: '',
+      hasLecture: true,
+      hasTutorial: false,
+      hasLab: false,
     });
     setFormError('');
   };
@@ -365,6 +420,10 @@ export default function AdminCourses() {
       scheduleDisplay: course.scheduleDisplay || '',
       instructorId: course.instructor?.id || '',
       prerequisiteIds: course.prerequisites?.map(p => p.id) || [],
+      courseContent: (course as any).courseContent || '',
+      hasLecture: (course as any).hasLecture !== false,
+      hasTutorial: (course as any).hasTutorial || false,
+      hasLab: (course as any).hasLab || false,
     });
     setFormError('');
     setShowEditModal(true);
@@ -594,8 +653,8 @@ export default function AdminCourses() {
                   <button className={styles.editBtn} onClick={() => openEditModal(course)}>
                     ✏️ Edit
                   </button>
-                  <button 
-                    className={styles.toggleBtn} 
+                  <button
+                    className={styles.toggleBtn}
                     onClick={() => handleToggleStatus(course)}
                     title={course.isActive ? 'Deactivate' : 'Activate'}
                   >
@@ -685,7 +744,7 @@ export default function AdminCourses() {
             </div>
             <div className={styles.modalBody}>
               {formError && <div className={styles.formError}>⚠️ {formError}</div>}
-              
+
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
                   <label>Course Name *</label>
@@ -707,12 +766,15 @@ export default function AdminCourses() {
                 </div>
                 <div className={styles.formGroup}>
                   <label>Department</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    placeholder="e.g., Computer Science"
-                  />
+                  >
+                    <option value="">Select Department</option>
+                    {departmentsList.map(dept => (
+                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Credits</label>
@@ -731,11 +793,8 @@ export default function AdminCourses() {
                     onChange={(e) => setFormData({ ...formData, courseType: e.target.value })}
                   >
                     <option value="">Select Type</option>
-                    <option value="Lecture">Lecture</option>
-                    <option value="Lab">Lab</option>
-                    <option value="Tutorial">Tutorial</option>
-                    <option value="Seminar">Seminar</option>
-                    <option value="Workshop">Workshop</option>
+                    <option value="Core">Core</option>
+                    <option value="Elective">Elective</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -750,12 +809,17 @@ export default function AdminCourses() {
                 </div>
                 <div className={styles.formGroup}>
                   <label>Room</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.room}
                     onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-                    placeholder="e.g., Building A, Room 101"
-                  />
+                  >
+                    <option value="">Select Room</option>
+                    {roomsList.map(room => (
+                      <option key={room.id} value={room.name}>
+                        {room.building ? `${room.building} - ${room.name}` : room.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Instructor</label>
@@ -788,6 +852,44 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Session Types</label>
+                  <div className={styles.prerequisitesSelect} style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                    <label className={styles.checkboxLabel} style={{ opacity: 0.7 }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.hasLecture}
+                        disabled
+                      />
+                      <span>📚 Lecture (Required)</span>
+                    </label>
+                    <label className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.hasTutorial}
+                        onChange={(e) => setFormData({ ...formData, hasTutorial: e.target.checked })}
+                      />
+                      <span>📝 Tutorial</span>
+                    </label>
+                    <label className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.hasLab}
+                        onChange={(e) => setFormData({ ...formData, hasLab: e.target.checked })}
+                      />
+                      <span>🔬 Lab</span>
+                    </label>
+                  </div>
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Course Content (Lecture Topics)</label>
+                  <textarea
+                    value={formData.courseContent}
+                    onChange={(e) => setFormData({ ...formData, courseContent: e.target.value })}
+                    placeholder="Enter lecture topics, one per line...&#10;Week 1: Introduction&#10;Week 2: Core Concepts&#10;Week 3: Advanced Topics"
+                    rows={4}
+                  />
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Prerequisites</label>
                   <div className={styles.prerequisitesSelect}>
                     {courses.filter(c => c.id !== selectedCourse?.id).map(course => (
@@ -815,8 +917,8 @@ export default function AdminCourses() {
               <button className={styles.cancelBtn} onClick={() => setShowAddModal(false)}>
                 Cancel
               </button>
-              <button 
-                className={styles.submitBtn} 
+              <button
+                className={styles.submitBtn}
                 onClick={handleAddCourse}
                 disabled={isSubmitting}
               >
@@ -837,7 +939,7 @@ export default function AdminCourses() {
             </div>
             <div className={styles.modalBody}>
               {formError && <div className={styles.formError}>⚠️ {formError}</div>}
-              
+
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
                   <label>Course Name *</label>
@@ -857,11 +959,15 @@ export default function AdminCourses() {
                 </div>
                 <div className={styles.formGroup}>
                   <label>Department</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  />
+                  >
+                    <option value="">Select Department</option>
+                    {departmentsList.map(dept => (
+                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Credits</label>
@@ -880,11 +986,32 @@ export default function AdminCourses() {
                     onChange={(e) => setFormData({ ...formData, courseType: e.target.value })}
                   >
                     <option value="">Select Type</option>
-                    <option value="Lecture">Lecture</option>
-                    <option value="Lab">Lab</option>
-                    <option value="Tutorial">Tutorial</option>
-                    <option value="Seminar">Seminar</option>
-                    <option value="Workshop">Workshop</option>
+                    <option value="Core">Core</option>
+                    <option value="Elective">Elective</option>
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Capacity</label>
+                  <input
+                    type="number"
+                    value={formData.capacity}
+                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                    min="1"
+                    max="500"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Room</label>
+                  <select
+                    value={formData.room}
+                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  >
+                    <option value="">Select Room</option>
+                    {roomsList.map(room => (
+                      <option key={room.id} value={room.name}>
+                        {room.building ? `${room.building} - ${room.name}` : room.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -935,6 +1062,44 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Session Types</label>
+                  <div className={styles.prerequisitesSelect} style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                    <label className={styles.checkboxLabel} style={{ opacity: 0.7 }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.hasLecture}
+                        disabled
+                      />
+                      <span>📚 Lecture (Required)</span>
+                    </label>
+                    <label className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.hasTutorial}
+                        onChange={(e) => setFormData({ ...formData, hasTutorial: e.target.checked })}
+                      />
+                      <span>📝 Tutorial</span>
+                    </label>
+                    <label className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.hasLab}
+                        onChange={(e) => setFormData({ ...formData, hasLab: e.target.checked })}
+                      />
+                      <span>🔬 Lab</span>
+                    </label>
+                  </div>
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Course Content (Lecture Topics)</label>
+                  <textarea
+                    value={formData.courseContent}
+                    onChange={(e) => setFormData({ ...formData, courseContent: e.target.value })}
+                    placeholder="Enter lecture topics, one per line..."
+                    rows={4}
+                  />
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Prerequisites</label>
                   <div className={styles.prerequisitesSelect}>
                     {courses.filter(c => c.id !== selectedCourse?.id).map(course => (
@@ -962,8 +1127,8 @@ export default function AdminCourses() {
               <button className={styles.cancelBtn} onClick={() => setShowEditModal(false)}>
                 Cancel
               </button>
-              <button 
-                className={styles.submitBtn} 
+              <button
+                className={styles.submitBtn}
                 onClick={handleEditCourse}
                 disabled={isSubmitting}
               >
@@ -996,8 +1161,8 @@ export default function AdminCourses() {
               <button className={styles.cancelBtn} onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </button>
-              <button 
-                className={styles.deleteConfirmBtn} 
+              <button
+                className={styles.deleteConfirmBtn}
                 onClick={handleDeleteCourse}
                 disabled={isSubmitting}
               >
@@ -1084,10 +1249,10 @@ export default function AdminCourses() {
                   <h3>Enrollment</h3>
                   <div className={styles.enrollmentStats}>
                     <div className={styles.enrollmentProgress}>
-                      <div 
+                      <div
                         className={styles.progressBar}
-                        style={{ 
-                          width: `${Math.min((selectedCourse.enrolledStudents / (selectedCourse.capacity || 30)) * 100, 100)}%` 
+                        style={{
+                          width: `${Math.min((selectedCourse.enrolledStudents / (selectedCourse.capacity || 30)) * 100, 100)}%`
                         }}
                       ></div>
                     </div>

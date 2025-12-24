@@ -13,6 +13,7 @@ import { departmentRouter } from "./routes/department.routes";
 import { parentRouter } from "./routes/parent.routes";
 import { assessmentRouter } from "./routes/assessment.routes";
 import { assignmentRouter } from "./routes/assignment.routes";
+import { adminRouter } from "./routes/admin.routes";
 import cors from "cors";
 
 
@@ -37,6 +38,7 @@ app.use("/api/departments", departmentRouter);
 app.use("/api/parents", parentRouter);
 app.use("/api/assessments", assessmentRouter);
 app.use("/api/assignments", assignmentRouter);
+app.use("/api/admin", adminRouter);
 
 ////
 

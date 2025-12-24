@@ -18,6 +18,7 @@ export default function Events() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -52,11 +53,16 @@ export default function Events() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/community/events', {
-        method: 'POST',
+      const url = editingEvent
+        ? `http://localhost:4000/api/community/events/${editingEvent.id}`
+        : 'http://localhost:4000/api/community/events';
+      const method = editingEvent ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -65,20 +71,38 @@ export default function Events() {
       });
 
       if (response.ok) {
-        setIsModalOpen(false);
-        setFormData({ title: '', description: '', date: '', time: '', location: '', eventType: 'general' });
+        closeModal();
         fetchEvents();
       }
     } catch (error) {
-      console.error('Failed to create event:', error);
+      console.error('Failed to save event:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const openEditModal = (event: Event) => {
+    setEditingEvent(event);
+    setFormData({
+      title: event.title,
+      description: event.description || '',
+      date: event.date || '',
+      time: event.time || '',
+      location: event.location || '',
+      eventType: event.eventType || 'general'
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingEvent(null);
+    setFormData({ title: '', description: '', date: '', time: '', location: '', eventType: 'general' });
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this event?')) return;
-    
+
     try {
       const token = localStorage.getItem('token');
       await fetch(`http://localhost:4000/api/community/events/${id}`, {
@@ -181,11 +205,11 @@ export default function Events() {
             <div key={event.id} className={styles.gridCard} style={{
               borderLeft: `4px solid ${isUpcoming(event.date) ? '#4f6ef7' : '#9ca3af'}`
             }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'flex-start', 
-                marginBottom: '12px' 
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '12px'
               }}>
                 <div style={{
                   width: '48px',
@@ -200,17 +224,17 @@ export default function Events() {
                   {getEventIcon(event.eventType)}
                 </div>
                 <div className={styles.actions} style={{ flexDirection: 'row' }}>
-                  <button className={styles.iconBtn}>✏️</button>
+                  <button className={styles.iconBtn} onClick={() => openEditModal(event)}>✏️</button>
                   <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(event.id)}>
                     🗑️
                   </button>
                 </div>
               </div>
-              
+
               <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1f36', margin: '0 0 8px 0' }}>
                 {event.title}
               </h3>
-              
+
               <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 16px 0', minHeight: '40px' }}>
                 {event.description || 'No description provided'}
               </p>
@@ -244,23 +268,23 @@ export default function Events() {
         </div>
       )}
 
-      {/* Create Event Modal */}
+      {/* Create/Edit Event Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Create Event"
+        onClose={closeModal}
+        title={editingEvent ? 'Edit Event' : 'Create Event'}
         size="lg"
         footer={
           <>
-            <button className={`${modalStyles.btn} ${modalStyles.secondary}`} onClick={() => setIsModalOpen(false)}>
+            <button className={`${modalStyles.btn} ${modalStyles.secondary}`} onClick={closeModal}>
               Cancel
             </button>
-            <button 
-              className={`${modalStyles.btn} ${modalStyles.primary}`} 
+            <button
+              className={`${modalStyles.btn} ${modalStyles.primary}`}
               onClick={handleSubmit}
               disabled={isSubmitting || !formData.title}
             >
-              {isSubmitting ? 'Creating...' : 'Create Event'}
+              {isSubmitting ? 'Saving...' : (editingEvent ? 'Save Changes' : 'Create Event')}
             </button>
           </>
         }

@@ -24,9 +24,22 @@ interface DepartmentStats {
   totalStaff: number;
 }
 
+interface StaffMember {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+interface Building {
+  id: string;
+  name: string;
+}
+
 export default function Departments() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stats, setStats] = useState<DepartmentStats | null>(null);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [buildingsList, setBuildingsList] = useState<Building[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -49,7 +62,6 @@ export default function Departments() {
     building: '',
     floor: '',
     phone: '',
-    email: '',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,6 +69,8 @@ export default function Departments() {
   useEffect(() => {
     fetchDepartments();
     fetchStats();
+    fetchStaff();
+    fetchBuildings();
   }, []);
 
   const fetchDepartments = async () => {
@@ -95,6 +109,38 @@ export default function Departments() {
     }
   };
 
+  const fetchStaff = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/staff', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStaffList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff:', err);
+    }
+  };
+
+  const fetchBuildings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/facilities/buildings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBuildingsList(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch buildings:', err);
+    }
+  };
+
   const filteredDepartments = useMemo(() => {
     let result = [...departments];
 
@@ -124,7 +170,6 @@ export default function Departments() {
       building: '',
       floor: '',
       phone: '',
-      email: '',
     });
     setFormError('');
   };
@@ -261,7 +306,7 @@ export default function Departments() {
       building: dept.building || '',
       floor: dept.floor || '',
       phone: dept.phone || '',
-      email: dept.email || '',
+
     });
     setFormError('');
     setShowEditModal(true);
@@ -421,7 +466,7 @@ export default function Departments() {
             </div>
             <div className={styles.modalBody}>
               {formError && <div className={styles.formError}>⚠️ {formError}</div>}
-              
+
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
                   <label>Department Name *</label>
@@ -443,30 +488,27 @@ export default function Departments() {
                 </div>
                 <div className={styles.formGroup}>
                   <label>Department Head</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.head}
                     onChange={(e) => setFormData({ ...formData, head: e.target.value })}
-                    placeholder="e.g., Dr. John Smith"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="e.g., cs@university.edu"
-                  />
+                  >
+                    <option value="">Select Department Head</option>
+                    {staffList.map(staff => (
+                      <option key={staff.id} value={staff.name}>{staff.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Building</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.building}
                     onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                    placeholder="e.g., Science Building"
-                  />
+                  >
+                    <option value="">Select Building</option>
+                    {buildingsList.map(building => (
+                      <option key={building.id} value={building.name}>{building.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Floor</label>
@@ -501,8 +543,8 @@ export default function Departments() {
               <button className={styles.cancelBtn} onClick={() => setShowAddModal(false)}>
                 Cancel
               </button>
-              <button 
-                className={styles.submitBtn} 
+              <button
+                className={styles.submitBtn}
                 onClick={handleAddDepartment}
                 disabled={isSubmitting}
               >
@@ -523,7 +565,7 @@ export default function Departments() {
             </div>
             <div className={styles.modalBody}>
               {formError && <div className={styles.formError}>⚠️ {formError}</div>}
-              
+
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
                   <label>Department Name *</label>
@@ -543,27 +585,27 @@ export default function Departments() {
                 </div>
                 <div className={styles.formGroup}>
                   <label>Department Head</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.head}
                     onChange={(e) => setFormData({ ...formData, head: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
+                  >
+                    <option value="">Select Department Head</option>
+                    {staffList.map(staff => (
+                      <option key={staff.id} value={staff.name}>{staff.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Building</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.building}
                     onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                  />
+                  >
+                    <option value="">Select Building</option>
+                    {buildingsList.map(building => (
+                      <option key={building.id} value={building.name}>{building.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label>Floor</label>
@@ -595,8 +637,8 @@ export default function Departments() {
               <button className={styles.cancelBtn} onClick={() => setShowEditModal(false)}>
                 Cancel
               </button>
-              <button 
-                className={styles.submitBtn} 
+              <button
+                className={styles.submitBtn}
                 onClick={handleEditDepartment}
                 disabled={isSubmitting}
               >
@@ -626,8 +668,8 @@ export default function Departments() {
               <button className={styles.cancelBtn} onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </button>
-              <button 
-                className={styles.dangerBtn} 
+              <button
+                className={styles.dangerBtn}
                 onClick={handleDeleteDepartment}
                 disabled={isSubmitting}
               >

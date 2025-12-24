@@ -36,13 +36,13 @@ const requireAdminOrStaff = (req: Request, res: Response, next: NextFunction) =>
 router.get("/my-courses", authenticateToken, async (req, res) => {
   try {
     const user = (req as any).user;
-    
+
     // Find the user's entity via account relation
     const account = await prisma.account.findUnique({
       where: { id: user.id },
       include: { entity: true }
     });
-    
+
     if (!account?.entity) {
       return res.json([]);
     }
@@ -51,7 +51,7 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
 
     // Get courses based on user role
     const relationType = user.role === 'STAFF' ? 'TEACHES' : 'ENROLLED_IN';
-    
+
     const relations = await prisma.entityRelation.findMany({
       where: {
         fromEntityId: userEntityId,
@@ -96,8 +96,8 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         });
         instructor = {
           id: instrEntity.id,
-          name: instrAttrs.firstName && instrAttrs.lastName 
-            ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+          name: instrAttrs.firstName && instrAttrs.lastName
+            ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
             : instrEntity.account?.email || 'Unknown',
           email: instrEntity.account?.email
         };
@@ -157,8 +157,8 @@ router.get("/:id/students", authenticateToken, async (req, res) => {
 
       return {
         id: student.id,
-        name: attrs.firstName && attrs.lastName 
-          ? `${attrs.firstName} ${attrs.lastName}` 
+        name: attrs.firstName && attrs.lastName
+          ? `${attrs.firstName} ${attrs.lastName}`
           : student.account?.email || 'Unknown',
         email: student.account?.email,
         enrollmentId: rel.id
@@ -221,8 +221,8 @@ router.get("/student/:studentId/courses", authenticateToken, async (req, res) =>
         });
         instructor = {
           id: instrEntity.id,
-          name: instrAttrs.firstName && instrAttrs.lastName 
-            ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+          name: instrAttrs.firstName && instrAttrs.lastName
+            ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
             : instrEntity.account?.email || 'Unknown',
           email: instrEntity.account?.email
         };
@@ -291,7 +291,7 @@ router.get("/", authenticateToken, async (req, res) => {
       course.values.forEach((v: any) => {
         attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate || v.valueDateTime || v.valueText;
       });
-      
+
       // Find instructor (TEACHES relation)
       const instructorRelation = course.relationsTo.find((r: any) => r.relationType === 'TEACHES');
       let instructor = null;
@@ -303,13 +303,13 @@ router.get("/", authenticateToken, async (req, res) => {
         });
         instructor = {
           id: instructorEntity.id,
-          name: instrAttrs.firstName && instrAttrs.lastName 
-            ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+          name: instrAttrs.firstName && instrAttrs.lastName
+            ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
             : instructorEntity.account?.email || 'Unknown',
           email: instructorEntity.account?.email
         };
       }
-      
+
       // Count enrolled students
       const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
 
@@ -364,7 +364,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: "Course ID is required" });
     }
-    
+
     const course = await prisma.entity.findUnique({
       where: { id },
       include: {
@@ -403,8 +403,8 @@ router.get("/:id", authenticateToken, async (req, res) => {
       });
       instructor = {
         id: instructorEntity.id,
-        name: instrAttrs.firstName && instrAttrs.lastName 
-          ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+        name: instrAttrs.firstName && instrAttrs.lastName
+          ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
           : instructorEntity.account?.email || 'Unknown',
         email: instructorEntity.account?.email
       };
@@ -421,8 +421,8 @@ router.get("/:id", authenticateToken, async (req, res) => {
         });
         return {
           id: student.id,
-          name: studentAttrs.firstName && studentAttrs.lastName 
-            ? `${studentAttrs.firstName} ${studentAttrs.lastName}` 
+          name: studentAttrs.firstName && studentAttrs.lastName
+            ? `${studentAttrs.firstName} ${studentAttrs.lastName}`
             : student.account?.email || 'Unknown',
           email: student.account?.email,
           enrollmentId: r.id,
@@ -477,18 +477,18 @@ router.get("/instructors/available", authenticateToken, requireAdminOrStaff, asy
           name: account.email.split('@')[0]
         };
       }
-      
+
       const attrs: Record<string, any> = {};
       account.entity.values.forEach((v: any) => {
         attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
       });
-      
+
       return {
         id: account.entity.id,
         accountId: account.id,
         email: account.email,
-        name: attrs.firstName && attrs.lastName 
-          ? `${attrs.firstName} ${attrs.lastName}` 
+        name: attrs.firstName && attrs.lastName
+          ? `${attrs.firstName} ${attrs.lastName}`
           : account.email.split('@')[0]
       };
     });
@@ -503,7 +503,7 @@ router.get("/instructors/available", authenticateToken, requireAdminOrStaff, asy
 // CREATE course
 router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds } = req.body;
+    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Course name is required" });
@@ -528,14 +528,18 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       { name: 'capacity', value: capacity, dataType: 'NUMBER' },
       { name: 'room', value: room, dataType: 'STRING' },
       { name: 'schedule', value: schedule, dataType: 'STRING' },
+      { name: 'courseContent', value: courseContent, dataType: 'TEXT' },
+      { name: 'hasLecture', value: hasLecture, dataType: 'BOOLEAN' },
+      { name: 'hasTutorial', value: hasTutorial, dataType: 'BOOLEAN' },
+      { name: 'hasLab', value: hasLab, dataType: 'BOOLEAN' },
     ];
 
     for (const attrData of attributeData) {
       if (attrData.value !== undefined && attrData.value !== null && attrData.value !== '') {
-        let attr = await prisma.attribute.findFirst({ 
-          where: { name: attrData.name } 
+        let attr = await prisma.attribute.findFirst({
+          where: { name: attrData.name }
         });
-        
+
         if (!attr) {
           attr = await prisma.attribute.create({
             data: {
@@ -552,9 +556,13 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
           data: {
             entityId: course.id,
             attributeId: attr.id,
-            ...(attrData.dataType === 'NUMBER' 
-              ? { valueNumber: parseFloat(String(attrData.value)) } 
-              : { valueString: String(attrData.value) }
+            ...(attrData.dataType === 'NUMBER'
+              ? { valueNumber: parseFloat(String(attrData.value)) }
+              : attrData.dataType === 'TEXT'
+                ? { valueText: String(attrData.value) }
+                : attrData.dataType === 'BOOLEAN'
+                  ? { valueBool: Boolean(attrData.value) }
+                  : { valueString: String(attrData.value) }
             )
           }
         });
@@ -587,10 +595,10 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       }
     }
 
-    res.status(201).json({ 
-      id: course.id, 
-      name: course.name, 
-      message: "Course created successfully" 
+    res.status(201).json({
+      id: course.id,
+      name: course.name,
+      message: "Course created successfully"
     });
   } catch (error) {
     console.error("Create course error:", error);
@@ -602,7 +610,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
 router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
     const id = req.params.id as string;
-    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds } = req.body;
+    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Course ID is required" });
@@ -611,10 +619,10 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
     // Update entity
     const course = await prisma.entity.update({
       where: { id },
-      data: { 
-        name: name || undefined, 
-        description: description || undefined, 
-        isActive: isActive !== undefined ? isActive : undefined 
+      data: {
+        name: name || undefined,
+        description: description || undefined,
+        isActive: isActive !== undefined ? isActive : undefined
       }
     });
 
@@ -628,14 +636,18 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
       { name: 'capacity', value: capacity, dataType: 'NUMBER' },
       { name: 'room', value: room, dataType: 'STRING' },
       { name: 'schedule', value: schedule, dataType: 'STRING' },
+      { name: 'courseContent', value: courseContent, dataType: 'TEXT' },
+      { name: 'hasLecture', value: hasLecture, dataType: 'BOOLEAN' },
+      { name: 'hasTutorial', value: hasTutorial, dataType: 'BOOLEAN' },
+      { name: 'hasLab', value: hasLab, dataType: 'BOOLEAN' },
     ];
 
     for (const attrData of attributeData) {
       if (attrData.value !== undefined) {
-        let attr = await prisma.attribute.findFirst({ 
-          where: { name: attrData.name } 
+        let attr = await prisma.attribute.findFirst({
+          where: { name: attrData.name }
         });
-        
+
         if (!attr) {
           attr = await prisma.attribute.create({
             data: {
@@ -657,17 +669,25 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
             }
           },
           update: {
-            ...(attrData.dataType === 'NUMBER' 
-              ? { valueNumber: attrData.value !== '' ? parseFloat(String(attrData.value)) : null, valueString: null } 
-              : { valueString: String(attrData.value), valueNumber: null }
+            ...(attrData.dataType === 'NUMBER'
+              ? { valueNumber: attrData.value !== '' ? parseFloat(String(attrData.value)) : null, valueString: null, valueText: null, valueBool: null }
+              : attrData.dataType === 'TEXT'
+                ? { valueText: String(attrData.value), valueNumber: null, valueString: null, valueBool: null }
+                : attrData.dataType === 'BOOLEAN'
+                  ? { valueBool: Boolean(attrData.value), valueNumber: null, valueString: null, valueText: null }
+                  : { valueString: String(attrData.value), valueNumber: null, valueText: null, valueBool: null }
             )
           },
           create: {
             entityId: id,
             attributeId: attr.id,
-            ...(attrData.dataType === 'NUMBER' 
-              ? { valueNumber: parseFloat(String(attrData.value)) } 
-              : { valueString: String(attrData.value) }
+            ...(attrData.dataType === 'NUMBER'
+              ? { valueNumber: parseFloat(String(attrData.value)) }
+              : attrData.dataType === 'TEXT'
+                ? { valueText: String(attrData.value) }
+                : attrData.dataType === 'BOOLEAN'
+                  ? { valueBool: Boolean(attrData.value) }
+                  : { valueString: String(attrData.value) }
             )
           }
         });
@@ -745,8 +765,8 @@ router.delete("/:id", authenticateToken, requireAdminOrStaff, async (req, res) =
     // Delete values first
     await prisma.value.deleteMany({ where: { entityId: id } });
     // Delete relations
-    await prisma.entityRelation.deleteMany({ 
-      where: { OR: [{ fromEntityId: id }, { toEntityId: id }] } 
+    await prisma.entityRelation.deleteMany({
+      where: { OR: [{ fromEntityId: id }, { toEntityId: id }] }
     });
     // Delete entity
     await prisma.entity.delete({ where: { id } });
@@ -771,10 +791,30 @@ router.post("/:id/enroll", authenticateToken, async (req, res) => {
         where: { id: user.id },
         include: { entity: true }
       });
-      if (!account?.entity) {
-        return res.status(400).json({ error: "Student entity not found" });
+
+      if (!account) {
+        return res.status(400).json({ error: "Account not found" });
       }
-      studentId = account.entity.id;
+
+      // If student doesn't have an entity, create one
+      if (!account.entity) {
+        const newEntity = await prisma.entity.create({
+          data: {
+            type: 'STUDENT',
+            name: account.email.split('@')[0] || 'Student' // Use email prefix as initial name
+          }
+        });
+
+        // Link entity to account
+        await prisma.account.update({
+          where: { id: account.id },
+          data: { entityId: newEntity.id }
+        });
+
+        studentId = newEntity.id;
+      } else {
+        studentId = account.entity.id;
+      }
     }
 
     // Check if already enrolled
@@ -896,8 +936,8 @@ router.get("/stats/overview", authenticateToken, async (req, res) => {
   try {
     const totalCourses = await prisma.entity.count({ where: { type: 'COURSE' } });
     const activeCourses = await prisma.entity.count({ where: { type: 'COURSE', isActive: true } });
-    const totalEnrollments = await prisma.entityRelation.count({ 
-      where: { relationType: 'ENROLLED_IN', isActive: true } 
+    const totalEnrollments = await prisma.entityRelation.count({
+      where: { relationType: 'ENROLLED_IN', isActive: true }
     });
     const totalInstructors = await prisma.entityRelation.count({
       where: { relationType: 'TEACHES', isActive: true }

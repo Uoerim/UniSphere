@@ -77,8 +77,8 @@ router.post("/announcements", authenticateToken, async (req, res) => {
 
     // Create attributes for priority and target
     if (priority) {
-      let attr = await prisma.attribute.findFirst({ 
-        where: { name: 'priority' } 
+      let attr = await prisma.attribute.findFirst({
+        where: { name: 'priority' }
       });
       if (!attr) {
         attr = await prisma.attribute.create({
@@ -97,8 +97,8 @@ router.post("/announcements", authenticateToken, async (req, res) => {
     }
 
     if (targetAudience) {
-      let attr = await prisma.attribute.findFirst({ 
-        where: { name: 'targetAudience' } 
+      let attr = await prisma.attribute.findFirst({
+        where: { name: 'targetAudience' }
       });
       if (!attr) {
         attr = await prisma.attribute.create({
@@ -116,14 +116,65 @@ router.post("/announcements", authenticateToken, async (req, res) => {
       });
     }
 
-    res.status(201).json({ 
-      id: announcement.id, 
-      title: announcement.name, 
-      message: "Announcement created successfully" 
+    res.status(201).json({
+      id: announcement.id,
+      title: announcement.name,
+      message: "Announcement created successfully"
     });
   } catch (error) {
     console.error("Create announcement error:", error);
     res.status(500).json({ error: "Failed to create announcement" });
+  }
+});
+
+// UPDATE announcement
+router.put("/announcements/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, priority, targetAudience, isActive } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Announcement ID is required" });
+    }
+
+    // Update entity
+    const announcement = await prisma.entity.update({
+      where: { id },
+      data: {
+        name: title !== undefined ? title : undefined,
+        description: content !== undefined ? content : undefined,
+        isActive: isActive !== undefined ? isActive : undefined
+      }
+    });
+
+    // Update priority attribute
+    if (priority !== undefined) {
+      let attr = await prisma.attribute.findFirst({ where: { name: 'priority' } });
+      if (attr) {
+        await prisma.value.upsert({
+          where: { entityId_attributeId: { entityId: id, attributeId: attr.id } },
+          update: { valueString: priority },
+          create: { entityId: id, attributeId: attr.id, valueString: priority }
+        });
+      }
+    }
+
+    // Update target audience attribute
+    if (targetAudience !== undefined) {
+      let attr = await prisma.attribute.findFirst({ where: { name: 'targetAudience' } });
+      if (attr) {
+        await prisma.value.upsert({
+          where: { entityId_attributeId: { entityId: id, attributeId: attr.id } },
+          update: { valueString: targetAudience },
+          create: { entityId: id, attributeId: attr.id, valueString: targetAudience }
+        });
+      }
+    }
+
+    res.json({ id: announcement.id, message: "Announcement updated successfully" });
+  } catch (error) {
+    console.error("Update announcement error:", error);
+    res.status(500).json({ error: "Failed to update announcement" });
   }
 });
 
@@ -205,8 +256,8 @@ router.post("/events", authenticateToken, async (req, res) => {
 
     for (const attrData of attributeData) {
       if (attrData.value) {
-        let attr = await prisma.attribute.findFirst({ 
-          where: { name: attrData.name } 
+        let attr = await prisma.attribute.findFirst({
+          where: { name: attrData.name }
         });
         if (!attr) {
           attr = await prisma.attribute.create({
@@ -225,10 +276,10 @@ router.post("/events", authenticateToken, async (req, res) => {
       }
     }
 
-    res.status(201).json({ 
-      id: event.id, 
-      title: event.name, 
-      message: "Event created successfully" 
+    res.status(201).json({
+      id: event.id,
+      title: event.name,
+      message: "Event created successfully"
     });
   } catch (error) {
     console.error("Create event error:", error);
@@ -240,18 +291,44 @@ router.post("/events", authenticateToken, async (req, res) => {
 router.put("/events/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, isActive } = req.body;
+    const { title, description, date, time, location, eventType, isActive } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Event ID is required" });
     }
 
+    // Update entity
     const event = await prisma.entity.update({
       where: { id },
-      data: { name: title, description, isActive }
+      data: {
+        name: title !== undefined ? title : undefined,
+        description: description !== undefined ? description : undefined,
+        isActive: isActive !== undefined ? isActive : undefined
+      }
     });
 
-    res.json(event);
+    // Update attribute values
+    const attributeUpdates = [
+      { name: 'eventDate', value: date },
+      { name: 'eventTime', value: time },
+      { name: 'eventLocation', value: location },
+      { name: 'eventType', value: eventType }
+    ];
+
+    for (const update of attributeUpdates) {
+      if (update.value !== undefined) {
+        const attr = await prisma.attribute.findFirst({ where: { name: update.name } });
+        if (attr) {
+          await prisma.value.upsert({
+            where: { entityId_attributeId: { entityId: id, attributeId: attr.id } },
+            update: { valueString: String(update.value) },
+            create: { entityId: id, attributeId: attr.id, valueString: String(update.value) }
+          });
+        }
+      }
+    }
+
+    res.json({ id: event.id, message: "Event updated successfully" });
   } catch (error) {
     console.error("Update event error:", error);
     res.status(500).json({ error: "Failed to update event" });
