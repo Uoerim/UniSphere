@@ -40,52 +40,282 @@ type SortField = 'name' | 'code' | 'department' | 'credits' | 'enrolledStudents'
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'grid' | 'table';
 
-export default function Courses() {
-  const { user, logout } = useAuth();
+/**
+ * AdminCourses - Full course management for administrators
+ * Features: Add, Edit, Delete, View, Filter, Sort, Toggle Status
+ */
+export default function AdminCourses() {
+  // State
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [stats, setStats] = useState<CourseStats | null>(null);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterSemester, setFilterSemester] = useState('all');
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
-  // Example: Filter courses by staff member's email or name (replace with real logic as needed)
-  // For demo, assume user?.email or user?.name matches instructor
-  const allCourses = [
-    { id: 1, name: 'Mathematics 101', instructor: 'mahmoudkhalil', students: 32 },
-    { id: 2, name: 'Physics 201', instructor: 'Prof. Johnson', students: 28 },
-    { id: 3, name: 'Chemistry 101', instructor: 'mahmoudkhalil', students: 35 },
-  ];
-  // Use username before @ as instructor key
-  const staffKey = user?.email?.split('@')[0]?.toLowerCase();
-  const staffCourses = allCourses.filter(
-    (course) => course.instructor.toLowerCase() === staffKey
-  );
+  // Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-  const getRolePages = () => {
-    switch (user?.role) {
-      case 'ADMIN':
-        return [
-          { name: 'Dashboard', path: '/dashboard' },
-          { name: 'Users', path: '/users' },
-          { name: 'Students', path: '/students' },
-          { name: 'Courses', path: '/courses' },
-        ];
-      case 'STAFF':
-        return [
-          { name: 'Dashboard', path: '/dashboard' },
-          { name: 'Students', path: '/students' },
-          { name: 'Courses', path: '/courses' },
-        ];
-      case 'STUDENT':
-        return [
-          { name: 'Dashboard', path: '/dashboard' },
-          { name: 'My Courses', path: '/courses' },
-          { name: 'Grades', path: '/grades' },
-        ];
-      case 'PARENT':
-        return [
-          { name: 'Dashboard', path: '/dashboard' },
-          { name: 'Children', path: '/children' },
-          { name: 'Attendance', path: '/attendance' },
-        ];
-      default:
-        return [];
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    code: '',
+    credits: 3,
+    department: '',
+    semester: '',
+    courseType: '',
+    capacity: 30,
+    room: '',
+    schedule: '',
+    instructorId: '',
+  });
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchCourses();
+    fetchStats();
+    fetchInstructors();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/curriculum', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch courses');
+
+      const data = await response.json();
+      setCourses(data);
+      setError('');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/curriculum/stats/overview', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+    }
+  };
+
+  const fetchInstructors = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/curriculum/instructors/available', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setInstructors(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch instructors:', err);
+    }
+  };
+
+  // Filtered and sorted courses
+  const filteredCourses = useMemo(() => {
+    let result = [...courses];
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(term) ||
+        c.code?.toLowerCase().includes(term) ||
+        c.department?.toLowerCase().includes(term) ||
+        c.instructor?.name?.toLowerCase().includes(term)
+      );
+    }
+
+    if (filterDepartment !== 'all') {
+      result = result.filter(c => c.department === filterDepartment);
+    }
+
+    if (filterStatus !== 'all') {
+      result = result.filter(c => filterStatus === 'active' ? c.isActive : !c.isActive);
+    }
+
+    if (filterSemester !== 'all') {
+      result = result.filter(c => c.semester === filterSemester);
+    }
+
+    result.sort((a, b) => {
+      let aVal: any = a[sortField] || '';
+      let bVal: any = b[sortField] || '';
+
+      if (sortField === 'createdAt') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [courses, searchTerm, filterDepartment, filterStatus, filterSemester, sortField, sortDirection]);
+
+  const departments = useMemo(() => {
+    const deps = new Set(courses.map(c => c.department).filter(Boolean));
+    return Array.from(deps) as string[];
+  }, [courses]);
+
+  const semesters = useMemo(() => {
+    const sems = new Set(courses.map(c => c.semester).filter(Boolean));
+    return Array.from(sems) as string[];
+  }, [courses]);
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      code: '',
+      credits: 3,
+      department: '',
+      semester: '',
+      courseType: '',
+      capacity: 30,
+      room: '',
+      schedule: '',
+      instructorId: '',
+    });
+    setFormError('');
+  };
+
+  const handleAddCourse = async () => {
+    if (!formData.name || !formData.code) {
+      setFormError('Course name and code are required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFormError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/curriculum', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create course');
+      }
+
+      await fetchCourses();
+      await fetchStats();
+      setShowAddModal(false);
+      resetForm();
+    } catch (err: any) {
+      setFormError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditCourse = async () => {
+    if (!selectedCourse || !formData.name) {
+      setFormError('Course name is required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFormError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:4000/api/curriculum/${selectedCourse.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update course');
+      }
+
+      await fetchCourses();
+      await fetchStats();
+      setShowEditModal(false);
+      setSelectedCourse(null);
+      resetForm();
+    } catch (err: any) {
+      setFormError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!selectedCourse) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:4000/api/curriculum/${selectedCourse.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete course');
+      }
+
+      await fetchCourses();
+      await fetchStats();
+      setShowDeleteModal(false);
+      setSelectedCourse(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -166,21 +396,116 @@ export default function Courses() {
   }
 
   return (
-    <div className={styles.content}>
-      <h1>Courses</h1>
-      <p className={styles.subtitle}>View and manage course information</p>
-      <div className={styles.coursesGrid}>
-        {staffCourses.length === 0 ? (
-          <p>No courses assigned to you.</p>
-        ) : (
-          staffCourses.map((course) => (
-            <div key={course.id} className={styles.courseCard}>
-              <h3>{course.name}</h3>
-              <p className={styles.students}>{course.students} students enrolled</p>
-              <button className={styles.detailsBtn}>View Details</button>
+    <div className={styles.container}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <h1 className={styles.title}>Course Management</h1>
+          <p className={styles.subtitle}>Manage courses, instructors, and enrollments</p>
+        </div>
+        <button className={styles.addButton} onClick={() => { resetForm(); setShowAddModal(true); }}>
+          <span>+</span> Add Course
+        </button>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className={styles.errorBanner}>
+          <span>⚠️</span> {error}
+          <button onClick={() => setError('')}>×</button>
+        </div>
+      )}
+
+      {/* Stats */}
+      {stats && (
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.primary}`}>📚</div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{stats.totalCourses}</div>
+              <div className={styles.statLabel}>Total Courses</div>
             </div>
-          ))
-        )}
+          </div>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{stats.activeCourses}</div>
+              <div className={styles.statLabel}>Active</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.info}`}>🏛️</div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{stats.departmentCount}</div>
+              <div className={styles.statLabel}>Departments</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.warning}`}>👨‍🎓</div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{stats.totalEnrollments}</div>
+              <div className={styles.statLabel}>Total Enrollments</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className={styles.filtersBar}>
+        <div className={styles.searchBox}>
+          <span>🔍</span>
+          <input
+            type="text"
+            placeholder="Search courses..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <select
+          value={filterDepartment}
+          onChange={(e) => setFilterDepartment(e.target.value)}
+          className={styles.filterSelect}
+        >
+          <option value="all">All Departments</option>
+          {departments.map(dep => (
+            <option key={dep} value={dep}>{dep}</option>
+          ))}
+        </select>
+        <select
+          value={filterSemester}
+          onChange={(e) => setFilterSemester(e.target.value)}
+          className={styles.filterSelect}
+        >
+          <option value="all">All Semesters</option>
+          {semesters.map(sem => (
+            <option key={sem} value={sem}>{sem}</option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
+          className={styles.filterSelect}
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <div className={styles.viewToggle}>
+          <button
+            className={`${styles.viewBtn} ${viewMode === 'grid' ? styles.active : ''}`}
+            onClick={() => setViewMode('grid')}
+            title="Grid View"
+          >
+            ▦
+          </button>
+          <button
+            className={`${styles.viewBtn} ${viewMode === 'table' ? styles.active : ''}`}
+            onClick={() => setViewMode('table')}
+            title="Table View"
+          >
+            ≡
+          </button>
+        </div>
       </div>
 
       {/* Results count */}
@@ -234,18 +559,6 @@ export default function Courses() {
                       {course.enrolledStudents} / {course.capacity || 30}
                     </span>
                   </div>
-                  {course.room && (
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Room:</span>
-                      <span className={styles.detailValue}>{course.room}</span>
-                    </div>
-                  )}
-                  {course.schedule && (
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Schedule:</span>
-                      <span className={styles.detailValue}>{course.schedule}</span>
-                    </div>
-                  )}
                 </div>
                 <div className={styles.cardActions}>
                   <button className={styles.viewBtn} onClick={() => openDetailsModal(course)}>
@@ -332,13 +645,6 @@ export default function Courses() {
               ))}
             </tbody>
           </table>
-          {filteredCourses.length === 0 && (
-            <div className={styles.emptyState}>
-              <span>📚</span>
-              <h3>No courses found</h3>
-              <p>Try adjusting your filters or add a new course</p>
-            </div>
-          )}
         </div>
       )}
 

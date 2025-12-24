@@ -32,6 +32,225 @@ const requireAdminOrStaff = (req: Request, res: Response, next: NextFunction) =>
   next();
 };
 
+// GET courses for current user (enrolled courses for students, taught courses for staff)
+router.get("/my-courses", authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    
+    // Find the user's entity via account relation
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+    
+    if (!account?.entity) {
+      return res.json([]);
+    }
+
+    const userEntityId = account.entity.id;
+
+    // Get courses based on user role
+    const relationType = user.role === 'STAFF' ? 'TEACHES' : 'ENROLLED_IN';
+    
+    const relations = await prisma.entityRelation.findMany({
+      where: {
+        fromEntityId: userEntityId,
+        relationType,
+        isActive: true
+      },
+      include: {
+        toEntity: {
+          include: {
+            values: { include: { attribute: true } },
+            relationsTo: {
+              where: { relationType: 'TEACHES', isActive: true },
+              include: {
+                fromEntity: {
+                  include: {
+                    values: { include: { attribute: true } },
+                    account: { select: { email: true } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const courses = relations.map((rel: any) => {
+      const course = rel.toEntity;
+      const attrs: Record<string, any> = {};
+      course.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+
+      // Get instructor
+      const instructorRel = course.relationsTo.find((r: any) => r.relationType === 'TEACHES');
+      let instructor = null;
+      if (instructorRel) {
+        const instrEntity = instructorRel.fromEntity;
+        const instrAttrs: Record<string, any> = {};
+        instrEntity.values.forEach((v: any) => {
+          instrAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+        instructor = {
+          id: instrEntity.id,
+          name: instrAttrs.firstName && instrAttrs.lastName 
+            ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+            : instrEntity.account?.email || 'Unknown',
+          email: instrEntity.account?.email
+        };
+      }
+
+      return {
+        id: course.id,
+        name: course.name,
+        description: course.description,
+        isActive: course.isActive,
+        code: attrs.courseCode || attrs.code,
+        credits: attrs.credits,
+        department: attrs.department,
+        semester: attrs.semester,
+        courseType: attrs.courseType,
+        room: attrs.room,
+        schedule: attrs.schedule,
+        capacity: attrs.capacity || 30,
+        instructor
+      };
+    });
+
+    res.json(courses);
+  } catch (error) {
+    console.error("Get my courses error:", error);
+    res.status(500).json({ error: "Failed to fetch courses" });
+  }
+});
+
+// GET students enrolled in a specific course
+router.get("/:id/students", authenticateToken, async (req, res) => {
+  try {
+    const courseId = req.params.id as string;
+
+    const enrollments = await prisma.entityRelation.findMany({
+      where: {
+        toEntityId: courseId,
+        relationType: 'ENROLLED_IN',
+        isActive: true
+      },
+      include: {
+        fromEntity: {
+          include: {
+            values: { include: { attribute: true } },
+            account: { select: { email: true } }
+          }
+        }
+      }
+    });
+
+    const students = enrollments.map((rel: any) => {
+      const student = rel.fromEntity;
+      const attrs: Record<string, any> = {};
+      student.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+
+      return {
+        id: student.id,
+        name: attrs.firstName && attrs.lastName 
+          ? `${attrs.firstName} ${attrs.lastName}` 
+          : student.account?.email || 'Unknown',
+        email: student.account?.email,
+        enrollmentId: rel.id
+      };
+    });
+
+    res.json(students);
+  } catch (error) {
+    console.error("Get course students error:", error);
+    res.status(500).json({ error: "Failed to fetch students" });
+  }
+});
+
+// GET courses for a specific student (for parents to view)
+router.get("/student/:studentId/courses", authenticateToken, async (req, res) => {
+  try {
+    const studentId = req.params.studentId as string;
+
+    const enrollments = await prisma.entityRelation.findMany({
+      where: {
+        fromEntityId: studentId,
+        relationType: 'ENROLLED_IN',
+        isActive: true
+      },
+      include: {
+        toEntity: {
+          include: {
+            values: { include: { attribute: true } },
+            relationsTo: {
+              where: { relationType: 'TEACHES', isActive: true },
+              include: {
+                fromEntity: {
+                  include: {
+                    values: { include: { attribute: true } },
+                    account: { select: { email: true } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const courses = enrollments.map((rel: any) => {
+      const course = rel.toEntity;
+      const attrs: Record<string, any> = {};
+      course.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+
+      // Get instructor
+      const instructorRel = course.relationsTo.find((r: any) => r.relationType === 'TEACHES');
+      let instructor = null;
+      if (instructorRel) {
+        const instrEntity = instructorRel.fromEntity;
+        const instrAttrs: Record<string, any> = {};
+        instrEntity.values.forEach((v: any) => {
+          instrAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+        instructor = {
+          id: instrEntity.id,
+          name: instrAttrs.firstName && instrAttrs.lastName 
+            ? `${instrAttrs.firstName} ${instrAttrs.lastName}` 
+            : instrEntity.account?.email || 'Unknown',
+          email: instrEntity.account?.email
+        };
+      }
+
+      return {
+        id: course.id,
+        name: course.name,
+        description: course.description,
+        isActive: course.isActive,
+        code: attrs.courseCode || attrs.code,
+        credits: attrs.credits,
+        department: attrs.department,
+        semester: attrs.semester,
+        courseType: attrs.courseType,
+        room: attrs.room,
+        schedule: attrs.schedule,
+        instructor
+      };
+    });
+
+    res.json(courses);
+  } catch (error) {
+    console.error("Get student courses error:", error);
+    res.status(500).json({ error: "Failed to fetch courses" });
+  }
+});
+
 // GET all courses with enrollment and instructor data
 router.get("/", authenticateToken, async (req, res) => {
   try {

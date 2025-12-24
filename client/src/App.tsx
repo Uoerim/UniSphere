@@ -5,7 +5,7 @@ import Login from './pages/login/Login';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Students from './pages/students/Students';
-import Courses from './pages/courses/Courses';
+import CoursesRouter from './pages/courses/CoursesRouter';
 import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
 import StaffManagement from './pages/staff/StaffManagement';
@@ -35,7 +35,7 @@ export default function App() {
             <Route path="students" element={<Students />} />
             <Route path="staff" element={<StaffManagement />} />
             <Route path="staff-old" element={<Staff />} />
-            <Route path="courses" element={<Courses />} />
+            <Route path="courses" element={<CoursesRouter />} />
             <Route path="classrooms" element={<Classrooms />} />
             <Route path="curriculum" element={<Curriculum />} />
             <Route path="announcements" element={<Announcements />} />

@@ -289,4 +289,63 @@ router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// GET children for parent (parent only)
+router.get("/my-children", authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    
+    if (user.role !== 'PARENT') {
+      return res.status(403).json({ error: "Only parents can access this endpoint" });
+    }
+
+    // Find the parent's entity via account relation
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+
+    if (!account?.entity) {
+      return res.json([]);
+    }
+
+    // Find children through PARENT_OF relation
+    const relations = await prisma.entityRelation.findMany({
+      where: {
+        fromEntityId: account.entity.id,
+        relationType: 'PARENT_OF',
+        isActive: true
+      },
+      include: {
+        toEntity: {
+          include: {
+            values: { include: { attribute: true } },
+            account: { select: { email: true } }
+          }
+        }
+      }
+    });
+
+    const children = relations.map((rel: any) => {
+      const child = rel.toEntity;
+      const attrs: Record<string, any> = {};
+      child.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+
+      return {
+        id: child.id,
+        name: attrs.firstName && attrs.lastName 
+          ? `${attrs.firstName} ${attrs.lastName}` 
+          : child.account?.email || child.name || 'Unknown',
+        email: child.account?.email
+      };
+    });
+
+    res.json(children);
+  } catch (error) {
+    console.error("Get children error:", error);
+    res.status(500).json({ error: "Failed to fetch children" });
+  }
+});
+
 export const usersRouter = router;
