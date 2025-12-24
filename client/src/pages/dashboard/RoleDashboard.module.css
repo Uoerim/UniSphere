@@ -1,3 +1,41 @@
+/* Registered Students Section */
+.registeredStudentsSection {
+  margin-top: 16px;
+}
+.registeredStudentsHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.registeredStudentsIcon {
+  font-size: 18px;
+}
+.registeredStudentsTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1f36;
+}
+.registeredStudentsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.registeredStudentItem {
+  background: #eef1fe;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 16px;
+}
+.registeredStudentName {
+  font-size: 18px;
+  font-weight: bold;
+  color: #22223b;
+  letter-spacing: 0.01em;
+}
 .container {
   padding: 24px;
   max-width: 1400px;
