@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { AlertTriangleIcon, BookOpenIcon, ChartIcon, SearchIcon, BuildingIcon, CalendarIcon, LogoutIcon, CheckIcon } from '../../components/ui/Icons';
 import styles from './Courses.module.css';
 
 interface Instructor {
@@ -224,7 +225,7 @@ export default function StudentCourses() {
       {/* Error Message */}
       {error && (
         <div className={styles.errorBanner}>
-          <span>⚠️</span> {error}
+          <AlertTriangleIcon size={16} /> {error}
           <button onClick={() => setError('')}>×</button>
         </div>
       )}
@@ -232,21 +233,21 @@ export default function StudentCourses() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><BookOpenIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{enrolledCourses.length}</div>
             <div className={styles.statLabel}>Enrolled Courses</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>📊</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><ChartIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{totalCredits}</div>
             <div className={styles.statLabel}>Total Credits</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>📖</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{availableCourses.length}</div>
             <div className={styles.statLabel}>Available Courses</div>
@@ -260,13 +261,13 @@ export default function StudentCourses() {
           className={`${styles.tab} ${activeTab === 'enrolled' ? styles.activeTab : ''}`}
           onClick={() => setActiveTab('enrolled')}
         >
-          📚 My Enrolled Courses ({enrolledCourses.length})
+          <BookOpenIcon size={16} /> My Enrolled Courses ({enrolledCourses.length})
         </button>
         <button 
           className={`${styles.tab} ${activeTab === 'browse' ? styles.activeTab : ''}`}
           onClick={() => setActiveTab('browse')}
         >
-          🔍 Browse Courses ({availableCourses.length})
+          <SearchIcon size={16} /> Browse Courses ({availableCourses.length})
         </button>
       </div>
 
@@ -275,7 +276,7 @@ export default function StudentCourses() {
         <>
           {enrolledCourses.length === 0 ? (
             <div className={styles.emptyState}>
-              <span>📚</span>
+              <BookOpenIcon size={48} />
               <h3>No Enrolled Courses</h3>
               <p>You haven't enrolled in any courses yet. Browse available courses to get started!</p>
               <button 
@@ -299,13 +300,13 @@ export default function StudentCourses() {
                   )}
                   <div className={styles.courseMeta}>
                     {course.department && (
-                      <span className={styles.metaItem}>🏛️ {course.department}</span>
+                      <span className={styles.metaItem}><BuildingIcon size={14} /> {course.department}</span>
                     )}
                     {course.credits && (
-                      <span className={styles.metaItem}>📊 {course.credits} Credits</span>
+                      <span className={styles.metaItem}><ChartIcon size={14} /> {course.credits} Credits</span>
                     )}
                     {course.semester && (
-                      <span className={styles.metaItem}>📅 {course.semester}</span>
+                      <span className={styles.metaItem}><CalendarIcon size={14} /> {course.semester}</span>
                     )}
                   </div>
                   <div className={styles.courseDetails}>
@@ -330,7 +331,7 @@ export default function StudentCourses() {
                       onClick={() => handleUnenroll(course.id)}
                       disabled={enrollingCourseId === course.id}
                     >
-                      {enrollingCourseId === course.id ? '...' : '🚪 Drop Course'}
+                      {enrollingCourseId === course.id ? '...' : <><LogoutIcon size={16} /> Drop Course</>}
                     </button>
                   </div>
                 </div>
@@ -346,7 +347,7 @@ export default function StudentCourses() {
           {/* Search and Filters */}
           <div className={styles.filtersBar}>
             <div className={styles.searchBox}>
-              <span>🔍</span>
+              <SearchIcon size={16} />
               <input
                 type="text"
                 placeholder="Search courses..."
@@ -372,7 +373,7 @@ export default function StudentCourses() {
 
           {availableCourses.length === 0 ? (
             <div className={styles.emptyState}>
-              <span>📚</span>
+              <BookOpenIcon size={48} />
               <h3>No Available Courses</h3>
               <p>There are no more courses available for enrollment or try adjusting your filters.</p>
             </div>
@@ -406,13 +407,13 @@ export default function StudentCourses() {
                     )}
                     <div className={styles.courseMeta}>
                       {course.department && (
-                        <span className={styles.metaItem}>🏛️ {course.department}</span>
+                        <span className={styles.metaItem}><BuildingIcon size={14} /> {course.department}</span>
                       )}
                       {course.credits && (
-                        <span className={styles.metaItem}>📊 {course.credits} Credits</span>
+                        <span className={styles.metaItem}><ChartIcon size={14} /> {course.credits} Credits</span>
                       )}
                       {course.semester && (
-                        <span className={styles.metaItem}>📅 {course.semester}</span>
+                        <span className={styles.metaItem}><CalendarIcon size={14} /> {course.semester}</span>
                       )}
                     </div>
                     <div className={styles.courseDetails}>
@@ -439,7 +440,7 @@ export default function StudentCourses() {
                       >
                         {enrollingCourseId === course.id 
                           ? 'Enrolling...' 
-                          : enrollMsg || '✓ Enroll'}
+                          : enrollMsg || <><CheckIcon size={16} /> Enroll</>}
                       </button>
                       {enrollMsg && enrollMsg !== 'Full' && (
                         <div style={{ color: 'red', fontSize: 12, marginTop: 4 }}>{enrollMsg}</div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./Assignments.module.css";
 import api from "../../lib/api";
+import { BookOpenIcon, EditIcon, ChartIcon, TrashIcon, XIcon, AlertTriangleIcon } from "../../components/ui/Icons";
 
 type AssignmentStatus = "DRAFT" | "PUBLISHED" | "CLOSED" | "GRADED";
 
@@ -378,7 +379,7 @@ export default function Assignments() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.titleSection}>
-          <h1>📚 Assignments</h1>
+          <h1><BookOpenIcon /> Assignments</h1>
           <p>Create and manage course assignments</p>
         </div>
         <div className={styles.headerActions}>
@@ -508,7 +509,7 @@ export default function Assignments() {
                   </span>
                 </div>
                 <span className={styles.courseTag}>
-                  📖 {assignment.course.code} - {assignment.course.name}
+                  <BookOpenIcon /> {assignment.course.code} - {assignment.course.name}
                 </span>
               </div>
               <div className={styles.cardBody}>
@@ -569,13 +570,13 @@ export default function Assignments() {
               </div>
               <div className={styles.cardFooter}>
                 <button className={styles.editBtn} onClick={() => handleEdit(assignment)}>
-                  ✏️ Edit
+                  <EditIcon /> Edit
                 </button>
                 <button className={styles.viewBtn} onClick={() => handleViewSubmissions(assignment)}>
-                  📊 Submissions
+                  <ChartIcon /> Submissions
                 </button>
                 <button className={styles.deleteBtn} onClick={() => handleDelete(assignment)}>
-                  🗑️
+                  <TrashIcon />
                 </button>
               </div>
             </div>
@@ -590,7 +591,7 @@ export default function Assignments() {
             <div className={styles.modalHeader}>
               <h2>Add New Assignment</h2>
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>
-                ✕
+                <XIcon />
               </button>
             </div>
             <form onSubmit={handleSubmitAdd}>
@@ -763,7 +764,7 @@ export default function Assignments() {
             <div className={styles.modalHeader}>
               <h2>Edit Assignment</h2>
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>
-                ✕
+                <XIcon />
               </button>
             </div>
             <form onSubmit={handleSubmitEdit}>
@@ -932,7 +933,7 @@ export default function Assignments() {
             <div className={styles.modalHeader}>
               <h2>Delete Assignment</h2>
               <button className={styles.closeBtn} onClick={() => setShowDeleteModal(false)}>
-                ✕
+                <XIcon />
               </button>
             </div>
             <div className={styles.modalBody}>
@@ -941,7 +942,7 @@ export default function Assignments() {
               </p>
               {selectedAssignment.submissionCount > 0 && (
                 <p style={{ color: "var(--warning)", marginTop: "0.5rem" }}>
-                  ⚠️ This assignment has {selectedAssignment.submissionCount} submission(s). They will
+                  <AlertTriangleIcon /> This assignment has {selectedAssignment.submissionCount} submission(s). They will
                   also be deleted.
                 </p>
               )}
@@ -979,7 +980,7 @@ export default function Assignments() {
                 Submissions for {selectedAssignment.title} ({selectedAssignment.totalPoints} pts)
               </h2>
               <button className={styles.closeBtn} onClick={() => setShowSubmissionsModal(false)}>
-                ✕
+                <XIcon />
               </button>
             </div>
             <div className={styles.modalBody}>

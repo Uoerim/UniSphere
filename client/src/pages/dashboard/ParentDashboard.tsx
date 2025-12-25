@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { BookOpenIcon, ChartIcon, CalendarIcon, ClipboardIcon, CheckCircleIcon, UsersIcon, BellIcon, FileTextIcon } from '../../components/ui/Icons';
 import styles from './RoleDashboard.module.css';
 
 interface Child {
@@ -44,8 +45,8 @@ export default function ParentDashboard() {
   useEffect(() => {
     // Mock data - in production, fetch from API
     const childrenData = [
-      { id: '1', name: 'Alex Johnson', grade: '10th Grade', attendance: 95, gpa: 3.8, avatar: '👦' },
-      { id: '2', name: 'Emma Johnson', grade: '7th Grade', attendance: 98, gpa: 3.9, avatar: '👧' },
+      { id: '1', name: 'Alex Johnson', grade: '10th Grade', attendance: 95, gpa: 3.8, avatar: 'A' },
+      { id: '2', name: 'Emma Johnson', grade: '7th Grade', attendance: 98, gpa: 3.9, avatar: 'E' },
     ];
     setChildren(childrenData);
     setSelectedChild(childrenData[0].id);
@@ -85,18 +86,18 @@ export default function ParentDashboard() {
 
   const getEventIcon = (type: string) => {
     switch (type) {
-      case 'meeting': return '👥';
-      case 'event': return '🎉';
-      case 'deadline': return '📋';
-      default: return '📅';
+      case 'meeting': return <UsersIcon size={20} />;
+      case 'event': return <BellIcon size={20} />;
+      case 'deadline': return <ClipboardIcon size={20} />;
+      default: return <CalendarIcon size={20} />;
     }
   };
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'up': return '📈';
-      case 'down': return '📉';
-      default: return '➡️';
+      case 'up': return <ChartIcon size={16} />;
+      case 'down': return <ChartIcon size={16} />;
+      default: return <ChartIcon size={16} />;
     }
   };
 
@@ -105,7 +106,7 @@ export default function ParentDashboard() {
       {/* Welcome Header */}
       <div className={`${styles.welcomeBanner} ${styles.parentBanner}`}>
         <div className={styles.welcomeContent}>
-          <h1>Welcome, {user?.email?.split('@')[0] || 'Parent'}! 👨‍👩‍👧‍👦</h1>
+          <h1>Welcome, {user?.email?.split('@')[0] || 'Parent'}!</h1>
           <p>Stay connected with your children's academic journey and school activities.</p>
         </div>
         <div className={styles.welcomeStats}>
@@ -145,28 +146,28 @@ export default function ParentDashboard() {
       {currentChild && (
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.primary}`}>📊</div>
+            <div className={`${styles.statIcon} ${styles.primary}`}><ChartIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{currentChild.gpa}</div>
               <div className={styles.statTitle}>Current GPA</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+            <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{currentChild.attendance}%</div>
               <div className={styles.statTitle}>Attendance Rate</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.info}`}>📚</div>
+            <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>5</div>
               <div className={styles.statTitle}>Active Courses</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.warning}`}>🏆</div>
+            <div className={`${styles.statIcon} ${styles.warning}`}><CheckCircleIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>3</div>
               <div className={styles.statTitle}>Achievements</div>
@@ -179,7 +180,7 @@ export default function ParentDashboard() {
         {/* Academic Performance */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📊 Academic Performance</h2>
+            <h2><ChartIcon size={20} /> Academic Performance</h2>
             <button className={styles.viewAllBtn}>Full Report</button>
           </div>
           <div className={styles.gradeList}>
@@ -206,7 +207,7 @@ export default function ParentDashboard() {
         {/* Upcoming Events */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📅 Upcoming Events</h2>
+            <h2><CalendarIcon size={20} /> Upcoming Events</h2>
             <button className={styles.viewAllBtn}>View Calendar</button>
           </div>
           <div className={styles.eventList}>
@@ -232,7 +233,7 @@ export default function ParentDashboard() {
         {/* Payments */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>💳 Payments & Fees</h2>
+            <h2><ClipboardIcon size={20} /> Payments & Fees</h2>
             <button className={styles.viewAllBtn}>Payment History</button>
           </div>
           <div className={styles.paymentList}>
@@ -259,23 +260,23 @@ export default function ParentDashboard() {
         {/* Communication */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>💬 Communication</h2>
+            <h2><BellIcon size={20} /> Communication</h2>
           </div>
           <div className={styles.communicationOptions}>
             <button className={styles.commOption}>
-              <span className={styles.commIcon}>✉️</span>
+              <span className={styles.commIcon}><BellIcon size={20} /></span>
               <span>Message Teacher</span>
             </button>
             <button className={styles.commOption}>
-              <span className={styles.commIcon}>📞</span>
+              <span className={styles.commIcon}><CalendarIcon size={20} /></span>
               <span>Schedule Call</span>
             </button>
             <button className={styles.commOption}>
-              <span className={styles.commIcon}>📋</span>
+              <span className={styles.commIcon}><ClipboardIcon size={20} /></span>
               <span>Request Meeting</span>
             </button>
             <button className={styles.commOption}>
-              <span className={styles.commIcon}>📄</span>
+              <span className={styles.commIcon}><FileTextIcon size={20} /></span>
               <span>View Reports</span>
             </button>
           </div>

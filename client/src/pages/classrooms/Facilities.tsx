@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react';
 import api from '../../lib/api';
 import styles from './Facilities.module.css';
+import {
+  BuildingIcon,
+  BeakerIcon,
+  BriefcaseIcon,
+  TheaterIcon,
+  MonitorIcon,
+  ClipboardIcon,
+  VideoIcon,
+  SchoolIcon,
+  CheckCircleIcon,
+  UsersIcon,
+  EditIcon,
+  TrashIcon,
+  PlusIcon
+} from '../../components/ui/Icons';
 
 interface Department {
   id: number;
@@ -36,14 +51,14 @@ interface FormData {
   notes: string;
 }
 
-const FACILITY_TYPES = [
-  { value: 'CLASSROOM', label: 'Classroom', icon: '🏫' },
-  { value: 'LABORATORY', label: 'Laboratory', icon: '🔬' },
-  { value: 'OFFICE', label: 'Office', icon: '🏢' },
-  { value: 'LECTURE_HALL', label: 'Lecture Hall', icon: '🎭' },
-  { value: 'COMPUTER_LAB', label: 'Computer Lab', icon: '💻' },
-  { value: 'CONFERENCE_ROOM', label: 'Conference Room', icon: '📋' },
-  { value: 'AUDITORIUM', label: 'Auditorium', icon: '🎬' },
+const FACILITY_TYPES: { value: string; label: string; icon: React.ReactNode }[] = [
+  { value: 'CLASSROOM', label: 'Classroom', icon: <BuildingIcon size={18} /> },
+  { value: 'LABORATORY', label: 'Laboratory', icon: <BeakerIcon size={18} /> },
+  { value: 'OFFICE', label: 'Office', icon: <BriefcaseIcon size={18} /> },
+  { value: 'LECTURE_HALL', label: 'Lecture Hall', icon: <TheaterIcon size={18} /> },
+  { value: 'COMPUTER_LAB', label: 'Computer Lab', icon: <MonitorIcon size={18} /> },
+  { value: 'CONFERENCE_ROOM', label: 'Conference Room', icon: <ClipboardIcon size={18} /> },
+  { value: 'AUDITORIUM', label: 'Auditorium', icon: <VideoIcon size={18} /> },
 ];
 
 const STATUS_OPTIONS = [
@@ -219,7 +234,7 @@ export default function Facilities() {
         <h1>Facilities Management</h1>
         <div className={styles.headerActions}>
           <button className={styles.addBtn} onClick={openAddModal}>
-            <span>➕</span> Add Facility
+            <PlusIcon size={16} /> Add Facility
           </button>
         </div>
       </div>
@@ -227,42 +242,42 @@ export default function Facilities() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.total}`}>🏛️</div>
+          <div className={`${styles.statIcon} ${styles.total}`}><SchoolIcon size={24} /></div>
           <div className={styles.statInfo}>
             <h3>{stats.total}</h3>
             <p>Total Facilities</p>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.available}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.available}`}><CheckCircleIcon size={24} /></div>
           <div className={styles.statInfo}>
             <h3>{stats.available}</h3>
             <p>Available</p>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.classrooms}`}>🏫</div>
+          <div className={`${styles.statIcon} ${styles.classrooms}`}><BuildingIcon size={24} /></div>
           <div className={styles.statInfo}>
             <h3>{stats.classrooms}</h3>
             <p>Classrooms</p>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.labs}`}>🔬</div>
+          <div className={`${styles.statIcon} ${styles.labs}`}><BeakerIcon size={24} /></div>
           <div className={styles.statInfo}>
             <h3>{stats.labs}</h3>
             <p>Laboratories</p>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.offices}`}>🏢</div>
+          <div className={`${styles.statIcon} ${styles.offices}`}><BriefcaseIcon size={24} /></div>
           <div className={styles.statInfo}>
             <h3>{stats.offices}</h3>
             <p>Offices</p>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.halls}`}>🎭</div>
+          <div className={`${styles.statIcon} ${styles.halls}`}><TheaterIcon size={24} /></div>
           <div className={styles.statInfo}>
             <h3>{stats.halls}</h3>
             <p>Halls</p>
@@ -328,7 +343,7 @@ export default function Facilities() {
         </div>
       ) : filteredFacilities.length === 0 ? (
         <div className={styles.emptyState}>
-          <span>🏛️</span>
+          <SchoolIcon size={48} />
           <h3>No facilities found</h3>
           <p>Add a new facility or adjust your filters</p>
         </div>
@@ -355,22 +370,22 @@ export default function Facilities() {
 
                 <div className={styles.facilityDetails}>
                   <div className={styles.detailItem}>
-                    <span>🏢</span>
+                    <BuildingIcon size={16} />
                     <span>{facility.building}</span>
                   </div>
                   <div className={styles.detailItem}>
-                    <span>🔢</span>
+                    <span>#</span>
                     <span>Floor {facility.floor}</span>
                   </div>
                   <div className={styles.detailItem}>
-                    <span>👥</span>
+                    <UsersIcon size={16} />
                     <span>Capacity: {facility.capacity}</span>
                   </div>
                 </div>
 
                 {facility.department && (
                   <div className={styles.facilityDepartment}>
-                    <span>🏛️</span>
+                    <SchoolIcon size={16} />
                     <span>{facility.department.name} ({facility.department.code})</span>
                   </div>
                 )}
@@ -385,10 +400,10 @@ export default function Facilities() {
 
                 <div className={styles.facilityActions}>
                   <button className={styles.editBtn} onClick={() => openEditModal(facility)}>
-                    ✏️ Edit
+                    <EditIcon size={14} /> Edit
                   </button>
                   <button className={styles.deleteBtn} onClick={() => handleDelete(facility.id)}>
-                    🗑️ Delete
+                    <TrashIcon size={14} /> Delete
                   </button>
                 </div>
               </div>

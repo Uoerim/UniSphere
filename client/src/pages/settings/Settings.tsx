@@ -1,5 +1,17 @@
 import { useState } from 'react';
 import styles from '../../styles/pages.module.css';
+import {
+  SettingsIcon,
+  BellIcon,
+  LockIcon,
+  PaletteIcon,
+  LinkIcon,
+  CalendarIcon,
+  BriefcaseIcon,
+  MessageIcon,
+  VideoIcon,
+  CheckIcon
+} from '../../components/ui/Icons';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
@@ -33,12 +45,12 @@ export default function Settings() {
     setTimeout(() => setSaveMessage(''), 3000);
   };
 
-  const tabs = [
-    { id: 'general', label: 'General', icon: '⚙️' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'security', label: 'Security', icon: '🔐' },
-    { id: 'appearance', label: 'Appearance', icon: '🎨' },
-    { id: 'integrations', label: 'Integrations', icon: '🔗' }
+  const tabs: { id: string; label: string; icon: React.ReactNode }[] = [
+    { id: 'general', label: 'General', icon: <SettingsIcon size={18} /> },
+    { id: 'notifications', label: 'Notifications', icon: <BellIcon size={18} /> },
+    { id: 'security', label: 'Security', icon: <LockIcon size={18} /> },
+    { id: 'appearance', label: 'Appearance', icon: <PaletteIcon size={18} /> },
+    { id: 'integrations', label: 'Integrations', icon: <LinkIcon size={18} /> }
   ];
 
   return (
@@ -74,7 +86,7 @@ export default function Settings() {
                   transition: 'all 0.2s'
                 }}
               >
-                <span>{tab.icon}</span>
+                {tab.icon}
                 <span>{tab.label}</span>
               </button>
             ))}
@@ -407,12 +419,12 @@ export default function Settings() {
               </h2>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {[
-                  { name: 'Google Calendar', desc: 'Sync events with Google Calendar', connected: true, icon: '📅' },
-                  { name: 'Microsoft Teams', desc: 'Enable Teams integration', connected: false, icon: '💼' },
-                  { name: 'Slack', desc: 'Send notifications to Slack', connected: false, icon: '💬' },
-                  { name: 'Zoom', desc: 'Schedule Zoom meetings', connected: true, icon: '🎥' }
-                ].map(integration => (
+                {([
+                  { name: 'Google Calendar', desc: 'Sync events with Google Calendar', connected: true, icon: <CalendarIcon size={24} /> },
+                  { name: 'Microsoft Teams', desc: 'Enable Teams integration', connected: false, icon: <BriefcaseIcon size={24} /> },
+                  { name: 'Slack', desc: 'Send notifications to Slack', connected: false, icon: <MessageIcon size={24} /> },
+                  { name: 'Zoom', desc: 'Schedule Zoom meetings', connected: true, icon: <VideoIcon size={24} /> }
+                ] as { name: string; desc: string; connected: boolean; icon: React.ReactNode }[]).map(integration => (
                   <div
                     key={integration.name}
                     style={{
@@ -432,7 +444,7 @@ export default function Settings() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '24px'
+                      color: '#4f6ef7'
                     }}>
                       {integration.icon}
                     </div>
@@ -463,8 +475,8 @@ export default function Settings() {
             gap: '16px'
           }}>
             {saveMessage && (
-              <span style={{ color: '#10b981', fontSize: '14px' }}>
-                ✓ {saveMessage}
+              <span style={{ color: '#10b981', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CheckIcon size={16} color="#10b981" /> {saveMessage}
               </span>
             )}
             <button 

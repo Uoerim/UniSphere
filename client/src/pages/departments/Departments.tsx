@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './Departments.module.css';
+import { BuildingIcon, CheckCircleIcon, BookOpenIcon, StaffIcon, AlertTriangleIcon, SearchIcon, UserIcon, EditIcon, TrashIcon, LockIcon, UnlockIcon } from '../../components/ui/Icons';
 
 interface Department {
   id: string;
@@ -342,7 +343,7 @@ export default function Departments() {
       {/* Error Banner */}
       {error && (
         <div className={styles.errorBanner}>
-          <span>⚠️</span> {error}
+          <AlertTriangleIcon size={16} /> {error}
           <button onClick={() => setError('')}>×</button>
         </div>
       )}
@@ -351,28 +352,28 @@ export default function Departments() {
       {stats && (
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.primary}`}>🏛️</div>
+            <div className={`${styles.statIcon} ${styles.primary}`}><BuildingIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalDepartments}</div>
               <div className={styles.statLabel}>Total Departments</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+            <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.activeDepartments}</div>
               <div className={styles.statLabel}>Active</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.info}`}>📚</div>
+            <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalCourses}</div>
               <div className={styles.statLabel}>Total Courses</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.warning}`}>👨‍🏫</div>
+            <div className={`${styles.statIcon} ${styles.warning}`}><StaffIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalStaff}</div>
               <div className={styles.statLabel}>Staff Members</div>
@@ -384,7 +385,7 @@ export default function Departments() {
       {/* Filters */}
       <div className={styles.filtersBar}>
         <div className={styles.searchBox}>
-          <span>🔍</span>
+          <SearchIcon size={16} />
           <input
             type="text"
             placeholder="Search departments..."
@@ -407,7 +408,7 @@ export default function Departments() {
       <div className={styles.departmentsGrid}>
         {filteredDepartments.length === 0 ? (
           <div className={styles.emptyState}>
-            <span>🏛️</span>
+            <BuildingIcon size={48} />
             <h3>No departments found</h3>
             <p>Try adjusting your filters or add a new department</p>
           </div>
@@ -427,29 +428,29 @@ export default function Departments() {
                 )}
                 <div className={styles.departmentStats}>
                   <div className={styles.deptStat}>
-                    <span>📚</span>
+                    <BookOpenIcon size={14} />
                     <span>{dept.courseCount} Courses</span>
                   </div>
                   <div className={styles.deptStat}>
-                    <span>👨‍🏫</span>
+                    <StaffIcon size={14} />
                     <span>{dept.staffCount} Staff</span>
                   </div>
                 </div>
                 <div className={styles.departmentMeta}>
                   {dept.head && (
-                    <span className={styles.metaItem}>👤 {dept.head}</span>
+                    <span className={styles.metaItem}><UserIcon size={14} /> {dept.head}</span>
                   )}
                   {dept.building && (
-                    <span className={styles.metaItem}>🏢 {dept.building}{dept.floor ? `, Floor ${dept.floor}` : ''}</span>
+                    <span className={styles.metaItem}><BuildingIcon size={14} /> {dept.building}{dept.floor ? `, Floor ${dept.floor}` : ''}</span>
                   )}
                 </div>
               </div>
               <div className={styles.cardActions}>
-                <button onClick={() => openEditModal(dept)}>✏️ Edit</button>
+                <button onClick={() => openEditModal(dept)}><EditIcon size={14} /> Edit</button>
                 <button onClick={() => handleToggleStatus(dept)}>
-                  {dept.isActive ? '🔒 Deactivate' : '🔓 Activate'}
+                  {dept.isActive ? <><LockIcon size={14} /> Deactivate</> : <><UnlockIcon size={14} /> Activate</>}
                 </button>
-                <button className={styles.deleteBtn} onClick={() => openDeleteModal(dept)}>🗑️</button>
+                <button className={styles.deleteBtn} onClick={() => openDeleteModal(dept)}><TrashIcon size={14} /></button>
               </div>
             </div>
           ))
@@ -465,7 +466,7 @@ export default function Departments() {
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={14} /> {formError}</div>}
 
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
@@ -564,7 +565,7 @@ export default function Departments() {
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={14} /> {formError}</div>}
 
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
@@ -659,7 +660,7 @@ export default function Departments() {
             </div>
             <div className={styles.modalBody}>
               <div className={styles.deleteWarning}>
-                <span>⚠️</span>
+                <AlertTriangleIcon size={32} />
                 <h3>Are you sure you want to delete "{selectedDepartment.name}"?</h3>
                 <p>This action cannot be undone. All associated data will be permanently removed.</p>
               </div>

@@ -13,6 +13,7 @@ import {
   TrashIcon,
   LockIcon,
   UnlockIcon,
+  FileTextIcon,
   SearchIcon
 } from '../../components/ui/Icons';
 
@@ -853,7 +854,7 @@ export default function AdminCourses() {
                   <SchedulePicker
                     value={formData.schedule}
                     onChange={(json, display) => setFormData({ ...formData, schedule: json, scheduleDisplay: display })}
-                    label="Schedule"
+                    Label="Schedule"
                   />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
@@ -1036,7 +1037,7 @@ export default function AdminCourses() {
                   <SchedulePicker
                     value={formData.schedule}
                     onChange={(json, display) => setFormData({ ...formData, schedule: json, scheduleDisplay: display })}
-                    label="Schedule"
+                    Label="Schedule"
                   />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { UsersIcon, UserIcon, BookOpenIcon, CalendarIcon, ZapIcon, CpuIcon, CodeIcon, MailIcon, PhoneIcon, PartyIcon, MoreVerticalIcon, GamepadIcon } from '../../components/ui/Icons';
 import styles from './DashboardHome.module.css';
 
 interface DashboardStats {
@@ -44,10 +45,10 @@ export default function DashboardHome() {
   const chartLabels = ['Algorithms', 'Object program.', 'Database program.', 'Web develop.', 'Mobile application', 'Machine learning'];
 
   const scheduleItems = [
-    { name: 'Electronics lesson', time: '9:45 - 10:30, 21 lesson', color: 'blue', icon: '⚡' },
-    { name: 'Electronics lesson', time: '11:00 - 11:40, 23 lesson', color: 'blue', icon: '⚡' },
-    { name: 'Robotics lesson', time: '12:00 - 12:45, 23 lesson', color: 'green', icon: '🤖' },
-    { name: 'C++ lesson', time: '13:45 - 14:30, 21 lesson', color: 'orange', icon: '💻' },
+    { name: 'Electronics lesson', time: '9:45 - 10:30, 21 lesson', color: 'blue', icon: <ZapIcon size={16} /> },
+    { name: 'Electronics lesson', time: '11:00 - 11:40, 23 lesson', color: 'blue', icon: <ZapIcon size={16} /> },
+    { name: 'Robotics lesson', time: '12:00 - 12:45, 23 lesson', color: 'green', icon: <CpuIcon size={16} /> },
+    { name: 'C++ lesson', time: '13:45 - 14:30, 21 lesson', color: 'orange', icon: <CodeIcon size={16} /> },
   ];
 
   const subjectScores = [
@@ -65,8 +66,8 @@ export default function DashboardHome() {
   ];
 
   const events = [
-    { title: 'The main event in your life "Robot Fest" will coming soon in...', date: '14 December 2023', time: '12:00 pm', icon: '🤖' },
-    { title: 'Webinar of new tools in Minecraft', date: '21 December 2023', time: '11:00 pm', icon: '🎮' },
+    { title: 'The main event in your life "Robot Fest" will coming soon in...', date: '14 December 2023', time: '12:00 pm', icon: <CpuIcon size={24} /> },
+    { title: 'Webinar of new tools in Minecraft', date: '21 December 2023', time: '11:00 pm', icon: <GamepadIcon size={24} /> },
   ];
 
   const getGreeting = () => {
@@ -92,7 +93,7 @@ export default function DashboardHome() {
       {/* Stats Grid */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>👥</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><UsersIcon size={24} /></div>
           <div className={styles.statContent}>
             <h3>{stats.totalStudents || 1247}</h3>
             <p>Total Students</p>
@@ -100,7 +101,7 @@ export default function DashboardHome() {
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>👨‍🏫</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><UserIcon size={24} /></div>
           <div className={styles.statContent}>
             <h3>{stats.totalStaff || 84}</h3>
             <p>Total Staff</p>
@@ -108,7 +109,7 @@ export default function DashboardHome() {
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><BookOpenIcon size={24} /></div>
           <div className={styles.statContent}>
             <h3>{stats.totalCourses || 56}</h3>
             <p>Active Courses</p>
@@ -116,7 +117,7 @@ export default function DashboardHome() {
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>🎉</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><PartyIcon size={24} /></div>
           <div className={styles.statContent}>
             <h3>{stats.totalEvents || 12}</h3>
             <p>Upcoming Events</p>
@@ -224,8 +225,8 @@ export default function DashboardHome() {
                 <div className={styles.listRole}>{teacher.role}</div>
               </div>
               <div className={styles.listActions}>
-                <button className={styles.listActionBtn}>✉️</button>
-                <button className={styles.listActionBtn}>📞</button>
+                <button className={styles.listActionBtn}><MailIcon size={16} /></button>
+                <button className={styles.listActionBtn}><PhoneIcon size={16} /></button>
               </div>
             </div>
           ))}
@@ -243,11 +244,11 @@ export default function DashboardHome() {
               <div className={styles.eventInfo}>
                 <div className={styles.eventTitle}>{event.title}</div>
                 <div className={styles.eventMeta}>
-                  📅 {event.date} • {event.time}
+                  <CalendarIcon size={14} /> {event.date} • {event.time}
                 </div>
               </div>
               <div className={styles.eventActions}>
-                <button className={styles.eventMoreBtn}>⋮</button>
+                <button className={styles.eventMoreBtn}><MoreVerticalIcon size={16} /></button>
               </div>
             </div>
           ))}

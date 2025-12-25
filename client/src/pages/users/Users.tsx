@@ -1,5 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './Users.module.css';
+import {
+  UsersIcon,
+  StaffIcon,
+  GraduationCapIcon,
+  ParentIcon,
+  UserIcon,
+  AlertTriangleIcon,
+  EditIcon,
+  TrashIcon,
+  CopyIcon,
+  CheckIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  SortIcon,
+  SearchIcon
+} from '../../components/ui/Icons';
 
 interface Account {
   id: string;
@@ -136,8 +152,8 @@ export default function Users() {
   };
 
   const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return '↕️';
-    return sortDirection === 'asc' ? '↑' : '↓';
+    if (sortField !== field) return <SortIcon size={14} />;
+    return sortDirection === 'asc' ? <ChevronUpIcon size={14} /> : <ChevronDownIcon size={14} />;
   };
 
   const handleCreateAccount = async () => {
@@ -302,11 +318,11 @@ export default function Users() {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'ADMIN': return '👑';
-      case 'STAFF': return '👨‍🏫';
-      case 'STUDENT': return '🎓';
-      case 'PARENT': return '👨‍👩‍👧';
-      default: return '👤';
+      case 'ADMIN': return <UserIcon size={16} />;
+      case 'STAFF': return <StaffIcon size={16} />;
+      case 'STUDENT': return <GraduationCapIcon size={16} />;
+      case 'PARENT': return <ParentIcon size={16} />;
+      default: return <UserIcon size={16} />;
     }
   };
 
@@ -332,7 +348,7 @@ export default function Users() {
   if (error) {
     return (
       <div className={styles.errorContainer}>
-        <div className={styles.errorIcon}>⚠️</div>
+        <div className={styles.errorIcon}><AlertTriangleIcon size={48} /></div>
         <h2>Error Loading Accounts</h2>
         <p>{error}</p>
         <button className={styles.retryBtn} onClick={fetchAccounts}>Try Again</button>
@@ -356,35 +372,35 @@ export default function Users() {
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>👥</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><UsersIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.total}</div>
             <div className={styles.statLabel}>Total Users</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.admin}`}>👑</div>
+          <div className={`${styles.statIcon} ${styles.admin}`}><UserIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.admins}</div>
             <div className={styles.statLabel}>Administrators</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.staff}`}>👨‍🏫</div>
+          <div className={`${styles.statIcon} ${styles.staff}`}><StaffIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.staff}</div>
             <div className={styles.statLabel}>Staff Members</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.student}`}>🎓</div>
+          <div className={`${styles.statIcon} ${styles.student}`}><GraduationCapIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.students}</div>
             <div className={styles.statLabel}>Students</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.parent}`}>👨‍👩‍👧</div>
+          <div className={`${styles.statIcon} ${styles.parent}`}><ParentIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.parents}</div>
             <div className={styles.statLabel}>Parents</div>
@@ -392,7 +408,7 @@ export default function Users() {
         </div>
         {stats.needsPasswordChange > 0 && (
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.warning}`}>🔑</div>
+            <div className={`${styles.statIcon} ${styles.warning}`}><AlertTriangleIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.needsPasswordChange}</div>
               <div className={styles.statLabel}>Need Password Change</div>
@@ -404,7 +420,7 @@ export default function Users() {
       {/* Filters and Search */}
       <div className={styles.filterBar}>
         <div className={styles.searchBox}>
-          <span className={styles.searchIcon}>🔍</span>
+          <span className={styles.searchIcon}><SearchIcon size={16} color="#64748b" /></span>
           <input
             type="text"
             placeholder="Search by email..."
@@ -444,7 +460,7 @@ export default function Users() {
       {/* Table */}
       {filteredAndSortedAccounts.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>👥</div>
+          <div className={styles.emptyIcon}><UsersIcon size={48} /></div>
           <h3>No Users Found</h3>
           <p>{searchTerm || filterRole !== 'all' || filterStatus !== 'all' 
             ? 'Try adjusting your filters' 
@@ -502,20 +518,20 @@ export default function Users() {
                       </span>
                       {account.mustChangePassword && account.tempPassword && (
                         <div className={styles.tempPasswordDisplay}>
-                          <span className={styles.tempPasswordLabel}>🔑 Temp:</span>
+                          <span className={styles.tempPasswordLabel}>Temp:</span>
                           <code className={styles.tempPasswordCode}>{account.tempPassword}</code>
                           <button
                             className={styles.copySmallBtn}
                             onClick={() => copyToClipboard(account.tempPassword!)}
                             title="Copy password"
                           >
-                            📋
+                            <CopyIcon size={12} />
                           </button>
                         </div>
                       )}
                       {account.mustChangePassword && !account.tempPassword && (
                         <span className={`${styles.statusBadge} ${styles.passwordWarning}`} title="User needs to change password">
-                          🔑 Needs Password Change
+                          Needs Password Change
                         </span>
                       )}
                     </div>
@@ -533,14 +549,14 @@ export default function Users() {
                         onClick={() => openEditModal(account)}
                         title="Edit user"
                       >
-                        ✏️
+                        <EditIcon size={14} />
                       </button>
                       <button
                         className={`${styles.actionBtn} ${styles.deleteBtn}`}
                         onClick={() => handleDeleteAccount(account.id)}
                         title="Delete user"
                       >
-                        🗑️
+                        <TrashIcon size={14} />
                       </button>
                     </div>
                   </td>
@@ -562,7 +578,7 @@ export default function Users() {
             <div className={styles.modalBody}>
               {formError && (
                 <div className={styles.formError}>
-                  <span>⚠️</span> {formError}
+                  <AlertTriangleIcon size={14} /> {formError}
                 </div>
               )}
               
@@ -580,17 +596,17 @@ export default function Users() {
               <div className={styles.formGroup}>
                 <label>Role *</label>
                 <select value={formRole} onChange={(e) => setFormRole(e.target.value)}>
-                  <option value="STUDENT">🎓 Student</option>
-                  <option value="STAFF">👨‍🏫 Staff</option>
-                  <option value="PARENT">👨‍👩‍👧 Parent</option>
-                  <option value="ADMIN">👑 Administrator</option>
+                  <option value="STUDENT">Student</option>
+                  <option value="STAFF">Staff</option>
+                  <option value="PARENT">Parent</option>
+                  <option value="ADMIN">Administrator</option>
                 </select>
               </div>
 
               {modalMode === 'create' && (
                 <div className={styles.formGroup}>
                   <p className={styles.helpText}>
-                    🔐 A secure random password will be generated and shown to you after creation.
+                    A secure random password will be generated and shown to you after creation.
                   </p>
                 </div>
               )}
@@ -630,7 +646,7 @@ export default function Users() {
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
-              <h2>✅ Account Created Successfully</h2>
+              <h2><CheckCircleIcon size={20} /> Account Created Successfully</h2>
             </div>
             <div className={styles.modalBody}>
               <div className={styles.successMessage}>
@@ -653,14 +669,14 @@ export default function Users() {
                         className={styles.copyBtn}
                         onClick={() => copyToClipboard(createdAccountData.generatedPassword || '')}
                       >
-                        {copiedPassword ? '✓ Copied!' : '📋 Copy'}
+                        {copiedPassword ? <><CheckIcon size={12} /> Copied</> : <><CopyIcon size={12} /> Copy</>}
                       </button>
                     </div>
                   </div>
                 </div>
 
                 <div className={styles.warningBox}>
-                  <span>⚠️</span>
+                  <AlertTriangleIcon size={16} />
                   <p>
                     <strong>Important:</strong> This password will only be temporary. 
                     They will be required to change it upon first login.

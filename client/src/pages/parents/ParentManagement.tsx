@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./ParentManagement.module.css";
 import api from "../../lib/api";
+import { UsersIcon, AlertTriangleIcon, EditIcon, TrashIcon, XIcon, LockIcon, CheckCircleIcon, XCircleIcon } from "../../components/ui/Icons";
 
 interface Child {
   id: string;
@@ -375,7 +376,7 @@ export default function ParentManagement() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.titleSection}>
-          <h1>👨‍👩‍👧‍👦 Parent Management</h1>
+          <h1><UsersIcon size={28} /> Parent Management</h1>
           <p>Manage parent accounts and their connections to students</p>
         </div>
         <div className={styles.headerActions}>
@@ -504,7 +505,7 @@ export default function ParentManagement() {
                 )}
                 {parent.emergencyContact && (
                   <div className={styles.infoRow}>
-                    <span className={styles.value}>🚨 Emergency Contact</span>
+                    <span className={styles.value}><AlertTriangleIcon size={16} /> Emergency Contact</span>
                   </div>
                 )}
 
@@ -534,7 +535,7 @@ export default function ParentManagement() {
                             onClick={() => handleRemoveChild(parent, child.id)}
                             title="Remove child"
                           >
-                            ✕
+                            <XIcon size={14} />
                           </button>
                         </div>
                       ))}
@@ -544,16 +545,16 @@ export default function ParentManagement() {
               </div>
               <div className={styles.cardFooter}>
                 <button className={styles.editBtn} onClick={() => handleEdit(parent)}>
-                  ✏️ Edit
+                  <EditIcon size={14} /> Edit
                 </button>
                 <button className={styles.toggleBtn} onClick={() => handleToggleStatus(parent)}>
-                  {parent.status === "ACTIVE" ? "🚫" : "✅"}
+                  {parent.status === "ACTIVE" ? <XCircleIcon size={16} /> : <CheckCircleIcon size={16} />}
                 </button>
                 <button className={styles.resetBtn} onClick={() => handleResetPassword(parent)}>
-                  🔑
+                  <LockIcon size={16} />
                 </button>
                 <button className={styles.deleteBtn} onClick={() => handleDelete(parent)}>
-                  🗑️
+                  <TrashIcon size={16} />
                 </button>
               </div>
             </div>
@@ -568,7 +569,7 @@ export default function ParentManagement() {
             <div className={styles.modalHeader}>
               <h2>Add New Parent</h2>
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <form onSubmit={handleSubmitAdd}>
@@ -740,7 +741,7 @@ export default function ParentManagement() {
             <div className={styles.modalHeader}>
               <h2>Edit Parent</h2>
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <form onSubmit={handleSubmitEdit}>
@@ -869,7 +870,7 @@ export default function ParentManagement() {
             <div className={styles.modalHeader}>
               <h2>Delete Parent</h2>
               <button className={styles.closeBtn} onClick={() => setShowDeleteModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <div className={styles.modalBody}>
@@ -878,7 +879,7 @@ export default function ParentManagement() {
               </p>
               {selectedParent.children.length > 0 && (
                 <p style={{ color: "var(--warning)", marginTop: "0.5rem" }}>
-                  ⚠️ This parent is connected to {selectedParent.children.length} student(s). The
+                  <AlertTriangleIcon size={16} /> This parent is connected to {selectedParent.children.length} student(s). The
                   connections will be removed.
                 </p>
               )}
@@ -914,7 +915,7 @@ export default function ParentManagement() {
             <div className={styles.modalHeader}>
               <h2>Manage Children for {selectedParent.name}</h2>
               <button className={styles.closeBtn} onClick={() => setShowChildrenModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <div className={styles.modalBody}>

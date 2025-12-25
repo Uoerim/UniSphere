@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './StaffManagement.module.css';
 import api from '../../lib/api';
+import { StaffIcon, CheckCircleIcon, BuildingIcon, BookOpenIcon, SearchIcon, UsersIcon, BriefcaseIcon, EditIcon, TrashIcon, CalendarIcon, EyeIcon, MailIcon, ChartIcon, FileTextIcon, AlertTriangleIcon, LockIcon } from '../../components/ui/Icons';
 
 // Country codes for phone picker
 const COUNTRY_CODES = [
@@ -514,28 +515,28 @@ export default function StaffManagement() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>👨‍🏫</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><StaffIcon /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.total}</div>
             <div className={styles.statLabel}>Total Staff</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.active}</div>
             <div className={styles.statLabel}>Active</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>🏛️</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><BuildingIcon /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.departments}</div>
             <div className={styles.statLabel}>Departments</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><BookOpenIcon /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.totalCourses}</div>
             <div className={styles.statLabel}>Courses Assigned</div>
@@ -555,7 +556,7 @@ export default function StaffManagement() {
           {/* Filters */}
           <div className={styles.filters}>
             <div className={styles.searchBox}>
-              <span>🔍</span>
+              <span><SearchIcon /></span>
               <input
                 type="text"
                 placeholder="Search staff..."
@@ -595,7 +596,7 @@ export default function StaffManagement() {
           <div className={styles.staffList}>
             {filteredStaff.length === 0 ? (
               <div className={styles.emptyList}>
-                <span>👥</span>
+                <span><UsersIcon /></span>
                 <p>No staff members found</p>
               </div>
             ) : (
@@ -634,14 +635,14 @@ export default function StaffManagement() {
                   <h2>{getFullName(selectedStaff)}</h2>
                   <p>{selectedStaff.email}</p>
                   <div className={styles.detailMeta}>
-                    <span className={styles.metaItem}>🏛️ {selectedStaff.department || 'No Department'}</span>
-                    <span className={styles.metaItem}>💼 {selectedStaff.position || 'Staff'}</span>
-                    {selectedStaff.office && <span className={styles.metaItem}>🏢 {selectedStaff.office}</span>}
+                    <span className={styles.metaItem}><BuildingIcon /> {selectedStaff.department || 'No Department'}</span>
+                    <span className={styles.metaItem}><BriefcaseIcon /> {selectedStaff.position || 'Staff'}</span>
+                    {selectedStaff.office && <span className={styles.metaItem}><BuildingIcon /> {selectedStaff.office}</span>}
                   </div>
                 </div>
                 <div className={styles.detailActions}>
-                  <button className={styles.editBtn} onClick={openEditModal}>✏️ Edit</button>
-                  <button className={styles.deleteBtn} onClick={() => handleDeleteStaff(selectedStaff.id)}>🗑️</button>
+                  <button className={styles.editBtn} onClick={openEditModal}><EditIcon /> Edit</button>
+                  <button className={styles.deleteBtn} onClick={() => handleDeleteStaff(selectedStaff.id)}><TrashIcon /></button>
                 </div>
               </div>
 
@@ -752,9 +753,9 @@ export default function StaffManagement() {
                             <div className={styles.courseCode}>{course.code}</div>
                             <div className={styles.courseName}>{course.name}</div>
                             <div className={styles.courseMeta}>
-                              <span>📚 {course.department}</span>
-                              <span>👥 {course.students} students</span>
-                              <span>📅 {course.schedule}</span>
+                              <span><BookOpenIcon /> {course.department}</span>
+                              <span><UsersIcon /> {course.students} students</span>
+                              <span><CalendarIcon /> {course.schedule}</span>
                             </div>
                           </div>
                           <div className={styles.courseActions}>
@@ -808,8 +809,8 @@ export default function StaffManagement() {
                               </div>
                             </td>
                             <td>
-                              <button className={styles.iconBtn}>👁️</button>
-                              <button className={styles.iconBtn}>✉️</button>
+                              <button className={styles.iconBtn}><EyeIcon /></button>
+                              <button className={styles.iconBtn}><MailIcon /></button>
                             </td>
                           </tr>
                         ))}
@@ -864,25 +865,25 @@ export default function StaffManagement() {
                     </div>
                     <div className={styles.performanceGrid}>
                       <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>⭐</div>
+                        <div className={styles.performanceIcon}><CheckCircleIcon /></div>
                         <div className={styles.performanceValue}>4.8/5.0</div>
                         <div className={styles.performanceLabel}>Student Rating</div>
                         <div className={styles.performanceTrend}>↑ 0.2 from last semester</div>
                       </div>
                       <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>📊</div>
+                        <div className={styles.performanceIcon}><ChartIcon /></div>
                         <div className={styles.performanceValue}>87%</div>
                         <div className={styles.performanceLabel}>Pass Rate</div>
                         <div className={styles.performanceTrend}>↑ 3% from last semester</div>
                       </div>
                       <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>📅</div>
+                        <div className={styles.performanceIcon}><CalendarIcon /></div>
                         <div className={styles.performanceValue}>95%</div>
                         <div className={styles.performanceLabel}>Attendance</div>
                         <div className={styles.performanceTrend}>Consistent</div>
                       </div>
                       <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>📝</div>
+                        <div className={styles.performanceIcon}><FileTextIcon /></div>
                         <div className={styles.performanceValue}>42</div>
                         <div className={styles.performanceLabel}>Assignments Graded</div>
                         <div className={styles.performanceTrend}>This month</div>
@@ -894,7 +895,7 @@ export default function StaffManagement() {
             </>
           ) : (
             <div className={styles.noSelection}>
-              <div className={styles.noSelectionIcon}>👨‍🏫</div>
+              <div className={styles.noSelectionIcon}><StaffIcon /></div>
               <h3>Select a Staff Member</h3>
               <p>Choose a staff member from the list to view their details, courses, and students.</p>
             </div>
@@ -911,7 +912,7 @@ export default function StaffManagement() {
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon /> {formError}</div>}
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
@@ -1015,7 +1016,7 @@ export default function StaffManagement() {
               </div>
 
               <p className={styles.formNote}>
-                🔐 A temporary password will be generated and shown after creation.
+                <LockIcon /> A temporary password will be generated and shown after creation.
               </p>
             </div>
             <div className={styles.modalFooter}>
@@ -1037,7 +1038,7 @@ export default function StaffManagement() {
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon /> {formError}</div>}
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>

@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { BookOpenIcon, FileTextIcon, CheckCircleIcon, TargetIcon, BellIcon, CalendarIcon, UserIcon, PinIcon } from '../../components/ui/Icons';
 import styles from './RoleDashboard.module.css';
 
 interface Course {
@@ -132,7 +133,7 @@ export default function StudentDashboard() {
       {/* Welcome Header */}
       <div className={styles.welcomeBanner}>
         <div className={styles.welcomeContent}>
-          <h1>Welcome back, {user?.email?.split('@')[0] || 'Student'}! 📚</h1>
+          <h1>Welcome back, {user?.email?.split('@')[0] || 'Student'}!</h1>
           <p>Keep up the great work! You're making excellent progress this semester.</p>
         </div>
         <div className={styles.welcomeStats}>
@@ -154,28 +155,28 @@ export default function StudentDashboard() {
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>📖</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><BookOpenIcon size={20} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{enrolledCourses.length}</div>
             <div className={styles.statTitle}>Enrolled Courses</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>📝</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><FileTextIcon size={20} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{assignments.filter(a => a.status === 'pending').length}</div>
             <div className={styles.statTitle}>Pending Assignments</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={20} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{assignments.filter(a => a.status === 'graded').length}</div>
             <div className={styles.statTitle}>Graded Work</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>🎯</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><TargetIcon size={20} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>68%</div>
             <div className={styles.statTitle}>Avg. Progress</div>
@@ -187,7 +188,7 @@ export default function StudentDashboard() {
         {/* My Courses (enrolled) */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📚 My Courses</h2>
+            <h2><BookOpenIcon size={20} /> My Courses</h2>
           </div>
           <div className={styles.courseList}>
             {enrolledCourses.length === 0 ? (
@@ -199,8 +200,8 @@ export default function StudentDashboard() {
                     <div className={styles.courseCode}>{course.code}</div>
                     <div className={styles.courseName}>{course.name}</div>
                     <div className={styles.courseDetails}>
-                      <span>👨‍🏫 {course.instructor?.name || course.instructor || 'N/A'}</span>
-                      <span>🕐 {course.schedule || 'N/A'}</span>
+                      <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
+                      <span><CalendarIcon size={14} /> {course.schedule || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -212,7 +213,7 @@ export default function StudentDashboard() {
         {/* All Courses (available for registration) */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📝 Register for Courses</h2>
+            <h2><FileTextIcon size={20} /> Register for Courses</h2>
           </div>
           <div className={styles.courseList}>
             {loading ? (
@@ -229,8 +230,8 @@ export default function StudentDashboard() {
                       <div className={styles.courseCode}>{course.code}</div>
                       <div className={styles.courseName}>{course.name}</div>
                       <div className={styles.courseDetails}>
-                        <span>👨‍🏫 {course.instructor?.name || course.instructor || 'N/A'}</span>
-                        <span>🕐 {course.schedule || 'N/A'}</span>
+                        <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
+                        <span><CalendarIcon size={14} /> {course.schedule || 'N/A'}</span>
                       </div>
                     </div>
                     <div>
@@ -252,7 +253,7 @@ export default function StudentDashboard() {
         {/* Upcoming Assignments */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📝 Assignments</h2>
+            <h2><FileTextIcon size={20} /> Assignments</h2>
             <button className={styles.viewAllBtn}>View All</button>
           </div>
           <div className={styles.assignmentList}>
@@ -278,28 +279,28 @@ export default function StudentDashboard() {
         {/* Today's Schedule */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📅 Today's Schedule</h2>
+            <h2><CalendarIcon size={20} /> Today's Schedule</h2>
           </div>
           <div className={styles.scheduleList}>
             <div className={styles.scheduleItem}>
               <div className={styles.scheduleTime}>9:00 AM</div>
               <div className={styles.scheduleContent}>
                 <div className={styles.scheduleTitle}>Physics Fundamentals</div>
-                <div className={styles.scheduleLocation}>📍 Room 201, Science Building</div>
+                <div className={styles.scheduleLocation}><PinIcon size={14} /> Room 201, Science Building</div>
               </div>
             </div>
             <div className={styles.scheduleItem}>
               <div className={styles.scheduleTime}>10:00 AM</div>
               <div className={styles.scheduleContent}>
                 <div className={styles.scheduleTitle}>Introduction to Programming</div>
-                <div className={styles.scheduleLocation}>📍 Lab 102, Computer Center</div>
+                <div className={styles.scheduleLocation}><PinIcon size={14} /> Lab 102, Computer Center</div>
               </div>
             </div>
             <div className={styles.scheduleItem}>
               <div className={styles.scheduleTime}>2:00 PM</div>
               <div className={styles.scheduleContent}>
                 <div className={styles.scheduleTitle}>Study Group - Calculus</div>
-                <div className={styles.scheduleLocation}>📍 Library, Floor 2</div>
+                <div className={styles.scheduleLocation}><PinIcon size={14} /> Library, Floor 2</div>
               </div>
             </div>
           </div>
@@ -308,14 +309,14 @@ export default function StudentDashboard() {
         {/* Announcements */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📢 Announcements</h2>
+            <h2><BellIcon size={20} /> Announcements</h2>
             <button className={styles.viewAllBtn}>View All</button>
           </div>
           <div className={styles.announcementList}>
             {announcements.map(announcement => (
               <div key={announcement.id} className={styles.announcementItem}>
                 <div className={`${styles.announcementIcon} ${announcement.type === 'urgent' ? styles.urgent : ''}`}>
-                  {announcement.type === 'urgent' ? '🔔' : announcement.type === 'course' ? '📖' : '📌'}
+                  {announcement.type === 'urgent' ? <BellIcon size={16} /> : announcement.type === 'course' ? <BookOpenIcon size={16} /> : <PinIcon size={16} />}
                 </div>
                 <div className={styles.announcementContent}>
                   <div className={styles.announcementTitle}>{announcement.title}</div>

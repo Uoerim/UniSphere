@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Modal from '../../components/ui/Modal';
+import { BookOpenIcon, TrophyIcon, TheaterIcon, UsersIcon, FileTextIcon, PartyIcon, CalendarIcon, MapPinIcon, EditIcon, TrashIcon } from '../../components/ui/Icons';
 import styles from '../../styles/pages.module.css';
 import modalStyles from '../../components/ui/Modal.module.css';
 
@@ -127,12 +128,12 @@ export default function Events() {
 
   const getEventIcon = (type?: string) => {
     switch (type) {
-      case 'academic': return '📚';
-      case 'sports': return '🏆';
-      case 'cultural': return '🎭';
-      case 'meeting': return '👥';
-      case 'exam': return '📝';
-      default: return '🎉';
+      case 'academic': return <BookOpenIcon size={24} />;
+      case 'sports': return <TrophyIcon size={24} />;
+      case 'cultural': return <TheaterIcon size={24} />;
+      case 'meeting': return <UsersIcon size={24} />;
+      case 'exam': return <FileTextIcon size={24} />;
+      default: return <PartyIcon size={24} />;
     }
   };
 
@@ -156,28 +157,28 @@ export default function Events() {
       {/* Stats */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>🎉</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><PartyIcon size={24} /></div>
           <div>
             <div className={styles.statValue}>{events.length}</div>
             <div className={styles.statLabel}>Total Events</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>📅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CalendarIcon size={24} /></div>
           <div>
             <div className={styles.statValue}>{events.filter(e => isUpcoming(e.date)).length}</div>
             <div className={styles.statLabel}>Upcoming</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
           <div>
             <div className={styles.statValue}>{events.filter(e => e.eventType === 'academic').length}</div>
             <div className={styles.statLabel}>Academic</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>🏆</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><TrophyIcon size={24} /></div>
           <div>
             <div className={styles.statValue}>{events.filter(e => e.eventType === 'sports').length}</div>
             <div className={styles.statLabel}>Sports</div>
@@ -191,7 +192,7 @@ export default function Events() {
       ) : events.length === 0 ? (
         <div className={styles.card}>
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>🎉</div>
+            <div className={styles.emptyIcon}><PartyIcon size={48} /></div>
             <div className={styles.emptyTitle}>No Events Scheduled</div>
             <div className={styles.emptyText}>Create your first event to get started</div>
             <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setIsModalOpen(true)}>
@@ -224,9 +225,9 @@ export default function Events() {
                   {getEventIcon(event.eventType)}
                 </div>
                 <div className={styles.actions} style={{ flexDirection: 'row' }}>
-                  <button className={styles.iconBtn} onClick={() => openEditModal(event)}>✏️</button>
+                  <button className={styles.iconBtn} onClick={() => openEditModal(event)}><EditIcon size={16} /></button>
                   <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(event.id)}>
-                    🗑️
+                    <TrashIcon size={16} />
                   </button>
                 </div>
               </div>
@@ -241,13 +242,13 @@ export default function Events() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
-                  <span>📅</span>
+                  <CalendarIcon size={14} />
                   <span>{formatDate(event.date)}</span>
                   {event.time && <span>at {event.time}</span>}
                 </div>
                 {event.location && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
-                    <span>📍</span>
+                    <MapPinIcon size={14} />
                     <span>{event.location}</span>
                   </div>
                 )}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./Assessments.module.css";
 import api from "../../lib/api";
+import { ClipboardIcon, FileTextIcon, HelpCircleIcon, EditIcon, ChartIcon, TrashIcon, XIcon } from "../../components/ui/Icons";
 
 type AssessmentType = "FINALS" | "MIDTERMS" | "QUIZZES";
 type AssessmentStatus = "SCHEDULED" | "ONGOING" | "COMPLETED" | "CANCELLED";
@@ -349,11 +350,11 @@ export default function Assessments() {
   const getTypeIcon = (type: AssessmentType) => {
     switch (type) {
       case "FINALS":
-        return "📋";
+        return <ClipboardIcon size={16} />;
       case "MIDTERMS":
-        return "📝";
+        return <FileTextIcon size={16} />;
       case "QUIZZES":
-        return "❓";
+        return <HelpCircleIcon size={16} />;
     }
   };
 
@@ -366,7 +367,7 @@ export default function Assessments() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.titleSection}>
-          <h1>📝 Assessments</h1>
+          <h1><FileTextIcon size={28} /> Assessments</h1>
           <p>Manage finals, midterms, and quizzes for all courses</p>
         </div>
         <div className={styles.headerActions}>
@@ -412,19 +413,19 @@ export default function Assessments() {
           className={`${styles.typeTab} ${activeType === "FINALS" ? styles.active : ""}`}
           onClick={() => setActiveType("FINALS")}
         >
-          📋 Finals <span className={styles.count}>{stats.finals}</span>
+          <ClipboardIcon size={16} /> Finals <span className={styles.count}>{stats.finals}</span>
         </button>
         <button
           className={`${styles.typeTab} ${activeType === "MIDTERMS" ? styles.active : ""}`}
           onClick={() => setActiveType("MIDTERMS")}
         >
-          📝 Midterms <span className={styles.count}>{stats.midterms}</span>
+          <FileTextIcon size={16} /> Midterms <span className={styles.count}>{stats.midterms}</span>
         </button>
         <button
           className={`${styles.typeTab} ${activeType === "QUIZZES" ? styles.active : ""}`}
           onClick={() => setActiveType("QUIZZES")}
         >
-          ❓ Quizzes <span className={styles.count}>{stats.quizzes}</span>
+          <HelpCircleIcon size={16} /> Quizzes <span className={styles.count}>{stats.quizzes}</span>
         </button>
       </div>
 
@@ -570,21 +571,21 @@ export default function Assessments() {
                         onClick={() => handleEdit(assessment)}
                         title="Edit"
                       >
-                        ✏️
+                        <EditIcon size={16} />
                       </button>
                       <button
                         className={`${styles.actionBtn} ${styles.grades}`}
                         onClick={() => handleGrades(assessment)}
                         title="Manage Grades"
                       >
-                        📊
+                        <ChartIcon size={16} />
                       </button>
                       <button
                         className={`${styles.actionBtn} ${styles.delete}`}
                         onClick={() => handleDelete(assessment)}
                         title="Delete"
                       >
-                        🗑️
+                        <TrashIcon size={16} />
                       </button>
                     </div>
                   </td>
@@ -602,7 +603,7 @@ export default function Assessments() {
             <div className={styles.modalHeader}>
               <h2>Add New Assessment</h2>
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>
-                ✕
+                <XIcon size={20} />
               </button>
             </div>
             <form onSubmit={handleSubmitAdd}>
@@ -785,7 +786,7 @@ export default function Assessments() {
             <div className={styles.modalHeader}>
               <h2>Edit Assessment</h2>
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>
-                ✕
+                <XIcon size={20} />
               </button>
             </div>
             <form onSubmit={handleSubmitEdit}>
@@ -963,7 +964,7 @@ export default function Assessments() {
             <div className={styles.modalHeader}>
               <h2>Delete Assessment</h2>
               <button className={styles.closeBtn} onClick={() => setShowDeleteModal(false)}>
-                ✕
+                <XIcon size={20} />
               </button>
             </div>
             <div className={styles.modalBody}>
@@ -1004,7 +1005,7 @@ export default function Assessments() {
                 Grades for {selectedAssessment.title} ({selectedAssessment.totalPoints} pts)
               </h2>
               <button className={styles.closeBtn} onClick={() => setShowGradesModal(false)}>
-                ✕
+                <XIcon size={20} />
               </button>
             </div>
             <div className={styles.modalBody}>

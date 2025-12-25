@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Modal from '../../components/ui/Modal';
+import { StaffIcon, GraduationCapIcon, CrownIcon, ChartIcon, EditIcon, TrashIcon } from '../../components/ui/Icons';
 import styles from '../../styles/pages.module.css';
 
 interface StaffMember {
@@ -67,28 +68,28 @@ export default function Staff() {
       {/* Stats */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>👨‍🏫</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><StaffIcon size={20} /></div>
           <div>
             <div className={styles.statValue}>{staff.length}</div>
             <div className={styles.statLabel}>Total Staff</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>🎓</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><GraduationCapIcon size={20} /></div>
           <div>
             <div className={styles.statValue}>{staff.filter(s => s.role === 'STAFF').length}</div>
             <div className={styles.statLabel}>Faculty</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>👑</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><CrownIcon size={20} /></div>
           <div>
             <div className={styles.statValue}>{staff.filter(s => s.role === 'ADMIN').length}</div>
             <div className={styles.statLabel}>Administrators</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>📊</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><ChartIcon size={20} /></div>
           <div>
             <div className={styles.statValue}>12</div>
             <div className={styles.statLabel}>Departments</div>
@@ -130,7 +131,7 @@ export default function Staff() {
             <div className={styles.loading}>Loading staff members...</div>
           ) : staff.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>👨‍🏫</div>
+              <div className={styles.emptyIcon}><StaffIcon size={48} /></div>
               <div className={styles.emptyTitle}>No Staff Members</div>
               <div className={styles.emptyText}>Add your first staff member to get started</div>
               <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setIsModalOpen(true)}>
@@ -185,8 +186,8 @@ export default function Staff() {
                     </td>
                     <td>
                       <div className={styles.actions}>
-                        <button className={styles.iconBtn}>✏️</button>
-                        <button className={`${styles.iconBtn} ${styles.danger}`}>🗑️</button>
+                        <button className={styles.iconBtn}><EditIcon size={16} /></button>
+                        <button className={`${styles.iconBtn} ${styles.danger}`}><TrashIcon size={16} /></button>
                       </div>
                     </td>
                   </tr>

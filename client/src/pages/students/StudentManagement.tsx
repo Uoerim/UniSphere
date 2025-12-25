@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './StudentManagement.module.css';
+import { GraduationCapIcon, CheckCircleIcon, BookOpenIcon, ChartIcon, SearchIcon, CalendarIcon, EditIcon, TrashIcon, LockIcon, AlertTriangleIcon } from '../../components/ui/Icons';
 
 // Types
 interface EnrolledCourse {
@@ -567,28 +568,28 @@ export default function StudentManagement() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>🎓</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><GraduationCapIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.total}</div>
             <div className={styles.statLabel}>Total Students</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.active}</div>
             <div className={styles.statLabel}>Active</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.programs}</div>
             <div className={styles.statLabel}>Programs</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>📊</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><ChartIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.totalEnrollments}</div>
             <div className={styles.statLabel}>Total Enrollments</div>
@@ -608,7 +609,7 @@ export default function StudentManagement() {
           {/* Filters */}
           <div className={styles.filters}>
             <div className={styles.searchBox}>
-              <span>🔍</span>
+              <span><SearchIcon size={16} /></span>
               <input
                 type="text"
                 placeholder="Search students..."
@@ -658,7 +659,7 @@ export default function StudentManagement() {
           <div className={styles.studentList}>
             {filteredStudents.length === 0 ? (
               <div className={styles.emptyList}>
-                <span>🎓</span>
+                <span><GraduationCapIcon size={48} /></span>
                 <p>No students found</p>
               </div>
             ) : (
@@ -700,22 +701,22 @@ export default function StudentManagement() {
                   <h2>{getFullName(selectedStudent)}</h2>
                   <p>{selectedStudent.email}</p>
                   <div className={styles.detailMeta}>
-                    <span className={styles.metaItem}>🎓 {selectedStudent.program || 'No Program'}</span>
-                    <span className={styles.metaItem}>📅 {selectedStudent.year || 'N/A'}</span>
-                    {selectedStudent.studentId && <span className={styles.metaItem}>🆔 {selectedStudent.studentId}</span>}
-                    {selectedStudent.gpa && <span className={styles.metaItem}>📊 GPA: {selectedStudent.gpa}</span>}
+                    <span className={styles.metaItem}><GraduationCapIcon size={14} /> {selectedStudent.program || 'No Program'}</span>
+                    <span className={styles.metaItem}><CalendarIcon size={14} /> {selectedStudent.year || 'N/A'}</span>
+                    {selectedStudent.studentId && <span className={styles.metaItem}><BookOpenIcon size={14} /> {selectedStudent.studentId}</span>}
+                    {selectedStudent.gpa && <span className={styles.metaItem}><ChartIcon size={14} /> GPA: {selectedStudent.gpa}</span>}
                   </div>
                 </div>
                 <div className={styles.detailActions}>
-                  <button className={styles.editBtn} onClick={openEditModal}>✏️ Edit</button>
-                  <button className={styles.deleteBtn} onClick={() => handleDeleteStudent(selectedStudent.id)}>🗑️</button>
+                  <button className={styles.editBtn} onClick={openEditModal}><EditIcon size={14} /> Edit</button>
+                  <button className={styles.deleteBtn} onClick={() => handleDeleteStudent(selectedStudent.id)}><TrashIcon size={14} /></button>
                 </div>
               </div>
 
               {/* Temporary Password Alert */}
               {selectedStudent.tempPassword && (
                 <div className={styles.passwordAlert}>
-                  <span>🔐</span>
+                  <span><LockIcon size={20} /></span>
                   <div>
                     <strong>Temporary Password:</strong> {selectedStudent.tempPassword}
                     <br />
@@ -858,8 +859,8 @@ export default function StudentManagement() {
                               <div className={styles.courseCode}>{course.code || 'N/A'}</div>
                               <div className={styles.courseName}>{course.name || 'Unnamed Course'}</div>
                               <div className={styles.courseMeta}>
-                                <span>📚 {course.department || 'N/A'}</span>
-                                <span>📅 Enrolled: {formatDate(course.enrolledAt)}</span>
+                                <span><BookOpenIcon size={14} /> {course.department || 'N/A'}</span>
+                                <span><CalendarIcon size={14} /> Enrolled: {formatDate(course.enrolledAt)}</span>
                                 <span className={`${styles.statusBadge} ${course.status === 'active' ? styles.activeStatus : styles.droppedStatus}`}>
                                   {course.status}
                                 </span>
@@ -875,10 +876,10 @@ export default function StudentManagement() {
                             </div>
                             <div className={styles.courseActions}>
                               <button className={styles.editGradeBtn} onClick={() => openGradeModal(course)}>
-                                ✏️ Edit Grade
+                                <EditIcon size={14} /> Edit Grade
                               </button>
                               <button className={styles.removeBtn} onClick={() => handleRemoveEnrollment(course.enrollmentId)}>
-                                🗑️
+                                <TrashIcon size={14} />
                               </button>
                             </div>
                           </div>
@@ -886,7 +887,7 @@ export default function StudentManagement() {
                       </div>
                     ) : (
                       <div className={styles.emptyCourses}>
-                        <span>📚</span>
+                        <span><BookOpenIcon size={48} /></span>
                         <p>No courses enrolled</p>
                         <button className={styles.enrollBtn} onClick={() => setShowEnrollModal(true)}>
                           Enroll in Course
@@ -930,7 +931,7 @@ export default function StudentManagement() {
                                 </span>
                               </td>
                               <td>
-                                <button className={styles.iconBtn} onClick={() => openGradeModal(course)}>✏️</button>
+                                <button className={styles.iconBtn} onClick={() => openGradeModal(course)}><EditIcon size={14} /></button>
                               </td>
                             </tr>
                           ))}
@@ -938,7 +939,7 @@ export default function StudentManagement() {
                       </table>
                     ) : (
                       <div className={styles.emptyCourses}>
-                        <span>📊</span>
+                        <span><ChartIcon size={48} /></span>
                         <p>No grades to display</p>
                       </div>
                     )}
@@ -975,7 +976,7 @@ export default function StudentManagement() {
                       </div>
                     ) : (
                       <div className={styles.emptyCourses}>
-                        <span>📅</span>
+                        <span><CalendarIcon size={48} /></span>
                         <p>No attendance records</p>
                       </div>
                     )}
@@ -985,7 +986,7 @@ export default function StudentManagement() {
             </>
           ) : (
             <div className={styles.noSelection}>
-              <div className={styles.noSelectionIcon}>🎓</div>
+              <div className={styles.noSelectionIcon}><GraduationCapIcon size={64} /></div>
               <h3>Select a Student</h3>
               <p>Choose a student from the list to view their profile, courses, grades, and attendance.</p>
             </div>
@@ -1004,7 +1005,7 @@ export default function StudentManagement() {
             <div className={styles.modalBody}>
               {createdPassword ? (
                 <div className={styles.successMessage}>
-                  <div className={styles.successIcon}>✅</div>
+                  <div className={styles.successIcon}><CheckCircleIcon size={48} /></div>
                   <h3>Student account created successfully!</h3>
                   <div className={styles.credentialsBox}>
                     <p><strong>Email:</strong> {formData.email}</p>
@@ -1020,7 +1021,7 @@ export default function StudentManagement() {
                 </div>
               ) : (
                 <>
-                  {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+                  {formError && <div className={styles.formError}><AlertTriangleIcon size={16} /> {formError}</div>}
                   
                   <div className={styles.formSection}>
                     <h4>Personal Information</h4>
@@ -1171,7 +1172,7 @@ export default function StudentManagement() {
                   </div>
 
                   <p className={styles.formNote}>
-                    🔐 A temporary password will be generated and shown after creation.
+                    <LockIcon size={14} /> A temporary password will be generated and shown after creation.
                   </p>
                 </>
               )}
@@ -1197,7 +1198,7 @@ export default function StudentManagement() {
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={16} /> {formError}</div>}
               
               <div className={styles.formSection}>
                 <h4>Personal Information</h4>
@@ -1353,7 +1354,7 @@ export default function StudentManagement() {
               <button className={styles.closeBtn} onClick={() => setShowEnrollModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={16} /> {formError}</div>}
               
               <div className={styles.formGroup}>
                 <label>Select Course *</label>
@@ -1407,7 +1408,7 @@ export default function StudentManagement() {
 
               {availableCourses.length === 0 && (
                 <p className={styles.formNote}>
-                  ⚠️ No courses available. Please create courses first.
+                  <AlertTriangleIcon size={14} /> No courses available. Please create courses first.
                 </p>
               )}
             </div>

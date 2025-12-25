@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { AlertTriangleIcon, BookOpenIcon, CheckCircleIcon, GraduationCapIcon, BuildingIcon, ChartIcon, CalendarIcon } from '../../components/ui/Icons';
 import styles from './Courses.module.css';
 
 interface Student {
@@ -96,14 +97,6 @@ export default function StaffCourses() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   if (isLoading) {
     return (
       <div className={styles.loadingContainer}>
@@ -126,7 +119,7 @@ export default function StaffCourses() {
       {/* Error Message */}
       {error && (
         <div className={styles.errorBanner}>
-          <span>⚠️</span> {error}
+          <AlertTriangleIcon size={16} /> {error}
           <button onClick={() => setError('')}>×</button>
         </div>
       )}
@@ -134,21 +127,21 @@ export default function StaffCourses() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><BookOpenIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{courses.length}</div>
             <div className={styles.statLabel}>My Courses</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{courses.filter(c => c.isActive).length}</div>
             <div className={styles.statLabel}>Active Courses</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>👨‍🎓</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><GraduationCapIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>
               {courses.reduce((acc, c) => acc + (c.enrolledStudents || 0), 0)}
@@ -161,7 +154,7 @@ export default function StaffCourses() {
       {/* Courses */}
       {courses.length === 0 ? (
         <div className={styles.emptyState}>
-          <span>📚</span>
+          <BookOpenIcon size={48} />
           <h3>No Courses Assigned</h3>
           <p>You don't have any courses assigned to you yet. Contact your administrator for course assignments.</p>
         </div>
@@ -181,13 +174,13 @@ export default function StaffCourses() {
               )}
               <div className={styles.courseMeta}>
                 {course.department && (
-                  <span className={styles.metaItem}>🏛️ {course.department}</span>
+                  <span className={styles.metaItem}><BuildingIcon size={14} /> {course.department}</span>
                 )}
                 {course.credits && (
-                  <span className={styles.metaItem}>📊 {course.credits} Credits</span>
+                  <span className={styles.metaItem}><ChartIcon size={14} /> {course.credits} Credits</span>
                 )}
                 {course.semester && (
-                  <span className={styles.metaItem}>📅 {course.semester}</span>
+                  <span className={styles.metaItem}><CalendarIcon size={14} /> {course.semester}</span>
                 )}
               </div>
               <div className={styles.courseDetails}>
@@ -211,7 +204,7 @@ export default function StaffCourses() {
                   className={styles.viewBtn} 
                   onClick={() => fetchCourseStudents(course)}
                 >
-                  👨‍🎓 View Students
+                  <GraduationCapIcon size={16} /> View Students
                 </button>
               </div>
             </div>
@@ -235,7 +228,7 @@ export default function StaffCourses() {
                 </div>
               ) : courseStudents.length === 0 ? (
                 <div className={styles.emptyState}>
-                  <span>👨‍🎓</span>
+                  <GraduationCapIcon size={48} />
                   <h3>No Students Enrolled</h3>
                   <p>There are no students enrolled in this course yet.</p>
                 </div>
