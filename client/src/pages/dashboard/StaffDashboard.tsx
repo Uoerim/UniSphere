@@ -38,7 +38,8 @@ interface Message {
 }
 
 export default function StaffDashboard() {
-  const { user, token: _token } = useAuth();
+  const { user, token } = useAuth();
+  void token; // keep token available for future API calls without unused warnings
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
