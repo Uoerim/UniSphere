@@ -57,6 +57,41 @@ enum AttributeCategory {
   CONTENT
 }
 
+enum TaskType {
+  GRADING
+  MEETING
+  PREPARATION
+  ADMIN
+}
+
+enum TaskPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum GradeType {
+  ASSIGNMENT
+  QUIZ
+  MIDTERM
+  FINAL
+  PROJECT
+}
+
+enum MaterialType {
+  LECTURE
+  READING
+  VIDEO
+  RESOURCE
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  PENDING
+  LATE
+  NOT_SUBMITTED
+}
+
 // ============================================
 // AUTHENTICATION & AUTHORIZATION
 // ============================================
@@ -197,3 +232,255 @@ model EntityRelation {
   @@index([relationType])
   @@map("entity_relations")
 }
+
+// ============================================
+// STAFF COURSE MANAGEMENT
+// ============================================
+
+model Course {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  description   String?  @db.Text
+  schedule      String   // e.g., "Mon/Wed 10:00 AM"
+  room          String   // e.g., "Lab 102"
+  
+  staffId       String
+  staff         Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  students      CourseEnrollment[]
+  grades        StudentGrade[]
+  materials     CourseMaterial[]
+  assignments   CourseAssignment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([staffId])
+  @@index([code])
+  @@map("courses")
+}
+
+model CourseEnrollment {
+  id          String   @id @default(cuid())
+  courseId    String
+  studentId   String
+  
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  enrolledAt  DateTime @default(now())
+  grade       String?  // Final grade (A, B, C, etc.)
+
+  @@unique([courseId, studentId])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("course_enrollments")
+}
+
+model Staff {
+  id              String   @id @default(cuid())
+  accountId       String   @unique
+  firstName       String
+  lastName        String
+  email           String   @unique
+  phone           String?
+  department      String?
+  qualifications  String?  @db.Text
+  bio             String?  @db.Text
+  
+  courses         Course[]
+  tasks           StaffTask[]
+  messages        Message[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([email])
+  @@index([department])
+  @@map("staff")
+}
+
+model Student {
+  id              String   @id @default(cuid())
+  accountId       String   @unique
+  firstName       String
+  lastName        String
+  email           String   @unique
+  phone           String?
+  parentEmail     String?
+  
+  enrollments     CourseEnrollment[]
+  grades          StudentGrade[]
+  submissions     CourseSubmission[]
+  attendance      Attendance[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([email])
+  @@map("students")
+}
+
+// ============================================
+// GRADING SYSTEM
+// ============================================
+
+model StudentGrade {
+  id            String   @id @default(cuid())
+  courseId      String
+  studentId     String
+  gradeType     GradeType
+  title         String   // e.g., "Assignment 1", "Midterm"
+  score         Float?
+  maxScore      Float    @default(100)
+  percentage    Float?   // Calculated percentage
+  letter        String?  // Letter grade (A, B, C, etc.)
+  feedback      String?  @db.Text
+  
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  gradedAt      DateTime?
+  dueDate       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([courseId, studentId, gradeType, title])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("student_grades")
+}
+
+// ============================================
+// COURSE MATERIALS & ASSIGNMENTS
+// ============================================
+
+model CourseMaterial {
+  id            String   @id @default(cuid())
+  courseId      String
+  title         String
+  description   String?  @db.Text
+  type          MaterialType
+  fileUrl       String?
+  fileSize      String?  // e.g., "45 MB"
+  
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  uploadedAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([courseId])
+  @@map("course_materials")
+}
+
+model CourseAssignment {
+  id            String   @id @default(cuid())
+  courseId      String
+  title         String
+  description   String?  @db.Text
+  dueDate       DateTime
+  maxScore      Float    @default(100)
+  
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  submissions   CourseSubmission[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([courseId])
+  @@map("course_assignments")
+}
+
+model CourseSubmission {
+  id            String   @id @default(cuid())
+  assignmentId  String
+  studentId     String
+  status        SubmissionStatus
+  submittedFile String?
+  submittedAt   DateTime?
+  
+  assignment    CourseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student       Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@map("course_submissions")
+}
+
+// ============================================
+// STAFF TASKS
+// ============================================
+
+model StaffTask {
+  id            String   @id @default(cuid())
+  staffId       String
+  title         String
+  description   String?  @db.Text
+  type          TaskType
+  priority      TaskPriority
+  dueDate       DateTime
+  isCompleted   Boolean  @default(false)
+  completedAt   DateTime?
+  
+  staff         Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([staffId])
+  @@index([priority])
+  @@index([dueDate])
+  @@map("staff_tasks")
+}
+
+// ============================================
+// ATTENDANCE & CLASS MANAGEMENT
+// ============================================
+
+model Attendance {
+  id            String   @id @default(cuid())
+  studentId     String
+  courseId      String?
+  date          DateTime
+  status        String   // "PRESENT", "ABSENT", "LATE"
+  notes         String?  @db.Text
+  
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([studentId, date])
+  @@index([studentId])
+  @@index([date])
+  @@map("attendance")
+}
+
+// ============================================
+// MESSAGING
+// ============================================
+
+model Message {
+  id            String   @id @default(cuid())
+  staffId       String
+  recipientId   String?  // Student or Parent ID
+  subject       String
+  body          String   @db.Text
+  isRead        Boolean  @default(false)
+  
+  staff         Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  sentAt        DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([staffId])
+  @@index([recipientId])
+  @@index([isRead])
+  @@map("messages")
+}
+
+

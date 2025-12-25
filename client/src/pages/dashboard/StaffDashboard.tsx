@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
 
@@ -38,6 +39,8 @@ interface Message {
 
 export default function StaffDashboard() {
   const { user, token } = useAuth();
+  void token; // keep token available for future API calls without unused warnings
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentStudents, setRecentStudents] = useState<Student[]>([]);
@@ -163,22 +166,6 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className={styles.quickActions}>
-        <button className={`${styles.quickAction} ${styles.primary}`}>
-          <span>📝</span> Grade Assignments
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <span>📅</span> Schedule Class
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <span>📢</span> Post Announcement
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <span>📊</span> View Reports
-        </button>
-      </div>
-
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
@@ -216,7 +203,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>📚 My Courses</h2>
-            <button className={styles.viewAllBtn}>Manage Courses</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/courses')}>Manage Courses</button>
           </div>
           <div className={styles.courseList}>
             {courses.length === 0 && (
@@ -238,9 +225,9 @@ export default function StaffDashboard() {
                   <span>📍 {course.room || 'Room TBD'}</span>
                 </div>
                 <div className={styles.courseActions}>
-                  <button className={styles.smallBtn}>View Class</button>
-                  <button className={styles.smallBtn}>Grades</button>
-                  <button className={styles.smallBtn}>Materials</button>
+                  <button className={styles.smallBtn} onClick={() => navigate(`/class/${course.id}`)}>View Class</button>
+                  <button className={styles.smallBtn} onClick={() => navigate(`/course-grades/${course.id}`)}>Grades</button>
+                  <button className={styles.smallBtn} onClick={() => navigate(`/materials/${course.id}`)}>Materials</button>
                 </div>
               </div>
             ))}
@@ -251,7 +238,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>✅ Tasks & Deadlines</h2>
-            <button className={styles.viewAllBtn}>All Tasks</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/tasks')}>All Tasks</button>
           </div>
           <div className={styles.taskList}>
             {tasks.map((task: Task) => (
@@ -273,7 +260,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>👨‍🎓 Recent Submissions</h2>
-            <button className={styles.viewAllBtn}>View All</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/submissions')}>View All</button>
           </div>
           <div className={styles.studentList}>
             {recentStudents.map((student: Student) => (
@@ -297,7 +284,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>✉️ Messages</h2>
-            <button className={styles.viewAllBtn}>Inbox</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/messages')}>Inbox</button>
           </div>
           <div className={styles.messageList}>
             {messages.map((message: Message) => (
