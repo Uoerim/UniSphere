@@ -20,7 +20,6 @@ export default function DashboardLayout() {
 
     const academicNav = [
       { name: 'Courses', path: '/courses', icon: '📚' },
-      { name: 'Departments', path: '/departments', icon: '🏛️' },
       { name: 'Assessments', path: '/assessments', icon: '📝' },
       { name: 'Assignments', path: '/assignments', icon: '📋' },
     ];
