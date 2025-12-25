@@ -829,7 +829,7 @@ export default function AdminCourses() {
                   >
                     <option value="">Select Instructor</option>
                     {instructors.map(inst => (
-                      <option key={inst.id || inst.accountId} value={inst.id || ''}>
+                      <option key={inst.id || inst.accountId} value={inst.id || inst.accountId || ''}>
                         {inst.name} ({inst.email})
                       </option>
                     ))}
@@ -1040,7 +1040,7 @@ export default function AdminCourses() {
                   >
                     <option value="">Select Instructor</option>
                     {instructors.map(inst => (
-                      <option key={inst.id || inst.accountId} value={inst.id || ''}>
+                      <option key={inst.id || inst.accountId} value={inst.id || inst.accountId || ''}>
                         {inst.name} ({inst.email})
                       </option>
                     ))}

@@ -32,6 +32,39 @@ const requireAdminOrStaff = (req: Request, res: Response, next: NextFunction) =>
   next();
 };
 
+// Resolve an instructor identifier to an entity id (accepts entityId or accountId)
+const resolveInstructorEntityId = async (instructorId?: string | null) => {
+  if (!instructorId) return null;
+
+  // If the id already matches an Entity, use it directly
+  const existingEntity = await prisma.entity.findUnique({ where: { id: instructorId } });
+  if (existingEntity) return existingEntity.id;
+
+  // Otherwise, see if it is an Account id with an attached entity
+  const account = await prisma.account.findUnique({ where: { id: instructorId }, include: { entity: true } });
+  if (account?.entityId) return account.entityId;
+
+  if (account) {
+    // Create a minimal STAFF entity for legacy accounts without one
+    const newEntity = await prisma.entity.create({
+      data: {
+        type: 'STAFF',
+        name: account.email,
+        description: 'Auto-created for instructor assignment',
+      }
+    });
+
+    await prisma.account.update({
+      where: { id: account.id },
+      data: { entityId: newEntity.id }
+    });
+
+    return newEntity.id;
+  }
+
+  return null;
+};
+
 // GET courses for current user (enrolled courses for students, taught courses for staff)
 router.get("/my-courses", authenticateToken, async (req, res) => {
   try {
@@ -103,6 +136,9 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         };
       }
 
+      // Count enrolled students
+      const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
+
       return {
         id: course.id,
         name: course.name,
@@ -116,7 +152,8 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         room: attrs.room,
         schedule: attrs.schedule,
         capacity: attrs.capacity || 30,
-        instructor
+        instructor,
+        enrolledStudents
       };
     });
 
@@ -571,9 +608,14 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
 
     // Assign instructor if provided
     if (instructorId) {
+      const instructorEntityId = await resolveInstructorEntityId(instructorId);
+      if (!instructorEntityId) {
+        return res.status(400).json({ error: "Instructor not found or missing profile" });
+      }
+
       await prisma.entityRelation.create({
         data: {
-          fromEntityId: instructorId,
+          fromEntityId: instructorEntityId,
           toEntityId: course.id,
           relationType: 'TEACHES',
           startDate: new Date()
@@ -708,9 +750,14 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
 
       // Add new instructor if provided
       if (instructorId) {
+        const instructorEntityId = await resolveInstructorEntityId(instructorId);
+        if (!instructorEntityId) {
+          return res.status(400).json({ error: "Instructor not found or missing profile" });
+        }
+
         await prisma.entityRelation.create({
           data: {
-            fromEntityId: instructorId,
+            fromEntityId: instructorEntityId,
             toEntityId: id,
             relationType: 'TEACHES',
             startDate: new Date()
