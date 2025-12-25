@@ -89,6 +89,13 @@ export default function StaffManagement() {
   // Staff's data
   const [staffCourses, setStaffCourses] = useState<Course[]>([]);
   const [staffStudents, setStaffStudents] = useState<Student[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+
+  // Assign modal state
+  const [assignCourseId, setAssignCourseId] = useState('');
+  const [assignSemester, setAssignSemester] = useState('Fall 2025');
+  const [assignError, setAssignError] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
 
   // Filters and sorting
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,6 +128,8 @@ export default function StaffManagement() {
     fetchDepartments();
   }, []);
 
+  const getStaffEntityId = (staff?: StaffMember | null) => staff?.entityId || staff?.id || '';
+
   const fetchDepartments = async () => {
     try {
       const res = await api.get('/departments');
@@ -130,11 +139,46 @@ export default function StaffManagement() {
     }
   };
 
+  const fetchAvailableCourses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:4000/api/curriculum', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load courses');
+      const data = await res.json();
+      setAvailableCourses(data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        code: c.code || c.courseCode || 'N/A',
+        department: c.department || '—',
+        students: c.enrolledStudents || 0,
+        schedule: c.schedule || 'TBD',
+        semester: c.semester || 'Current'
+      })));
+    } catch (err) {
+      console.error('Failed to fetch available courses:', err);
+      setAvailableCourses([]);
+    }
+  };
+
   useEffect(() => {
     if (selectedStaff) {
-      fetchStaffDetails(selectedStaff.id);
+      const staffKey = getStaffEntityId(selectedStaff);
+      if (staffKey) {
+        fetchStaffDetails(staffKey);
+      }
     }
   }, [selectedStaff?.id]);
+
+  useEffect(() => {
+    if (showAssignCourseModal) {
+      fetchAvailableCourses();
+      setAssignError('');
+    } else {
+      setAssignCourseId('');
+    }
+  }, [showAssignCourseModal]);
 
   const fetchStaffList = async () => {
     try {
@@ -198,10 +242,10 @@ export default function StaffManagement() {
         const courses = await coursesResponse.json();
         setStaffCourses(courses.map((c: any) => ({
           id: c.id,
-          name: c.name || 'Unnamed Course',
-          code: c.code || 'N/A',
+          name: c.name || c.courseName || 'Unnamed Course',
+          code: c.courseCode || c.code || 'N/A',
           department: c.department || 'Not Assigned',
-          students: c.students || 0,
+          students: c.enrolledStudents || c.students || 0,
           schedule: c.metadata?.schedule || c.schedule || 'TBD',
           semester: c.metadata?.semester || 'Current'
         })));
@@ -423,6 +467,70 @@ export default function StaffManagement() {
       }
     } catch (err: any) {
       alert(err.message || 'Failed to delete staff member');
+    }
+  };
+
+  const handleAssignCourse = async () => {
+    if (!selectedStaff) return;
+    const staffKey = getStaffEntityId(selectedStaff);
+    if (!staffKey) {
+      setAssignError('Missing staff profile (entity).');
+      return;
+    }
+    if (!assignCourseId) {
+      setAssignError('Select a course first.');
+      return;
+    }
+
+    setAssignLoading(true);
+    setAssignError('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/api/staff-courses/${staffKey}/assign`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ courseId: assignCourseId, semester: assignSemester })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to assign course');
+      }
+
+      await fetchStaffDetails(staffKey);
+      setShowAssignCourseModal(false);
+      setAssignCourseId('');
+    } catch (err: any) {
+      setAssignError(err.message || 'Failed to assign course');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleRemoveCourse = async (courseId: string) => {
+    if (!selectedStaff) return;
+    const staffKey = getStaffEntityId(selectedStaff);
+    if (!staffKey) return;
+    if (!confirm('Remove this course assignment?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/api/staff-courses/${staffKey}/unassign/${courseId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to remove assignment');
+      }
+
+      await fetchStaffDetails(staffKey);
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove course');
     }
   };
 
@@ -746,6 +854,12 @@ export default function StaffManagement() {
                       </button>
                     </div>
                     <div className={styles.coursesList}>
+                      {staffCourses.length === 0 && (
+                        <div className={styles.emptyList}>
+                          <span>📚</span>
+                          <p>No courses assigned</p>
+                        </div>
+                      )}
                       {staffCourses.map(course => (
                         <div key={course.id} className={styles.courseCard}>
                           <div className={styles.courseInfo}>
@@ -759,7 +873,7 @@ export default function StaffManagement() {
                           </div>
                           <div className={styles.courseActions}>
                             <button className={styles.viewBtn}>View Details</button>
-                            <button className={styles.removeBtn}>Remove</button>
+                            <button className={styles.removeBtn} onClick={() => handleRemoveCourse(course.id)}>Remove</button>
                           </div>
                         </div>
                       ))}
@@ -1152,27 +1266,38 @@ export default function StaffManagement() {
               <button className={styles.closeBtn} onClick={() => setShowAssignCourseModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
+              {assignError && <div className={styles.formError}>⚠️ {assignError}</div>}
               <div className={styles.formGroup}>
                 <label>Select Course</label>
-                <select>
+                <select value={assignCourseId} onChange={(e) => setAssignCourseId(e.target.value)}>
                   <option value="">Choose a course...</option>
-                  <option value="cs102">CS102 - Programming Fundamentals</option>
-                  <option value="cs202">CS202 - Database Systems</option>
-                  <option value="cs302">CS302 - Operating Systems</option>
-                  <option value="cs401">CS401 - Machine Learning</option>
+                  {availableCourses
+                    .filter(c => !staffCourses.some(sc => sc.id === c.id))
+                    .map(course => (
+                      <option key={course.id} value={course.id}>
+                        {course.code} - {course.name}
+                      </option>
+                  ))}
                 </select>
+                {availableCourses.length === 0 && (
+                  <p className={styles.smallNote}>No courses available to assign.</p>
+                )}
               </div>
               <div className={styles.formGroup}>
                 <label>Semester</label>
-                <select>
-                  <option value="fall2025">Fall 2025</option>
-                  <option value="spring2026">Spring 2026</option>
-                </select>
+                <input
+                  type="text"
+                  value={assignSemester}
+                  onChange={(e) => setAssignSemester(e.target.value)}
+                  placeholder="e.g., Fall 2025"
+                />
               </div>
             </div>
             <div className={styles.modalFooter}>
               <button className={styles.cancelBtn} onClick={() => setShowAssignCourseModal(false)}>Cancel</button>
-              <button className={styles.submitBtn}>Assign Course</button>
+              <button className={styles.submitBtn} onClick={handleAssignCourse} disabled={assignLoading}>
+                {assignLoading ? 'Assigning...' : 'Assign Course'}
+              </button>
             </div>
           </div>
         </div>
