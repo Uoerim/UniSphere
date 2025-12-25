@@ -185,9 +185,9 @@ export default function StaffDashboard() {
                   <span>📍 {course.room}</span>
                 </div>
                 <div className={styles.courseActions}>
-                  <button className={styles.smallBtn}>View Class</button>
-                  <button className={styles.smallBtn}>Grades</button>
-                  <button className={styles.smallBtn}>Materials</button>
+                  <button className={styles.smallBtn} onClick={() => navigate(`/class/${course.id}`)}>View Class</button>
+                  <button className={styles.smallBtn} onClick={() => navigate(`/course-grades/${course.id}`)}>Grades</button>
+                  <button className={styles.smallBtn} onClick={() => navigate(`/materials/${course.id}`)}>Materials</button>
                 </div>
               </div>
             ))}

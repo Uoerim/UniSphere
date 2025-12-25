@@ -18,6 +18,9 @@ import ManageCourses from './pages/dashboard/ManageCourses';
 import Tasks from './pages/dashboard/Tasks';
 import Submissions from './pages/dashboard/Submissions';
 import Messages from './pages/dashboard/Messages';
+import ViewClass from './pages/dashboard/ViewClass';
+import CourseGrades from './pages/dashboard/CourseGrades';
+import CourseMaterials from './pages/dashboard/CourseMaterials';
 import Announcements from './pages/announcements/Announcements';
 import Events from './pages/events/Events';
 import Settings from './pages/settings/Settings';
@@ -60,6 +63,9 @@ export default function App() {
             <Route path="tasks" element={<Tasks />} />
             <Route path="submissions" element={<Submissions />} />
             <Route path="messages" element={<Messages />} />
+            <Route path="class/:courseId" element={<ViewClass />} />
+            <Route path="course-grades/:courseId" element={<CourseGrades />} />
+            <Route path="materials/:courseId" element={<CourseMaterials />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="events" element={<Events />} />
             <Route path="settings" element={<Settings />} />
