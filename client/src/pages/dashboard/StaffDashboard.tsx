@@ -8,11 +8,11 @@ import styles from './RoleDashboard.module.css';
 interface Course {
   id: string;
   name: string;
-  code: string;
+  code?: string;
   students: number;
-  schedule: string;
-  room: string;
-  registeredStudents: Student[];
+  schedule?: string;
+  room?: string;
+  capacity?: number;
 }
 interface Task {
   id: string;
@@ -45,28 +45,56 @@ export default function StaffDashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentStudents, setRecentStudents] = useState<Student[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const formatSchedule = (schedule?: string) => {
+    if (!schedule) return 'Schedule TBD';
+    try {
+      const parsed = JSON.parse(schedule);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: any) => {
+          const days = Array.isArray(item.days) ? item.days.join(', ') : '';
+          return `${days}${item.startTime && item.endTime ? `, ${item.startTime}–${item.endTime}` : ''}`;
+        }).join(' | ');
+      }
+    } catch {
+      // fall back to raw schedule string
+    }
+    return schedule;
+  };
 
   useEffect(() => {
-    // Mock data - in production, fetch from API
-    // Example students for each course
-    const cs101Students: Student[] = [
-      { id: '1', name: 'John Smith', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
-      { id: '3', name: 'Michael Brown', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
-      { id: '5', name: 'Anna Lee', course: 'CS101', lastSubmission: 'Quiz 2', grade: 'B' },
-    ];
-    const cs201Students: Student[] = [
-      { id: '2', name: 'Emily Chen', course: 'CS201', lastSubmission: 'Assignment 5', grade: 'A' },
-      { id: '6', name: 'David Kim', course: 'CS201', lastSubmission: 'Assignment 4', grade: 'A-' },
-    ];
-    const cs301Students: Student[] = [
-      { id: '4', name: 'Sarah Davis', course: 'CS301', lastSubmission: 'Lab Report', grade: 'B+' },
-      { id: '7', name: 'Liam Patel', course: 'CS301', lastSubmission: 'Lab 2', grade: 'A' },
-    ];
-    setCourses([
-      { id: '1', name: 'Introduction to Programming', code: 'CS101', students: cs101Students.length, schedule: 'Mon/Wed 10:00 AM', room: 'Lab 102', registeredStudents: cs101Students },
-      { id: '2', name: 'Data Structures', code: 'CS201', students: cs201Students.length, schedule: 'Tue/Thu 2:00 PM', room: 'Room 305', registeredStudents: cs201Students },
-      { id: '3', name: 'Web Development', code: 'CS301', students: cs301Students.length, schedule: 'Mon/Wed 2:00 PM', room: 'Lab 104', registeredStudents: cs301Students },
-    ]);
+    const loadCourses = async () => {
+      if (!token) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to load courses');
+        const data = await res.json();
+        const normalized: Course[] = data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          code: c.code,
+          schedule: formatSchedule(c.schedule),
+          room: c.room || 'TBD',
+          capacity: c.capacity,
+          students: c.enrolledStudents ?? 0,
+        }));
+        setCourses(normalized);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load courses');
+        setCourses([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCourses();
+
     setTasks([
       { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
       { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
@@ -74,18 +102,13 @@ export default function StaffDashboard() {
       { id: '4', title: 'Submit Research Grant', type: 'admin', dueDate: '2026-01-05', priority: 'medium' },
       { id: '5', title: 'Review TA Applications', type: 'admin', dueDate: '2026-01-10', priority: 'low' },
     ]);
-    setRecentStudents([
-      { id: '1', name: 'John Smith', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
-      { id: '2', name: 'Emily Chen', course: 'CS201', lastSubmission: 'Assignment 5', grade: 'A' },
-      { id: '3', name: 'Michael Brown', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
-      { id: '4', name: 'Sarah Davis', course: 'CS301', lastSubmission: 'Lab Report', grade: 'B+' },
-    ]);
+    setRecentStudents([]);
     setMessages([
       { id: '1', from: 'Dean Wilson', subject: 'Spring Planning', preview: 'Please review the attached...', time: '2h ago', unread: true },
       { id: '2', from: 'John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
       { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
     ]);
-  }, []);
+  }, [token]);
 
   // Helpers
   const getPriorityColor = (priority: Task['priority']) => {
@@ -106,9 +129,18 @@ export default function StaffDashboard() {
     }
   };
 
-  const totalStudents = courses.reduce((sum: number, c: Course) => sum + c.students, 0);
+  const totalStudents = courses.reduce((sum: number, c: Course) => sum + (c.students || 0), 0);
   const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Pending').length;
   const unreadMessages = messages.filter((m: Message) => m.unread).length;
+
+  if (loading) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}></div>
+        <p>Loading your courses...</p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -174,16 +206,23 @@ export default function StaffDashboard() {
             <button className={styles.viewAllBtn} onClick={() => navigate('/courses')}>Manage Courses</button>
           </div>
           <div className={styles.courseList}>
+            {courses.length === 0 && (
+              <div className={styles.emptyState}>
+                <span>📚</span>
+                <h3>No assigned courses yet</h3>
+                <p>Assign an instructor to a course in Admin → Courses to see it here.</p>
+              </div>
+            )}
             {courses.map((course: Course) => (
               <div key={course.id} className={styles.staffCourseItem}>
                 <div className={styles.courseHeader}>
-                  <span className={styles.courseCode}>{course.code}</span>
+                  <span className={styles.courseCode}>{course.code || '—'}</span>
                   <span className={styles.studentCount}>👨‍🎓 {course.students}</span>
                 </div>
                 <div className={styles.courseName}>{course.name}</div>
                 <div className={styles.courseDetails}>
-                  <span>🕐 {course.schedule}</span>
-                  <span>📍 {course.room}</span>
+                  <span>🕐 {course.schedule || 'Schedule TBD'}</span>
+                  <span>📍 {course.room || 'Room TBD'}</span>
                 </div>
                 <div className={styles.courseActions}>
                   <button className={styles.smallBtn} onClick={() => navigate(`/class/${course.id}`)}>View Class</button>

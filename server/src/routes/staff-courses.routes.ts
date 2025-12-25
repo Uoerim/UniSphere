@@ -84,7 +84,8 @@ staffCoursesRouter.get("/:staffId", authenticateToken, requireAdminOrStaff, asyn
           include: {
             values: {
               include: { attribute: true }
-            }
+            },
+            relationsTo: true
           }
         }
       }
@@ -100,10 +101,22 @@ staffCoursesRouter.get("/:staffId", authenticateToken, requireAdminOrStaff, asyn
         ])
       );
 
+      const courseName = course.name || values.name || values.title || values.courseName;
+      const courseCode = values.courseCode || values.code || values.course_code;
+      const schedule = values.schedule || relation.metadata?.schedule;
+      const enrolled = relation.toEntity?.relationsTo?.filter((r: any) => r.relationType === 'ENROLLED_IN' && r.isActive)?.length;
+
       return {
         id: course.id,
         relationId: relation.id,
-        ...values,
+        name: courseName,
+        courseName: courseName,
+        courseCode,
+        code: courseCode,
+        department: values.department,
+        students: enrolled || values.enrolledStudents || 0,
+        enrolledStudents: enrolled || values.enrolledStudents || 0,
+        schedule,
         metadata: relation.metadata ? JSON.parse(relation.metadata) : {},
         startDate: relation.startDate,
         endDate: relation.endDate
@@ -284,13 +297,20 @@ staffCoursesRouter.get("/:staffId/students", authenticateToken, requireAdminOrSt
         ])
       );
 
+      const courseName = course.name || courseValues.name || courseValues.courseName;
+      const courseCode = courseValues.courseCode || courseValues.code;
+
       return {
         id: student.id,
+        name: studentValues.firstName && studentValues.lastName
+          ? `${studentValues.firstName} ${studentValues.lastName}`
+          : studentValues.name || studentValues.email || student.id,
+        email: studentValues.email,
         ...studentValues,
         course: {
           id: course.id,
-          name: courseValues.name,
-          code: courseValues.code
+          name: courseName,
+          code: courseCode
         },
         enrollmentId: relation.id,
         enrollmentMetadata: relation.metadata ? JSON.parse(relation.metadata) : {}
