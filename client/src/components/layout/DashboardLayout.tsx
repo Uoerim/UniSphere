@@ -24,9 +24,7 @@ export default function DashboardLayout() {
       { name: 'Assignments', path: '/assignments', icon: '📋' },
     ];
 
-    const facilitiesNav = [
-      { name: 'Facilities', path: '/facilities', icon: '🏫' },
-    ];
+    // Facilities section removed per request
 
     const communityNav = [
       { name: 'Announcements', path: '/announcements', icon: '📢' },
@@ -43,7 +41,6 @@ export default function DashboardLayout() {
           { title: 'Main', items: mainNav },
           { title: 'Administration', items: adminNav },
           { title: 'Academic', items: academicNav },
-          { title: 'Facilities', items: facilitiesNav },
           { title: 'Community', items: communityNav },
           { title: 'System', items: settingsNav },
         ];
@@ -51,7 +48,6 @@ export default function DashboardLayout() {
         return [
           { title: 'Main', items: mainNav },
           { title: 'Academic', items: academicNav },
-          { title: 'Facilities', items: facilitiesNav },
           { title: 'Community', items: communityNav },
         ];
       case 'STUDENT':

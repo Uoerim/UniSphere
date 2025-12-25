@@ -10,7 +10,6 @@ import CoursesRouter from './pages/courses/CoursesRouter';
 import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
 import StaffManagement from './pages/staff/StaffManagement';
-import Facilities from './pages/classrooms/Facilities';
 import Departments from './pages/departments/Departments';
 import ParentManagement from './pages/parents/ParentManagement';
 import Assessments from './pages/assessments/Assessments';
@@ -53,7 +52,6 @@ export default function App() {
             <Route path="staff" element={<StaffManagement />} />
             <Route path="staff-old" element={<Staff />} />
             <Route path="courses" element={<CoursesRouter />} />
-            <Route path="facilities" element={<Facilities />} />
             <Route path="departments" element={<Departments />} />
             <Route path="parents" element={<ParentManagement />} />
             <Route path="assessments" element={<Assessments />} />
