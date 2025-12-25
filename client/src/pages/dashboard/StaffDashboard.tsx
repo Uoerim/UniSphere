@@ -76,7 +76,7 @@ export default function StaffDashboard() {
           id: c.id,
           name: c.name,
           code: c.code,
-          schedule: formatSchedule(c.schedule),
+          schedule: c.scheduleDisplay || formatSchedule(c.schedule) || 'Schedule TBD',
           room: c.room || 'TBD',
           capacity: c.capacity,
           students: c.enrolledStudents ?? 0,

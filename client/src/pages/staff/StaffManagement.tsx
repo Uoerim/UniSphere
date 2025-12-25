@@ -71,7 +71,7 @@ interface Student {
   attendance: number;
 }
 
-type TabType = 'overview' | 'courses' | 'students' | 'schedule' | 'performance';
+type TabType = 'overview' | 'courses' | 'students' | 'schedule';
 type SortField = 'email' | 'role' | 'department' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
@@ -130,6 +130,22 @@ export default function StaffManagement() {
 
   const getStaffEntityId = (staff?: StaffMember | null) => staff?.entityId || staff?.id || '';
 
+  const formatSchedule = (schedule?: string) => {
+    if (!schedule) return 'Schedule TBD';
+    try {
+      const parsed = JSON.parse(schedule);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: any) => {
+          const days = Array.isArray(item.days) ? item.days.join(', ') : '';
+          return `${days}${item.startTime && item.endTime ? `, ${item.startTime}–${item.endTime}` : ''}`;
+        }).join(' | ');
+      }
+    } catch {
+      // fall back to raw schedule string
+    }
+    return schedule;
+  };
+
   const fetchDepartments = async () => {
     try {
       const res = await api.get('/departments');
@@ -153,7 +169,7 @@ export default function StaffManagement() {
         code: c.code || c.courseCode || 'N/A',
         department: c.department || '—',
         students: c.enrolledStudents || 0,
-        schedule: c.schedule || 'TBD',
+        schedule: formatSchedule(c.schedule) || c.scheduleDisplay || 'Schedule TBD',
         semester: c.semester || 'Current'
       })));
     } catch (err) {
@@ -246,8 +262,8 @@ export default function StaffManagement() {
           code: c.courseCode || c.code || 'N/A',
           department: c.department || 'Not Assigned',
           students: c.enrolledStudents || c.students || 0,
-          schedule: c.metadata?.schedule || c.schedule || 'TBD',
-          semester: c.metadata?.semester || 'Current'
+          schedule: formatSchedule(c.schedule) || 'Schedule TBD',
+          semester: c.metadata?.semester || c.semester || 'Current'
         })));
       } else {
         // Use placeholder data if no courses assigned
@@ -779,12 +795,7 @@ export default function StaffManagement() {
                 >
                   Schedule
                 </button>
-                <button
-                  className={`${styles.tab} ${activeTab === 'performance' ? styles.active : ''}`}
-                  onClick={() => setActiveTab('performance')}
-                >
-                  Performance
-                </button>
+
               </div>
 
               {/* Tab Content */}
@@ -832,14 +843,6 @@ export default function StaffManagement() {
                       <div className={styles.quickStatCard}>
                         <div className={styles.quickStatValue}>{staffStudents.length}</div>
                         <div className={styles.quickStatLabel}>Total Students</div>
-                      </div>
-                      <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>4.8</div>
-                        <div className={styles.quickStatLabel}>Avg. Rating</div>
-                      </div>
-                      <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>95%</div>
-                        <div className={styles.quickStatLabel}>Attendance</div>
                       </div>
                     </div>
                   </div>
@@ -935,75 +938,40 @@ export default function StaffManagement() {
                 {activeTab === 'schedule' && (
                   <div className={styles.scheduleTab}>
                     <div className={styles.tabHeader}>
-                      <h3>Weekly Schedule</h3>
+                      <h3>Course Schedules</h3>
                     </div>
-                    <div className={styles.scheduleGrid}>
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
-                        <div key={day} className={styles.scheduleDay}>
-                          <div className={styles.dayHeader}>{day}</div>
-                          <div className={styles.daySlots}>
-                            {day === 'Monday' || day === 'Wednesday' ? (
-                              <>
-                                <div className={styles.scheduleSlot}>
-                                  <div className={styles.slotTime}>9:00 - 10:30 AM</div>
-                                  <div className={styles.slotCourse}>CS101</div>
-                                  <div className={styles.slotRoom}>Room 201</div>
-                                </div>
-                                <div className={styles.scheduleSlot}>
-                                  <div className={styles.slotTime}>2:00 - 3:30 PM</div>
-                                  <div className={styles.slotCourse}>CS301</div>
-                                  <div className={styles.slotRoom}>Room 305</div>
-                                </div>
-                              </>
-                            ) : day === 'Tuesday' || day === 'Thursday' ? (
-                              <div className={styles.scheduleSlot}>
-                                <div className={styles.slotTime}>11:00 - 12:30 PM</div>
-                                <div className={styles.slotCourse}>CS201</div>
-                                <div className={styles.slotRoom}>Room 102</div>
+                    {staffCourses.length === 0 ? (
+                      <div className={styles.emptyList}>
+                        <span>📅</span>
+                        <p>No courses scheduled</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {staffCourses.map(course => (
+                          <div key={course.id} style={{ padding: '16px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '16px' }}>{course.code} - {course.name}</div>
+                            <div style={{ display: 'flex', gap: '24px', fontSize: '14px', color: '#6b7280' }}>
+                              <div>
+                                <span style={{ fontWeight: '500', color: '#374151' }}>🕐 Schedule:</span>
+                                <div>{course.schedule}</div>
                               </div>
-                            ) : (
-                              <div className={styles.noClasses}>Office Hours</div>
-                            )}
+                              <div>
+                                <span style={{ fontWeight: '500', color: '#374151' }}>📚 Department:</span>
+                                <div>{course.department}</div>
+                              </div>
+                              <div>
+                                <span style={{ fontWeight: '500', color: '#374151' }}>👥 Students:</span>
+                                <div>{course.students}</div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {activeTab === 'performance' && (
-                  <div className={styles.performanceTab}>
-                    <div className={styles.tabHeader}>
-                      <h3>Performance Metrics</h3>
-                    </div>
-                    <div className={styles.performanceGrid}>
-                      <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>⭐</div>
-                        <div className={styles.performanceValue}>4.8/5.0</div>
-                        <div className={styles.performanceLabel}>Student Rating</div>
-                        <div className={styles.performanceTrend}>↑ 0.2 from last semester</div>
-                      </div>
-                      <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>📊</div>
-                        <div className={styles.performanceValue}>87%</div>
-                        <div className={styles.performanceLabel}>Pass Rate</div>
-                        <div className={styles.performanceTrend}>↑ 3% from last semester</div>
-                      </div>
-                      <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>📅</div>
-                        <div className={styles.performanceValue}>95%</div>
-                        <div className={styles.performanceLabel}>Attendance</div>
-                        <div className={styles.performanceTrend}>Consistent</div>
-                      </div>
-                      <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}>📝</div>
-                        <div className={styles.performanceValue}>42</div>
-                        <div className={styles.performanceLabel}>Assignments Graded</div>
-                        <div className={styles.performanceTrend}>This month</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+
               </div>
             </>
           ) : (
