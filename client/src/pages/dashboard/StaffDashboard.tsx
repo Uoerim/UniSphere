@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
 
@@ -38,6 +39,7 @@ interface Message {
 
 export default function StaffDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentStudents, setRecentStudents] = useState<Student[]>([]);
@@ -168,7 +170,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>📚 My Courses</h2>
-            <button className={styles.viewAllBtn}>Manage Courses</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/courses')}>Manage Courses</button>
           </div>
           <div className={styles.courseList}>
             {courses.map((course: Course) => (
@@ -196,7 +198,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>✅ Tasks & Deadlines</h2>
-            <button className={styles.viewAllBtn}>All Tasks</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/tasks')}>All Tasks</button>
           </div>
           <div className={styles.taskList}>
             {tasks.map((task: Task) => (
@@ -218,7 +220,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>👨‍🎓 Recent Submissions</h2>
-            <button className={styles.viewAllBtn}>View All</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/submissions')}>View All</button>
           </div>
           <div className={styles.studentList}>
             {recentStudents.map((student: Student) => (
@@ -242,7 +244,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>✉️ Messages</h2>
-            <button className={styles.viewAllBtn}>Inbox</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/messages')}>Inbox</button>
           </div>
           <div className={styles.messageList}>
             {messages.map((message: Message) => (
