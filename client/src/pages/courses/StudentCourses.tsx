@@ -1,4 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
+
+// Helper to format schedule JSON to readable string
+function formatSchedule(schedule: string | undefined): string {
+  if (!schedule) return 'TBD';
+  try {
+    const arr = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+    if (Array.isArray(arr)) {
+      return arr.map((item: any) => {
+        const days = Array.isArray(item.days) ? item.days.map((d: string) => dayName(d)).join(', ') : '';
+        return `${days}${item.startTime && item.endTime ? `, ${item.startTime}–${item.endTime}` : ''}`;
+      }).join(' | ');
+    }
+  } catch {}
+  return schedule;
+}
+
+// Helper to convert short day to full name
+function dayName(short: string): string {
+  const map: Record<string, string> = { Su: 'Sunday', Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday' };
+  return map[short] || short;
+}
 import { useAuth } from '../../context/AuthContext';
 import styles from './Courses.module.css';
 
@@ -41,6 +62,7 @@ export default function StudentCourses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
+  const [filterCourseType, setFilterCourseType] = useState<'all' | 'core' | 'elective'>('all');
 
   useEffect(() => {
     fetchCourses();
@@ -190,8 +212,12 @@ export default function StudentCourses() {
       result = result.filter(c => c.department === filterDepartment);
     }
 
+    if (filterCourseType !== 'all') {
+      result = result.filter(c => (c.courseType || '').toLowerCase() === filterCourseType);
+    }
+
     return result;
-  }, [allCourses, enrolledCourseIds, searchTerm, filterDepartment]);
+  }, [allCourses, enrolledCourseIds, searchTerm, filterDepartment, filterCourseType]);
 
   const departments = useMemo(() => {
     const deps = new Set(allCourses.map(c => c.department).filter(Boolean));
@@ -321,7 +347,7 @@ export default function StudentCourses() {
                     </div>
                     <div className={styles.detailRow}>
                       <span className={styles.detailLabel}>Schedule:</span>
-                      <span className={styles.detailValue}>{course.schedule || 'TBD'}</span>
+                      <span className={styles.detailValue}>{formatSchedule(course.schedule)}</span>
                     </div>
                   </div>
                   <div className={styles.cardActions}>
@@ -363,6 +389,16 @@ export default function StudentCourses() {
               {departments.map(dep => (
                 <option key={dep} value={dep}>{dep}</option>
               ))}
+            </select>
+            <select
+              value={filterCourseType}
+              onChange={e => setFilterCourseType(e.target.value as 'all' | 'core' | 'elective')}
+              className={styles.filterSelect}
+              style={{ marginLeft: 8 }}
+            >
+              <option value="all">All Types</option>
+              <option value="core">Core</option>
+              <option value="elective">Elective</option>
             </select>
           </div>
 
@@ -428,7 +464,7 @@ export default function StudentCourses() {
                       </div>
                       <div className={styles.detailRow}>
                         <span className={styles.detailLabel}>Schedule:</span>
-                        <span className={styles.detailValue}>{course.schedule || 'TBD'}</span>
+                        <span className={styles.detailValue}>{formatSchedule(course.schedule)}</span>
                       </div>
                     </div>
                     <div className={styles.cardActions}>
