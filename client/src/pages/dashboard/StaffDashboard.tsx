@@ -131,22 +131,6 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className={styles.quickActions}>
-        <button className={`${styles.quickAction} ${styles.primary}`}>
-          <span>📝</span> Grade Assignments
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <span>📅</span> Schedule Class
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <span>📢</span> Post Announcement
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <span>📊</span> View Reports
-        </button>
-      </div>
-
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
