@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Modal from '../../components/ui/Modal';
 import styles from '../../styles/pages.module.css';
+import eventStyles from './Events.module.css';
 import modalStyles from '../../components/ui/Modal.module.css';
 
 interface Event {
@@ -185,7 +186,7 @@ export default function Events() {
         </div>
       </div>
 
-      {/* Events Grid */}
+      {/* Events List */}
       {isLoading ? (
         <div className={styles.loading}>Loading events...</div>
       ) : events.length === 0 ? (
@@ -200,68 +201,55 @@ export default function Events() {
           </div>
         </div>
       ) : (
-        <div className={styles.grid}>
+        <div className={styles.card}>
           {events.map((event) => (
-            <div key={event.id} className={styles.gridCard} style={{
-              borderLeft: `4px solid ${isUpcoming(event.date) ? '#4f6ef7' : '#9ca3af'}`
+            <div key={event.id} style={{
+              padding: '20px',
+              borderBottom: '1px solid #f3f4f6',
+              display: 'flex',
+              gap: '16px'
             }}>
               <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: '#eef1fe',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '12px'
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                flexShrink: 0
               }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '12px',
-                  background: '#eef1fe',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px'
-                }}>
-                  {getEventIcon(event.eventType)}
-                </div>
-                <div className={styles.actions} style={{ flexDirection: 'row' }}>
-                  <button className={styles.iconBtn} onClick={() => openEditModal(event)}>✏️</button>
-                  <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(event.id)}>
-                    🗑️
-                  </button>
-                </div>
+                {getEventIcon(event.eventType)}
               </div>
-
-              <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1f36', margin: '0 0 8px 0' }}>
-                {event.title}
-              </h3>
-
-              <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 16px 0', minHeight: '40px' }}>
-                {event.description || 'No description provided'}
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
-                  <span>📅</span>
-                  <span>{formatDate(event.date)}</span>
-                  {event.time && <span>at {event.time}</span>}
-                </div>
-                {event.location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
-                    <span>📍</span>
-                    <span>{event.location}</span>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f3f4f6' }}>
-                <span className={`${styles.badge} ${isUpcoming(event.date) ? styles.success : styles.secondary}`}>
-                  {isUpcoming(event.date) ? 'Upcoming' : 'Past'}
-                </span>
-                {event.eventType && (
-                  <span className={`${styles.badge} ${styles.primary}`} style={{ marginLeft: '8px' }}>
-                    {event.eventType}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1f36', margin: 0 }}>
+                    {event.title}
+                  </h3>
+                  <span className={`${styles.badge} ${isUpcoming(event.date) ? styles.success : styles.secondary}`}>
+                    {isUpcoming(event.date) ? 'Upcoming' : 'Past'}
                   </span>
-                )}
+                  {event.eventType && (
+                    <span className={`${styles.badge} ${styles.primary}`}>
+                      {event.eventType}
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 12px 0' }}>
+                  {event.description || 'No description provided'}
+                </p>
+                <div style={{ fontSize: '12px', color: '#9ca3af', display: 'flex', gap: '16px' }}>
+                  <span>📅 {formatDate(event.date)}</span>
+                  {event.time && <span>🕐 {event.time}</span>}
+                  {event.location && <span>📍 {event.location}</span>}
+                </div>
+              </div>
+              <div className={styles.actions}>
+                <button className={styles.iconBtn} onClick={() => openEditModal(event)}>✏️</button>
+                <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(event.id)}>
+                  🗑️
+                </button>
               </div>
             </div>
           ))}
