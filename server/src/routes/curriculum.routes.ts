@@ -302,7 +302,8 @@ router.get("/student/:studentId/courses", authenticateToken, async (req, res) =>
   }
 });
 
-// GET all departments (for dropdown selection)
+// GET all courses with enrollment and instructor data
+// GET all active departments for course assignment
 router.get("/departments/all", authenticateToken, async (req, res) => {
   try {
     const departments = await prisma.entity.findMany({
@@ -331,7 +332,6 @@ router.get("/departments/all", authenticateToken, async (req, res) => {
   }
 });
 
-// GET all courses with enrollment and instructor data
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const courses = await prisma.entity.findMany({
@@ -665,18 +665,6 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       }
     }
 
-    // Link course to department if departmentId provided
-    if (departmentId) {
-      await prisma.entityRelation.create({
-        data: {
-          fromEntityId: course.id,
-          toEntityId: departmentId,
-          relationType: 'BELONGS_TO',
-          startDate: new Date()
-        }
-      });
-    }
-
     // Assign instructors if provided
     if (finalInstructorIds.length > 0) {
       for (const instrId of finalInstructorIds) {
@@ -689,6 +677,18 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
           }
         });
       }
+    }
+
+    // Link to department if departmentId provided
+    if (departmentId) {
+      await prisma.entityRelation.create({
+        data: {
+          fromEntityId: course.id,
+          toEntityId: departmentId,
+          relationType: 'BELONGS_TO',
+          startDate: new Date()
+        }
+      });
     }
 
     // Create prerequisite relations
@@ -810,29 +810,6 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
       }
     }
 
-    // Update department link if provided
-    if (departmentId !== undefined) {
-      // Delete existing department relation
-      await prisma.entityRelation.deleteMany({
-        where: {
-          fromEntityId: id,
-          relationType: 'BELONGS_TO'
-        }
-      });
-
-      // Create new department relation
-      if (departmentId) {
-        await prisma.entityRelation.create({
-          data: {
-            fromEntityId: id,
-            toEntityId: departmentId,
-            relationType: 'BELONGS_TO',
-            startDate: new Date()
-          }
-        });
-      }
-    }
-
     // Update instructor assignments if provided
     if (finalInstructorIds !== undefined) {
       // Delete existing instructor relations completely
@@ -855,6 +832,29 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
             }
           });
         }
+      }
+    }
+
+    // Update department link if provided
+    if (departmentId !== undefined) {
+      // Delete existing department relation
+      await prisma.entityRelation.deleteMany({
+        where: {
+          fromEntityId: id,
+          relationType: 'BELONGS_TO'
+        }
+      });
+
+      // Create new department relation if departmentId is provided
+      if (departmentId) {
+        await prisma.entityRelation.create({
+          data: {
+            fromEntityId: id,
+            toEntityId: departmentId,
+            relationType: 'BELONGS_TO',
+            startDate: new Date()
+          }
+        });
       }
     }
 
