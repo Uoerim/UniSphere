@@ -323,6 +323,7 @@ export default function AdminCourses() {
       hasLecture: true,
       hasTutorial: false,
       hasLab: false,
+      isActive: true,
     });
     setFormError('');
   };

@@ -11,11 +11,18 @@ import CoursesRouter from './pages/courses/CoursesRouter';
 import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
 import StaffManagement from './pages/staff/StaffManagement';
-import Facilities from './pages/classrooms/Facilities';
 import Departments from './pages/departments/Departments';
 import ParentManagement from './pages/parents/ParentManagement';
 import Assessments from './pages/assessments/Assessments';
 import Assignments from './pages/assignments/Assignments';
+import Facilities from './pages/classrooms/Facilities';
+import ManageCourses from './pages/dashboard/ManageCourses';
+import Tasks from './pages/dashboard/Tasks';
+import Submissions from './pages/dashboard/Submissions';
+import Messages from './pages/dashboard/Messages';
+import ViewClass from './pages/dashboard/ViewClass';
+import CourseGrades from './pages/dashboard/CourseGrades';
+import CourseMaterials from './pages/dashboard/CourseMaterials';
 import Announcements from './pages/announcements/Announcements';
 import Events from './pages/events/Events';
 import Settings from './pages/settings/Settings';
@@ -54,6 +61,13 @@ function AppRoutes() {
         <Route path="parents" element={<ParentManagement />} />
         <Route path="assessments" element={<Assessments />} />
         <Route path="assignments" element={<Assignments />} />
+        <Route path="manage-courses" element={<ManageCourses />} />
+        <Route path="tasks" element={<Tasks />} />
+        <Route path="submissions" element={<Submissions />} />
+        <Route path="messages" element={<Messages />} />
+        <Route path="class/:courseId" element={<ViewClass />} />
+        <Route path="course-grades/:courseId" element={<CourseGrades />} />
+        <Route path="materials/:courseId" element={<CourseMaterials />} />
         <Route path="announcements" element={<Announcements />} />
         <Route path="events" element={<Events />} />
         <Route path="settings" element={<Settings />} />

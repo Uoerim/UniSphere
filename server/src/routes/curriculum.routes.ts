@@ -32,6 +32,39 @@ const requireAdminOrStaff = (req: Request, res: Response, next: NextFunction) =>
   next();
 };
 
+// Resolve an instructor identifier to an entity id (accepts entityId or accountId)
+const resolveInstructorEntityId = async (instructorId?: string | null) => {
+  if (!instructorId) return null;
+
+  // If the id already matches an Entity, use it directly
+  const existingEntity = await prisma.entity.findUnique({ where: { id: instructorId } });
+  if (existingEntity) return existingEntity.id;
+
+  // Otherwise, see if it is an Account id with an attached entity
+  const account = await prisma.account.findUnique({ where: { id: instructorId }, include: { entity: true } });
+  if (account?.entityId) return account.entityId;
+
+  if (account) {
+    // Create a minimal STAFF entity for legacy accounts without one
+    const newEntity = await prisma.entity.create({
+      data: {
+        type: 'STAFF',
+        name: account.email,
+        description: 'Auto-created for instructor assignment',
+      }
+    });
+
+    await prisma.account.update({
+      where: { id: account.id },
+      data: { entityId: newEntity.id }
+    });
+
+    return newEntity.id;
+  }
+
+  return null;
+};
+
 // GET courses for current user (enrolled courses for students, taught courses for staff)
 router.get("/my-courses", authenticateToken, async (req, res) => {
   try {
@@ -105,6 +138,9 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
       // Legacy support
       const instructor = instructors.length > 0 ? instructors[0] : null;
 
+      // Count enrolled students
+      const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
+
       return {
         id: course.id,
         name: course.name,
@@ -120,7 +156,8 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         scheduleDisplay: attrs.scheduleDisplay,
         capacity: attrs.capacity || 30,
         instructor,
-        instructors
+        instructors,
+        enrolledStudents
       };
     });
 
@@ -840,17 +877,30 @@ router.post("/:id/enroll", authenticateToken, async (req, res) => {
       }
     }
 
-    // Check if already enrolled
+    // Check if already enrolled (active or inactive)
     const existing = await prisma.entityRelation.findFirst({
       where: {
         fromEntityId: studentId,
         toEntityId: courseId,
-        relationType: 'ENROLLED_IN',
-        isActive: true
+        relationType: 'ENROLLED_IN'
       }
     });
     if (existing) {
-      return res.status(400).json({ error: "Student is already enrolled in this course" });
+      if (existing.isActive) {
+        return res.status(400).json({ error: "Student is already enrolled in this course" });
+      } else {
+        // Reactivate the enrollment
+        await prisma.entityRelation.update({
+          where: { id: existing.id },
+          data: {
+            isActive: true,
+            endDate: null,
+            startDate: new Date(),
+            metadata: JSON.stringify({ ...(existing.metadata ? JSON.parse(existing.metadata) : {}), reenrolledAt: new Date().toISOString() })
+          }
+        });
+        return res.status(200).json({ message: "Student reenrolled successfully", enrollmentId: existing.id });
+      }
     }
 
     // Get the course and its prerequisites
@@ -931,11 +981,21 @@ router.post("/:id/enroll", authenticateToken, async (req, res) => {
 router.delete("/:id/unenroll/:studentId", authenticateToken, async (req, res) => {
   try {
     const courseId = req.params.id as string;
-    const studentId = req.params.studentId as string;
+    const accountId = req.params.studentId as string;
+
+    // Find the student's entityId from the accountId
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      include: { entity: true }
+    });
+    if (!account?.entity) {
+      return res.status(404).json({ error: "Student entity not found for this account" });
+    }
+    const studentEntityId = account.entity.id;
 
     const result = await prisma.entityRelation.updateMany({
       where: {
-        fromEntityId: studentId,
+        fromEntityId: studentEntityId,
         toEntityId: courseId,
         relationType: 'ENROLLED_IN',
         isActive: true

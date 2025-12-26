@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { BookOpenIcon, FileTextIcon, CheckCircleIcon, TargetIcon, BellIcon, CalendarIcon, UserIcon, PinIcon } from '../../components/ui/Icons';
@@ -185,6 +184,7 @@ export default function StudentDashboard() {
       </div>
 
       <div className={styles.mainGrid}>
+
         {/* My Courses (enrolled) */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
@@ -276,33 +276,35 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Today's Schedule */}
+        {/* Today's Schedule - from enrolled courses */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2><CalendarIcon size={20} /> Today's Schedule</h2>
           </div>
           <div className={styles.scheduleList}>
-            <div className={styles.scheduleItem}>
-              <div className={styles.scheduleTime}>9:00 AM</div>
-              <div className={styles.scheduleContent}>
-                <div className={styles.scheduleTitle}>Physics Fundamentals</div>
-                <div className={styles.scheduleLocation}><PinIcon size={14} /> Room 201, Science Building</div>
-              </div>
-            </div>
-            <div className={styles.scheduleItem}>
-              <div className={styles.scheduleTime}>10:00 AM</div>
-              <div className={styles.scheduleContent}>
-                <div className={styles.scheduleTitle}>Introduction to Programming</div>
-                <div className={styles.scheduleLocation}><PinIcon size={14} /> Lab 102, Computer Center</div>
-              </div>
-            </div>
-            <div className={styles.scheduleItem}>
-              <div className={styles.scheduleTime}>2:00 PM</div>
-              <div className={styles.scheduleContent}>
-                <div className={styles.scheduleTitle}>Study Group - Calculus</div>
-                <div className={styles.scheduleLocation}><PinIcon size={14} /> Library, Floor 2</div>
-              </div>
-            </div>
+            {enrolledCourses.length === 0 ? (
+              <div>No enrolled courses with schedule.</div>
+            ) : (
+              enrolledCourses
+                .filter(course => !!course.schedule)
+                .map((course, idx, arr) => {
+                  const conflicts = arr.filter((c, i) => i !== idx && c.schedule === course.schedule);
+                  return (
+                    <div key={course.id} className={styles.scheduleItem}>
+                      <div className={styles.scheduleTime}>{course.schedule || 'TBD'}</div>
+                      <div className={styles.scheduleContent}>
+                        <div className={styles.scheduleTitle}>{course.name}</div>
+                        <div className={styles.scheduleLocation}><PinIcon size={14} /> {course.room || 'TBD'}</div>
+                        {conflicts.length > 0 && (
+                          <div style={{ color: 'orange', fontWeight: 'bold', marginTop: 4 }}>
+                            ⚠️ Schedule conflict with: {conflicts.map(c => c.name).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+            )}
           </div>
         </div>
 

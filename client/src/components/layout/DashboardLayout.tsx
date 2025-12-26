@@ -72,7 +72,6 @@ export default function DashboardLayout() {
         return [
           { title: 'Main', items: mainNav },
           { title: 'Academic', items: academicNav },
-          { title: 'Facilities', items: facilitiesNav },
           { title: 'Community', items: communityNav },
         ];
       case 'STUDENT':
