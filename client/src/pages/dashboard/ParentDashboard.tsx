@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpenIcon, ChartIcon, CalendarIcon, ClipboardIcon, CheckCircleIcon, UsersIcon, BellIcon, FileTextIcon } from '../../components/ui/Icons';
+import { BookOpenIcon, ChartIcon, CalendarIcon, ClipboardIcon, UsersIcon, BellIcon, FileTextIcon } from '../../components/ui/Icons';
 import styles from './RoleDashboard.module.css';
 
 interface Child {
   id: string;
   name: string;
   grade: string;
-  attendance: number;
   gpa: number;
   avatar: string;
   courseCount?: number;
@@ -77,7 +76,6 @@ export default function ParentDashboard() {
           id: child.id,
           name: child.name,
           grade: child.grade || 'N/A',
-          attendance: 95, // Placeholder until attendance API
           gpa: 0.0, // Placeholder until grades API
           avatar: child.avatar,
           courseCount: child.courseCount || 0
@@ -178,29 +176,15 @@ export default function ParentDashboard() {
           <div className={styles.statCard}>
             <div className={`${styles.statIcon} ${styles.primary}`}><ChartIcon size={24} /></div>
             <div className={styles.statInfo}>
-              <div className={styles.statValue}>{currentChild.gpa}</div>
+              <div className={styles.statValue}>{currentChild.gpa || '--'}</div>
               <div className={styles.statTitle}>Current GPA</div>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{currentChild.attendance}%</div>
-              <div className={styles.statTitle}>Attendance Rate</div>
             </div>
           </div>
           <div className={styles.statCard}>
             <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
             <div className={styles.statInfo}>
-              <div className={styles.statValue}>5</div>
+              <div className={styles.statValue}>{currentChild.courseCount || 0}</div>
               <div className={styles.statTitle}>Active Courses</div>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.warning}`}><CheckCircleIcon size={24} /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>3</div>
-              <div className={styles.statTitle}>Achievements</div>
             </div>
           </div>
         </div>
