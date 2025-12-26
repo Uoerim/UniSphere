@@ -1,133 +1,82 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpenIcon, ChartIcon, CalendarIcon, ClipboardIcon, UsersIcon, BellIcon, FileTextIcon } from '../../components/ui/Icons';
+import { BookOpenIcon, ChartIcon, ParentIcon, ChevronRightIcon } from '../../components/ui/Icons';
 import styles from './RoleDashboard.module.css';
+
+interface Course {
+  id: string;
+  name: string;
+  code: string;
+}
 
 interface Child {
   id: string;
   name: string;
+  email: string;
   grade: string;
-  gpa: number;
   avatar: string;
-  courseCount?: number;
-}
-
-interface Grade {
-  course: string;
-  grade: string;
-  percentage: number;
-  trend: 'up' | 'down' | 'stable';
-}
-
-interface Event {
-  id: string;
-  title: string;
-  date: string;
-  type: 'meeting' | 'event' | 'deadline';
-}
-
-interface Payment {
-  id: string;
-  description: string;
-  amount: number;
-  dueDate: string;
-  status: 'paid' | 'pending' | 'overdue';
+  courses: Course[];
+  courseCount: number;
 }
 
 export default function ParentDashboard() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
   const [children, setChildren] = useState<Child[]>([]);
-  const [selectedChild, setSelectedChild] = useState<string>('');
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchChildren();
-
-    // Events and payments remain as sample data - can be connected to API later
-    setEvents([
-      { id: '1', title: 'Parent-Teacher Conference', date: '2025-12-27', type: 'meeting' },
-      { id: '2', title: 'Winter Concert', date: '2025-12-28', type: 'event' },
-      { id: '3', title: 'Report Card Release', date: '2025-12-30', type: 'deadline' },
-      { id: '4', title: 'Science Fair', date: '2026-01-10', type: 'event' },
-    ]);
-
-    setPayments([
-      { id: '1', description: 'Spring Semester Tuition', amount: 5000, dueDate: '2026-01-15', status: 'pending' },
-      { id: '2', description: 'Sports Equipment Fee', amount: 150, dueDate: '2025-12-20', status: 'paid' },
-      { id: '3', description: 'Field Trip Fee', amount: 75, dueDate: '2025-12-28', status: 'pending' },
-    ]);
   }, []);
 
   const fetchChildren = async () => {
     try {
       setIsLoading(true);
+      setError('');
       const response = await fetch('http://localhost:4000/api/parents/me/children', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const formattedChildren = data.map((child: any) => ({
-          id: child.id,
-          name: child.name,
-          grade: child.grade || 'N/A',
-          gpa: 0.0, // Placeholder until grades API
-          avatar: child.avatar,
-          courseCount: child.courseCount || 0
-        }));
-        setChildren(formattedChildren);
-        if (formattedChildren.length > 0) {
-          setSelectedChild(formattedChildren[0].id);
-        }
+      if (!response.ok) {
+        throw new Error('Failed to fetch children');
       }
-    } catch (error) {
-      console.error('Failed to fetch children:', error);
+
+      const data = await response.json();
+      setChildren(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load data');
     } finally {
       setIsLoading(false);
     }
-
-    // Grades remain as sample until grades API is connected
-    setGrades([
-      { course: 'Mathematics', grade: 'A', percentage: 92, trend: 'up' },
-      { course: 'English', grade: 'A-', percentage: 88, trend: 'stable' },
-      { course: 'Science', grade: 'B+', percentage: 85, trend: 'up' },
-      { course: 'History', grade: 'A', percentage: 94, trend: 'up' },
-      { course: 'Physical Education', grade: 'A', percentage: 96, trend: 'stable' },
-    ]);
   };
 
-  const currentChild = children.find(c => c.id === selectedChild) || children[0];
+  const totalCourses = children.reduce((sum, child) => sum + (child.courseCount || 0), 0);
 
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return styles.success;
-      case 'pending': return styles.warning;
-      case 'overdue': return styles.danger;
-      default: return '';
-    }
-  };
-
-  const getEventIcon = (type: string) => {
-    switch (type) {
-      case 'meeting': return <UsersIcon size={20} />;
-      case 'event': return <BellIcon size={20} />;
-      case 'deadline': return <ClipboardIcon size={20} />;
-      default: return <CalendarIcon size={20} />;
-    }
-  };
-
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case 'up': return <ChartIcon size={16} />;
-      case 'down': return <ChartIcon size={16} />;
-      default: return <ChartIcon size={16} />;
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '80px 20px'
+        }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            border: '3px solid var(--border)',
+            borderTopColor: '#10b981',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ marginTop: 16, color: 'var(--text-secondary)' }}>Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -135,7 +84,7 @@ export default function ParentDashboard() {
       <div className={`${styles.welcomeBanner} ${styles.parentBanner}`}>
         <div className={styles.welcomeContent}>
           <h1>Welcome, {user?.email?.split('@')[0] || 'Parent'}!</h1>
-          <p>Stay connected with your children's academic journey and school activities.</p>
+          <p>Stay connected with your children's academic journey</p>
         </div>
         <div className={styles.welcomeStats}>
           <div className={styles.welcomeStat}>
@@ -143,159 +92,281 @@ export default function ParentDashboard() {
             <span className={styles.statLabel}>Children</span>
           </div>
           <div className={styles.welcomeStat}>
-            <span className={styles.statNumber}>{events.length}</span>
-            <span className={styles.statLabel}>Upcoming Events</span>
-          </div>
-          <div className={styles.welcomeStat}>
-            <span className={styles.statNumber}>{payments.filter(p => p.status === 'pending').length}</span>
-            <span className={styles.statLabel}>Pending Payments</span>
+            <span className={styles.statNumber}>{totalCourses}</span>
+            <span className={styles.statLabel}>Total Courses</span>
           </div>
         </div>
       </div>
 
-      {/* Child Selector */}
-      {children.length > 1 && (
-        <div className={styles.childSelector}>
-          {children.map(child => (
-            <button
-              key={child.id}
-              className={`${styles.childTab} ${selectedChild === child.id ? styles.active : ''}`}
-              onClick={() => setSelectedChild(child.id)}
-            >
-              <span className={styles.childAvatar}>{child.avatar}</span>
-              <span className={styles.childName}>{child.name}</span>
-              <span className={styles.childGrade}>{child.grade}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Child Overview Stats */}
-      {currentChild && (
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.primary}`}><ChartIcon size={24} /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{currentChild.gpa || '--'}</div>
-              <div className={styles.statTitle}>Current GPA</div>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{currentChild.courseCount || 0}</div>
-              <div className={styles.statTitle}>Active Courses</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={styles.mainGrid}>
-        {/* Academic Performance */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2><ChartIcon size={20} /> Academic Performance</h2>
-            <button className={styles.viewAllBtn}>Full Report</button>
-          </div>
-          <div className={styles.gradeList}>
-            {grades.map((grade, index) => (
-              <div key={index} className={styles.gradeItem}>
-                <div className={styles.gradeInfo}>
-                  <div className={styles.courseName}>{grade.course}</div>
-                  <div className={styles.gradeBar}>
-                    <div
-                      className={styles.gradeFill}
-                      style={{ width: `${grade.percentage}%` }}
-                    />
-                  </div>
-                </div>
-                <div className={styles.gradeMeta}>
-                  <span className={styles.gradeValue}>{grade.grade}</span>
-                  <span className={styles.gradeTrend}>{getTrendIcon(grade.trend)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Upcoming Events */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2><CalendarIcon size={20} /> Upcoming Events</h2>
-            <button className={styles.viewAllBtn}>View Calendar</button>
-          </div>
-          <div className={styles.eventList}>
-            {events.map(event => (
-              <div key={event.id} className={styles.eventItem}>
-                <div className={styles.eventIcon}>{getEventIcon(event.type)}</div>
-                <div className={styles.eventContent}>
-                  <div className={styles.eventTitle}>{event.title}</div>
-                  <div className={styles.eventDate}>
-                    {new Date(event.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </div>
-                </div>
-                <button className={styles.eventAction}>View</button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Payments */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2><ClipboardIcon size={20} /> Payments & Fees</h2>
-            <button className={styles.viewAllBtn}>Payment History</button>
-          </div>
-          <div className={styles.paymentList}>
-            {payments.map(payment => (
-              <div key={payment.id} className={styles.paymentItem}>
-                <div className={styles.paymentInfo}>
-                  <div className={styles.paymentTitle}>{payment.description}</div>
-                  <div className={styles.paymentDue}>Due: {payment.dueDate}</div>
-                </div>
-                <div className={styles.paymentMeta}>
-                  <span className={styles.paymentAmount}>${payment.amount}</span>
-                  <span className={`${styles.badge} ${getPaymentStatusColor(payment.status)}`}>
-                    {payment.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className={`${styles.actionBtn} ${styles.primary}`} style={{ marginTop: '16px', width: '100%' }}>
-            Make Payment
+      {error && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#ef4444',
+          padding: '16px',
+          borderRadius: '12px',
+          marginBottom: '24px',
+          textAlign: 'center'
+        }}>
+          {error}
+          <button
+            onClick={fetchChildren}
+            style={{
+              marginLeft: '12px',
+              padding: '6px 16px',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            Retry
           </button>
         </div>
+      )}
 
-        {/* Communication */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2><BellIcon size={20} /> Communication</h2>
+      {children.length === 0 ? (
+        <div className={styles.card} style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{
+            width: 80,
+            height: 80,
+            background: 'var(--hover-bg)',
+            borderRadius: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px'
+          }}>
+            <ParentIcon size={40} />
           </div>
-          <div className={styles.communicationOptions}>
-            <button className={styles.commOption}>
-              <span className={styles.commIcon}><BellIcon size={20} /></span>
-              <span>Message Teacher</span>
-            </button>
-            <button className={styles.commOption}>
-              <span className={styles.commIcon}><CalendarIcon size={20} /></span>
-              <span>Schedule Call</span>
-            </button>
-            <button className={styles.commOption}>
-              <span className={styles.commIcon}><ClipboardIcon size={20} /></span>
-              <span>Request Meeting</span>
-            </button>
-            <button className={styles.commOption}>
-              <span className={styles.commIcon}><FileTextIcon size={20} /></span>
-              <span>View Reports</span>
-            </button>
-          </div>
+          <h3 style={{ margin: '0 0 8px', color: 'var(--text)' }}>No Children Linked</h3>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+            Contact the school administration to link your children to your account.
+          </p>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Quick Actions */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px',
+            marginBottom: '24px'
+          }}>
+            <button
+              onClick={() => navigate('/children')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '20px',
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{
+                width: 48,
+                height: 48,
+                background: 'rgba(16, 185, 129, 0.1)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#10b981'
+              }}>
+                <ParentIcon size={24} />
+              </div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontWeight: 600, color: 'var(--text)' }}>My Children</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>View all children</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/parent-grades')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '20px',
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{
+                width: 48,
+                height: 48,
+                background: 'rgba(59, 130, 246, 0.1)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#3b82f6'
+              }}>
+                <ChartIcon size={24} />
+              </div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontWeight: 600, color: 'var(--text)' }}>View Grades</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Academic progress</div>
+              </div>
+            </button>
+          </div>
+
+          {/* Children Cards */}
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2><ParentIcon size={20} /> My Children</h2>
+              <button className={styles.viewAllBtn} onClick={() => navigate('/children')}>
+                View All
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {children.map(child => (
+                <div
+                  key={child.id}
+                  onClick={() => navigate(`/children/${child.id}`)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    padding: '20px',
+                    background: 'var(--hover-bg)',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{
+                    width: 56,
+                    height: 56,
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    borderRadius: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '20px',
+                    fontWeight: 700,
+                    flexShrink: 0
+                  }}>
+                    {child.avatar}
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '16px', color: 'var(--text)', marginBottom: '4px' }}>
+                      {child.name}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      {child.email}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    {child.grade && (
+                      <span style={{
+                        padding: '6px 14px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        color: 'white',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: 600
+                      }}>
+                        {child.grade}
+                      </span>
+                    )}
+
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: 'var(--text-secondary)',
+                      fontSize: '14px'
+                    }}>
+                      <BookOpenIcon size={16} />
+                      <span>{child.courseCount} courses</span>
+                    </div>
+
+                    <ChevronRightIcon size={20} color="var(--text-secondary)" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Courses Overview */}
+          <div className={styles.card} style={{ marginTop: '24px' }}>
+            <div className={styles.cardHeader}>
+              <h2><BookOpenIcon size={20} /> All Enrolled Courses</h2>
+            </div>
+
+            {totalCourses === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                <BookOpenIcon size={40} />
+                <p>No courses enrolled yet</p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '12px'
+              }}>
+                {children.flatMap(child =>
+                  child.courses.map(course => (
+                    <div
+                      key={`${child.id}-${course.id}`}
+                      style={{
+                        padding: '16px',
+                        background: 'var(--hover-bg)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        flexShrink: 0
+                      }}>
+                        <BookOpenIcon size={18} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontWeight: 600,
+                          color: 'var(--text)',
+                          fontSize: '14px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {course.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          {course.code} • {child.name}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
