@@ -8,6 +8,8 @@ interface Course {
   id: string;
   name: string;
   code: string;
+  department?: string;
+  departmentCode?: string;
 }
 
 interface Child {
@@ -147,78 +149,6 @@ export default function ParentDashboard() {
         </div>
       ) : (
         <>
-          {/* Quick Actions */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
-          }}>
-            <button
-              onClick={() => navigate('/children')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '20px',
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{
-                width: 48,
-                height: 48,
-                background: 'rgba(16, 185, 129, 0.1)',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#10b981'
-              }}>
-                <ParentIcon size={24} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text)' }}>My Children</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>View all children</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => navigate('/parent-grades')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '20px',
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{
-                width: 48,
-                height: 48,
-                background: 'rgba(59, 130, 246, 0.1)',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#3b82f6'
-              }}>
-                <ChartIcon size={24} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text)' }}>View Grades</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Academic progress</div>
-              </div>
-            </button>
-          </div>
-
           {/* Children Cards */}
           <div className={styles.card}>
             <div className={styles.cardHeader}>
@@ -357,6 +287,14 @@ export default function ParentDashboard() {
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                           {course.code} • {child.name}
+                          {course.department && (
+                            <>
+                              {' • '}
+                              <span title={course.department}>
+                                {course.departmentCode || course.department}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
