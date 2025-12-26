@@ -41,7 +41,8 @@ router.get("/", authenticateToken, async (req, res) => {
     const user = (req as any).user;
     
     // For students, only show assignments for their enrolled courses
-    let enrolledCourseIds: string[] = [];
+    // For staff, only show assignments for their taught courses
+    let allowedCourseIds: string[] = [];
     if (user.role === 'STUDENT') {
       const account = await prisma.account.findUnique({
         where: { id: user.id },
@@ -57,7 +58,24 @@ router.get("/", authenticateToken, async (req, res) => {
           },
           select: { toEntityId: true }
         });
-        enrolledCourseIds = enrollments.map(e => e.toEntityId);
+        allowedCourseIds = enrollments.map(e => e.toEntityId);
+      }
+    } else if (user.role === 'STAFF') {
+      const account = await prisma.account.findUnique({
+        where: { id: user.id },
+        include: { entity: true }
+      });
+      
+      if (account?.entity) {
+        const teaches = await prisma.entityRelation.findMany({
+          where: {
+            fromEntityId: account.entity.id,
+            relationType: 'TEACHES',
+            isActive: true
+          },
+          select: { toEntityId: true }
+        });
+        allowedCourseIds = teaches.map(t => t.toEntityId);
       }
     }
 
@@ -99,8 +117,8 @@ router.get("/", authenticateToken, async (req, res) => {
           };
         }
 
-        // Filter for students
-        if (user.role === 'STUDENT' && course && !enrolledCourseIds.includes(course.id)) {
+        // Filter for students and staff - only show assignments for allowed courses
+        if ((user.role === 'STUDENT' || user.role === 'STAFF') && course && !allowedCourseIds.includes(course.id)) {
           return null;
         }
 
@@ -677,6 +695,51 @@ router.post("/:id/submissions/:submissionId/grade", authenticateToken, requireAd
   } catch (error) {
     console.error("Grade submission error:", error);
     res.status(500).json({ error: "Failed to grade submission" });
+  }
+});
+
+// Get current student's submission for an assignment
+router.get("/:id/my-submission", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+
+    // Get student's entity
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+
+    if (!account?.entity) {
+      return res.json({ submitted: false });
+    }
+
+    const relation = await prisma.entityRelation.findFirst({
+      where: {
+        fromEntityId: account.entity.id,
+        toEntityId: id,
+        relationType: 'SUBMITTED_FOR'
+      }
+    });
+
+    if (!relation) {
+      return res.json({ submitted: false });
+    }
+
+    let meta: any = {};
+    if (relation.metadata) {
+      try { meta = JSON.parse(relation.metadata); } catch {}
+    }
+
+    return res.json({
+      submitted: true,
+      submittedAt: meta.submittedAt || relation.createdAt,
+      status: meta.status || 'submitted',
+      isLate: Boolean(meta.isLate),
+    });
+  } catch (error) {
+    console.error('Get my submission error:', error);
+    res.status(500).json({ error: 'Failed to fetch submission status' });
   }
 });
 

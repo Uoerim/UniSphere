@@ -133,10 +133,18 @@ staffDashboardRouter.get("/courses/:staffId", authenticateToken, async (req, res
   }
 });
 
-// Get staff tasks
+// Get staff tasks (for logged-in staff)
 staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) => {
   try {
     const { staffId } = req.params;
+    const user = (req as any).user;
+    
+    // Verify the requesting user is getting their own tasks
+    if (user.id !== staffId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    console.log('📋 Getting tasks for staff:', staffId);
     
     // Get staff by accountId
     const staff = await getStaffByAccountId(staffId);
@@ -145,6 +153,8 @@ staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) 
       where: { staffId: staff.id },
       orderBy: { dueDate: "asc" },
     });
+
+    console.log('✅ Found', tasks.length, 'tasks');
 
     const formattedTasks = tasks.map((task) => ({
       id: task.id,
@@ -156,7 +166,7 @@ staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) 
 
     res.json(formattedTasks);
   } catch (error: any) {
-    console.error("Error fetching tasks:", error);
+    console.error("❌ Error fetching tasks:", error);
     res.status(500).json({ error: error.message || "Failed to fetch tasks" });
   }
 });
@@ -355,48 +365,123 @@ staffDashboardRouter.get("/messages/:staffId", authenticateToken, async (req, re
   }
 });
 
-// Get staff submissions (recent student work)
+// Get staff submissions - all students enrolled in the staff's courses
 staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req, res) => {
   try {
     const { staffId } = req.params;
+    const user = (req as any).user;
+    
+    // Verify the requesting user is getting their own submissions
+    if (user.id !== staffId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
 
-    // Get staff by accountId
-    const staff = await getStaffByAccountId(staffId);
+    console.log('📤 Getting recent assignment submissions for staff:', staffId);
 
-    // Get all submissions from courses taught by this staff
-    const courses = await prisma.course.findMany({
-      where: { staffId: staff.id },
+    // Get staff account and entity
+    const account = await prisma.account.findUnique({
+      where: { id: staffId },
+      include: { entity: true }
+    });
+
+    if (!account?.entity) {
+      console.log('⚠️  No entity found for staff:', staffId);
+      return res.json([]);
+    }
+
+    const staffEntityId = account.entity.id;
+
+    // 1) Courses taught by staff
+    const teaches = await prisma.entityRelation.findMany({
+      where: { fromEntityId: staffEntityId, relationType: 'TEACHES', isActive: true },
       include: {
-        assignments: {
-          include: {
-            submissions: {
-              include: { student: true },
-              orderBy: { submittedAt: "desc" },
-              take: 100,
-            },
-          },
-        },
-      },
+        toEntity: { include: { values: { include: { attribute: true } } } }
+      }
     });
 
-    const submissions: any[] = [];
-    courses.forEach((course) => {
-      course.assignments.forEach((assignment) => {
-        assignment.submissions.forEach((submission) => {
-          submissions.push({
-            id: submission.id,
-            name: `${submission.student.firstName} ${submission.student.lastName}`,
-            course: course.code,
-            lastSubmission: assignment.title,
-            grade: "Pending",
-          });
-        });
+    const courseIds = teaches.map(t => t.toEntityId);
+    if (courseIds.length === 0) return res.json([]);
+
+    // Build course code map
+    const courseCodeById = new Map<string, string>();
+    teaches.forEach(t => {
+      const attrs: Record<string, any> = {};
+      t.toEntity.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
       });
+      courseCodeById.set(t.toEntityId, attrs.courseCode || attrs.code || t.toEntity.name || 'COURSE');
     });
 
-    res.json(submissions.slice(0, 50)); // Limit to 50 recent
+    // 2) Assignments for those courses
+    const assignmentRels = await prisma.entityRelation.findMany({
+      where: { relationType: 'ASSIGNMENT_FOR', isActive: true, toEntityId: { in: courseIds } },
+      include: {
+        fromEntity: { include: { values: { include: { attribute: true } } } }, // assignment
+        toEntity: true // course
+      }
+    });
+
+    const assignmentIds = assignmentRels.map(r => r.fromEntityId);
+    if (assignmentIds.length === 0) return res.json([]);
+
+    // Map assignment -> courseId and title
+    const assignmentInfo = new Map<string, { courseId: string; title: string }>();
+    assignmentRels.forEach(r => {
+      const attrs: Record<string, any> = {};
+      r.fromEntity.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      const title = attrs.title || r.fromEntity.name || 'Assignment';
+      assignmentInfo.set(r.fromEntityId, { courseId: r.toEntityId, title });
+    });
+
+    // 3) Submissions to those assignments
+    const submissions = await prisma.entityRelation.findMany({
+      where: { relationType: 'SUBMITTED_FOR', isActive: true, toEntityId: { in: assignmentIds } },
+      include: {
+        fromEntity: { // student
+          include: {
+            values: { include: { attribute: true } },
+            account: { select: { email: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+
+    // Format response for dashboard
+    const result = submissions.map((rel) => {
+      const student = rel.fromEntity as any;
+      const sAttrs: Record<string, any> = {};
+      student.values.forEach((v: any) => {
+        sAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+
+      const info = assignmentInfo.get(rel.toEntityId);
+      const courseCode = info ? (courseCodeById.get(info.courseId) || 'COURSE') : 'COURSE';
+
+      let meta: any = {};
+      if (rel.metadata) {
+        try { meta = JSON.parse(rel.metadata); } catch {}
+      }
+
+      const submittedAt = meta.submittedAt ? new Date(meta.submittedAt) : rel.createdAt;
+      const status = meta.status || 'submitted';
+      const gradeText = status === 'graded' ? 'Graded' : 'Submitted';
+
+      return {
+        id: rel.id,
+        name: sAttrs.firstName && sAttrs.lastName ? `${sAttrs.firstName} ${sAttrs.lastName}` : (student.account?.email || 'Unknown'),
+        course: courseCode,
+        lastSubmission: formatTime(submittedAt),
+        grade: gradeText,
+      };
+    });
+
+    res.json(result);
   } catch (error: any) {
-    console.error("Error fetching submissions:", error);
+    console.error("❌ Error fetching submissions:", error);
     res.status(500).json({ error: error.message || "Failed to fetch submissions" });
   }
 });

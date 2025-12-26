@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { BookOpenIcon, SearchIcon, FilterIcon, ChevronDownIcon, UserIcon, CalendarIcon, CheckCircleIcon, AlertTriangleIcon } from '../../components/ui/Icons';
+import { BookOpenIcon, SearchIcon, UserIcon, CalendarIcon, CheckCircleIcon, AlertTriangleIcon } from '../../components/ui/Icons';
 import styles from './CourseRegistration.module.css';
 
 interface Course {
@@ -47,7 +47,7 @@ export default function CourseRegistration() {
   const [filterCredits, setFilterCredits] = useState('all');
   const [sortField, setSortField] = useState<SortField>('code');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+
 
   // Fetch courses on mount
   useEffect(() => {

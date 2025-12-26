@@ -19,17 +19,38 @@ export default function Announcements() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [courses, setCourses] = useState<{ id: string; name: string; code?: string }[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     priority: 'normal',
-    targetAudience: 'all'
+    targetAudience: 'all',
+    courseId: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchAnnouncements();
+    fetchCourses();
   }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:4000/api/curriculum/my-courses', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCourses(data || []);
+        if (data?.length) {
+          setFormData(prev => ({ ...prev, courseId: data[0].id }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch courses:', error);
+    }
+  };
 
   const fetchAnnouncements = async () => {
     try {
@@ -85,7 +106,8 @@ export default function Announcements() {
       title: announcement.title,
       content: announcement.content || '',
       priority: announcement.priority || 'normal',
-      targetAudience: announcement.targetAudience || 'all'
+      targetAudience: announcement.targetAudience || 'all',
+      courseId: (announcement as any).course?.id || courses[0]?.id || ''
     });
     setIsModalOpen(true);
   };
@@ -93,7 +115,7 @@ export default function Announcements() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingAnnouncement(null);
-    setFormData({ title: '', content: '', priority: 'normal', targetAudience: 'all' });
+    setFormData({ title: '', content: '', priority: 'normal', targetAudience: 'all', courseId: courses[0]?.id || '' });
   };
 
   const handleDelete = async (id: string) => {
@@ -312,6 +334,21 @@ export default function Announcements() {
                 <option value="parents">Parents Only</option>
               </select>
             </div>
+          </div>
+          <div className={modalStyles.formGroup}>
+            <label>Course *</label>
+            <select
+              value={formData.courseId}
+              onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+              required
+            >
+              <option value="">Select course</option>
+              {courses.map(course => (
+                <option key={course.id} value={course.id}>
+                  {course.code ? `${course.code} - ${course.name}` : course.name}
+                </option>
+              ))}
+            </select>
           </div>
         </form>
       </Modal>

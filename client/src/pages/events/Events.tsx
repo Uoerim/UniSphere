@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import styles from './Events.module.css';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import styles from './Events.module.css';
 import {
   BookOpenIcon, TrophyIcon, TheaterIcon, UsersIcon,
   FileTextIcon, PartyIcon, CalendarIcon, MapPinIcon,
@@ -83,6 +83,8 @@ export default function Events() {
       if (response.ok) {
         const data = await response.json();
         setEvents(data);
+      } else {
+        console.error('Failed to fetch events:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Failed to fetch events:', error);
