@@ -1,4 +1,6 @@
 import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import styles from '../../styles/pages.module.css';
 
 interface StudentGrade {
@@ -13,42 +15,42 @@ interface StudentGrade {
 
 export default function CourseGrades() {
   const { courseId } = useParams();
+  const { token } = useAuth();
+  const [students, setStudents] = useState<StudentGrade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [courseName, setCourseName] = useState('');
+  const [courseCode, setCourseCode] = useState('');
 
-  const courseData: Record<string, { code: string; name: string; students: StudentGrade[] }> = {
-    '1': {
-      code: 'CS101',
-      name: 'Introduction to Programming',
-      students: [
-        { id: '1', name: 'John Smith', assignment1: 'A', assignment2: 'B+', midterm: 'B', final: 'Pending', average: 'B' },
-        { id: '3', name: 'Michael Brown', assignment1: 'B', assignment2: 'B', midterm: 'B-', final: 'Pending', average: 'B-' },
-        { id: '5', name: 'Anna Lee', assignment1: 'A-', assignment2: 'A', midterm: 'A', final: 'Pending', average: 'A-' },
-      ],
-    },
-    '2': {
-      code: 'CS201',
-      name: 'Data Structures',
-      students: [
-        { id: '2', name: 'Emily Chen', assignment1: 'A', assignment2: 'A', midterm: 'A', final: 'A', average: 'A' },
-        { id: '6', name: 'David Kim', assignment1: 'A-', assignment2: 'A', midterm: 'A-', final: 'A-', average: 'A-' },
-      ],
-    },
-    '3': {
-      code: 'CS301',
-      name: 'Web Development',
-      students: [
-        { id: '4', name: 'Sarah Davis', assignment1: 'A', assignment2: 'A-', midterm: 'B+', final: 'Pending', average: 'A-' },
-        { id: '7', name: 'Liam Patel', assignment1: 'A', assignment2: 'A', midterm: 'A', final: 'Pending', average: 'A' },
-      ],
-    },
-  };
+  useEffect(() => {
+    const fetchGrades = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`http://localhost:4000/api/staff-dashboard/course/${courseId}/grades`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStudents(data);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to load grades');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const course = courseData[courseId || '1'];
+    fetchGrades();
+  }, [courseId, token]);
+
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
+  if (error) return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
 
   return (
     <div className={styles.container}>
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>📊 Grades - {course.code}: {course.name}</h1>
+          <h1 className={styles.pageTitle}>📊 Grades - {courseCode}: {courseName}</h1>
           <p className={styles.pageSubtitle}>View and manage student grades</p>
         </div>
       </div>
@@ -70,7 +72,7 @@ export default function CourseGrades() {
               </tr>
             </thead>
             <tbody>
-              {course.students.map(student => (
+              {students.map(student => (
                 <tr key={student.id}>
                   <td>{student.name}</td>
                   <td>{student.assignment1}</td>

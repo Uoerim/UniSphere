@@ -1,4 +1,6 @@
 import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import styles from '../../styles/pages.module.css';
 
 interface Student {
@@ -8,44 +10,52 @@ interface Student {
   status: 'present' | 'absent' | 'late';
 }
 
+interface CourseData {
+  code: string;
+  name: string;
+  schedule: string;
+  room: string;
+  students: Student[];
+}
+
 export default function ViewClass() {
   const { courseId } = useParams();
+  const { token } = useAuth();
+  const [course, setCourse] = useState<CourseData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const courseData: Record<string, { code: string; name: string; schedule: string; room: string; students: Student[] }> = {
-    '1': {
-      code: 'CS101',
-      name: 'Introduction to Programming',
-      schedule: 'Mon/Wed 10:00 AM',
-      room: 'Lab 102',
-      students: [
-        { id: '1', name: 'John Smith', attendance: '95%', status: 'present' },
-        { id: '3', name: 'Michael Brown', attendance: '88%', status: 'present' },
-        { id: '5', name: 'Anna Lee', attendance: '92%', status: 'present' },
-      ],
-    },
-    '2': {
-      code: 'CS201',
-      name: 'Data Structures',
-      schedule: 'Tue/Thu 2:00 PM',
-      room: 'Room 305',
-      students: [
-        { id: '2', name: 'Emily Chen', attendance: '98%', status: 'present' },
-        { id: '6', name: 'David Kim', attendance: '94%', status: 'late' },
-      ],
-    },
-    '3': {
-      code: 'CS301',
-      name: 'Web Development',
-      schedule: 'Mon/Wed 2:00 PM',
-      room: 'Lab 104',
-      students: [
-        { id: '4', name: 'Sarah Davis', attendance: '96%', status: 'present' },
-        { id: '7', name: 'Liam Patel', attendance: '100%', status: 'present' },
-      ],
-    },
-  };
+  useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`http://localhost:4000/api/staff-dashboard/course/${courseId}/attendance`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const attendanceData = await res.json();
+          // Mock course info - in production fetch from courses endpoint
+          setCourse({
+            code: 'CS101',
+            name: 'Introduction to Programming',
+            schedule: 'Mon/Wed 10:00 AM',
+            room: 'Lab 102',
+            students: attendanceData,
+          });
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to load class data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const course = courseData[courseId || '1'];
+    fetchCourseData();
+  }, [courseId, token]);
+
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
+  if (error) return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
+  if (!course) return <div style={{ padding: '20px' }}>No course data</div>;
 
   return (
     <div className={styles.container}>

@@ -1,3 +1,8 @@
+import { useState, useEffect } from 'react';
+import Modal from '../../components/ui/Modal';
+import styles from '../../styles/pages.module.css';
+import eventStyles from './Events.module.css';
+import modalStyles from '../../components/ui/Modal.module.css';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
@@ -337,6 +342,70 @@ export default function Events() {
         </div>
       </div>
 
+      {/* Events List */}
+      {isLoading ? (
+        <div className={styles.loading}>Loading events...</div>
+      ) : events.length === 0 ? (
+        <div className={styles.card}>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>🎉</div>
+            <div className={styles.emptyTitle}>No Events Scheduled</div>
+            <div className={styles.emptyText}>Create your first event to get started</div>
+            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setIsModalOpen(true)}>
+              Create Event
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className={styles.card}>
+          {events.map((event) => (
+            <div key={event.id} style={{
+              padding: '20px',
+              borderBottom: '1px solid #f3f4f6',
+              display: 'flex',
+              gap: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: '#eef1fe',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                flexShrink: 0
+              }}>
+                {getEventIcon(event.eventType)}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1f36', margin: 0 }}>
+                    {event.title}
+                  </h3>
+                  <span className={`${styles.badge} ${isUpcoming(event.date) ? styles.success : styles.secondary}`}>
+                    {isUpcoming(event.date) ? 'Upcoming' : 'Past'}
+                  </span>
+                  {event.eventType && (
+                    <span className={`${styles.badge} ${styles.primary}`}>
+                      {event.eventType}
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 12px 0' }}>
+                  {event.description || 'No description provided'}
+                </p>
+                <div style={{ fontSize: '12px', color: '#9ca3af', display: 'flex', gap: '16px' }}>
+                  <span>📅 {formatDate(event.date)}</span>
+                  {event.time && <span>🕐 {event.time}</span>}
+                  {event.location && <span>📍 {event.location}</span>}
+                </div>
+              </div>
+              <div className={styles.actions}>
+                <button className={styles.iconBtn} onClick={() => openEditModal(event)}>✏️</button>
+                <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(event.id)}>
+                  🗑️
+                </button>
       {/* Main Content */}
       <div className={styles.mainGrid}>
         {/* Calendar / List View */}

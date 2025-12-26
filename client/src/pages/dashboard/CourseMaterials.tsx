@@ -1,4 +1,6 @@
 import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import styles from '../../styles/pages.module.css';
 
 interface Material {
@@ -7,80 +9,57 @@ interface Material {
   type: 'lecture' | 'reading' | 'resource' | 'video';
   uploadedDate: string;
   size: string;
+  fileUrl?: string;
 }
 
 export default function CourseMaterials() {
   const { courseId } = useParams();
+  const { token } = useAuth();
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [courseName, setCourseName] = useState('');
+  const [courseCode, setCourseCode] = useState('');
 
-  const courseData: Record<string, { code: string; name: string; materials: Material[] }> = {
-    '1': {
-      code: 'CS101',
-      name: 'Introduction to Programming',
-      materials: [
-        { id: '1', title: 'Week 1 - Introduction to Python', type: 'lecture', uploadedDate: '2025-12-20', size: '45 MB' },
-        { id: '2', title: 'Python Basics Guide', type: 'reading', uploadedDate: '2025-12-19', size: '2.5 MB' },
-        { id: '3', title: 'Setting up Development Environment', type: 'video', uploadedDate: '2025-12-18', size: '120 MB' },
-        { id: '4', title: 'Week 1 Practice Problems', type: 'resource', uploadedDate: '2025-12-17', size: '1.2 MB' },
-      ],
-    },
-    '2': {
-      code: 'CS201',
-      name: 'Data Structures',
-      materials: [
-        { id: '5', title: 'Arrays and Linked Lists', type: 'lecture', uploadedDate: '2025-12-21', size: '55 MB' },
-        { id: '6', title: 'Data Structures Handbook', type: 'reading', uploadedDate: '2025-12-20', size: '3.8 MB' },
-        { id: '7', title: 'Tree Traversal Algorithms', type: 'video', uploadedDate: '2025-12-19', size: '150 MB' },
-      ],
-    },
-    '3': {
-      code: 'CS301',
-      name: 'Web Development',
-      materials: [
-        { id: '8', title: 'HTML & CSS Fundamentals', type: 'lecture', uploadedDate: '2025-12-22', size: '65 MB' },
-        { id: '9', title: 'Web Dev Best Practices', type: 'reading', uploadedDate: '2025-12-21', size: '2.1 MB' },
-        { id: '10', title: 'Responsive Design Tutorial', type: 'video', uploadedDate: '2025-12-20', size: '180 MB' },
-        { id: '11', title: 'CSS Flexbox Guide', type: 'resource', uploadedDate: '2025-12-19', size: '1.5 MB' },
-      ],
-    },
-  };
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`http://localhost:4000/api/staff-dashboard/course/${courseId}/materials`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMaterials(data);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to load materials');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const course = courseData[courseId || '1'];
+    fetchMaterials();
+  }, [courseId, token]);
 
-  const getTypeIcon = (type: Material['type']) => {
-    switch (type) {
-      case 'lecture': return '📄';
-      case 'reading': return '📖';
-      case 'video': return '🎥';
-      case 'resource': return '📦';
-      default: return '📎';
-    }
-  };
-
-  const getTypeBadgeClass = (type: Material['type']) => {
-    switch (type) {
-      case 'lecture': return styles.primary;
-      case 'reading': return styles.info;
-      case 'video': return styles.warning;
-      case 'resource': return styles.success;
-      default: return styles.secondary;
-    }
-  };
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
+  if (error) return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
 
   return (
     <div className={styles.container}>
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>📚 Course Materials - {course.code}: {course.name}</h1>
+          <h1 className={styles.pageTitle}>📚 Course Materials - {courseCode}: {courseName}</h1>
           <p className={styles.pageSubtitle}>Download and view course materials</p>
         </div>
       </div>
 
       <div className={styles.card}>
         <div className={styles.cardHeader}>
-          <h2>Available Materials ({course.materials.length})</h2>
+          <h2>Available Materials ({materials.length})</h2>
         </div>
         <div style={{ padding: '16px', display: 'grid', gap: '12px' }}>
-          {course.materials.map(material => (
+          {materials.map(material => (
             <div key={material.id} style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -113,4 +92,24 @@ export default function CourseMaterials() {
       </div>
     </div>
   );
+
+  function getTypeIcon(type: Material['type']) {
+    switch (type) {
+      case 'lecture': return '📄';
+      case 'reading': return '📖';
+      case 'video': return '🎥';
+      case 'resource': return '📦';
+      default: return '📎';
+    }
+  }
+
+  function getTypeBadgeClass(type: Material['type']) {
+    switch (type) {
+      case 'lecture': return styles.primary;
+      case 'reading': return styles.info;
+      case 'video': return styles.warning;
+      case 'resource': return styles.success;
+      default: return styles.secondary;
+    }
+  }
 }
