@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { io, Socket } from 'socket.io-client';
+// import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 interface SocketContextType {
-    socket: Socket | null;
+    socket: any; // Socket | null;
     isConnected: boolean;
     onlineUsers: string[];
     typingUsers: Map<string, string[]>; // conversationId -> userIds
@@ -39,62 +39,68 @@ export function SocketProvider({ children }: SocketProviderProps) {
             return;
         }
 
-        // Connect to socket server
-        const newSocket = io('http://localhost:4000', {
-            transports: ['websocket', 'polling'],
-            autoConnect: true
-        });
+        // // Connect to socket server (disabled - socket.io-client not available)
+        // const newSocket = io('http://localhost:4000', {
+        //     transports: ['websocket', 'polling'],
+        //     autoConnect: true
+        // });
 
-        newSocket.on('connect', () => {
-            console.log('Socket connected');
-            setIsConnected(true);
-            // Join user's personal room
-            newSocket.emit('join', (user as any).id || (user as any).accountId);
-        });
+        const newSocket = null;
 
-        newSocket.on('disconnect', () => {
-            console.log('Socket disconnected');
-            setIsConnected(false);
-        });
-
-        // Online users
-        newSocket.on('online-users', (users: string[]) => {
-            setOnlineUsers(users);
-        });
-
-        newSocket.on('user-online', (userId: string) => {
-            setOnlineUsers(prev => prev.includes(userId) ? prev : [...prev, userId]);
-        });
-
-        newSocket.on('user-offline', (userId: string) => {
-            setOnlineUsers(prev => prev.filter(id => id !== userId));
-        });
-
-        // Typing indicators
-        newSocket.on('user-typing', ({ conversationId, senderId }: { conversationId: string; senderId: string }) => {
-            setTypingUsers(prev => {
-                const newMap = new Map(prev);
-                const current = newMap.get(conversationId) || [];
-                if (!current.includes(senderId)) {
-                    newMap.set(conversationId, [...current, senderId]);
-                }
-                return newMap;
+        if (newSocket) {
+            newSocket.on('connect', () => {
+                console.log('Socket connected');
+                setIsConnected(true);
+                // Join user's personal room
+                newSocket.emit('join', (user as any).id || (user as any).accountId);
             });
-        });
 
-        newSocket.on('user-stop-typing', ({ conversationId, senderId }: { conversationId: string; senderId: string }) => {
-            setTypingUsers(prev => {
-                const newMap = new Map(prev);
-                const current = newMap.get(conversationId) || [];
-                newMap.set(conversationId, current.filter(id => id !== senderId));
-                return newMap;
+            newSocket.on('disconnect', () => {
+                console.log('Socket disconnected');
+                setIsConnected(false);
             });
-        });
 
-        setSocket(newSocket);
+            // Online users
+            newSocket.on('online-users', (users: string[]) => {
+                setOnlineUsers(users);
+            });
+
+            newSocket.on('user-online', (userId: string) => {
+                setOnlineUsers(prev => prev.includes(userId) ? prev : [...prev, userId]);
+            });
+
+            newSocket.on('user-offline', (userId: string) => {
+                setOnlineUsers(prev => prev.filter(id => id !== userId));
+            });
+
+            // Typing indicators
+            newSocket.on('user-typing', ({ conversationId, senderId }: { conversationId: string; senderId: string }) => {
+                setTypingUsers(prev => {
+                    const newMap = new Map(prev);
+                    const current = newMap.get(conversationId) || [];
+                    if (!current.includes(senderId)) {
+                        newMap.set(conversationId, [...current, senderId]);
+                    }
+                    return newMap;
+                });
+            });
+
+            newSocket.on('user-stop-typing', ({ conversationId, senderId }: { conversationId: string; senderId: string }) => {
+                setTypingUsers(prev => {
+                    const newMap = new Map(prev);
+                    const current = newMap.get(conversationId) || [];
+                    newMap.set(conversationId, current.filter(id => id !== senderId));
+                    return newMap;
+                });
+            });
+
+            setSocket(newSocket);
+        }
 
         return () => {
-            newSocket.disconnect();
+            if (newSocket) {
+                newSocket.disconnect();
+            }
         };
     }, [user, token]);
 
