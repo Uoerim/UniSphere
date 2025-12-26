@@ -366,6 +366,21 @@ router.get("/", authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    // Get department relations separately
+    const courseIds = courses.map(c => c.id);
+    const departmentRelations = await prisma.entityRelation.findMany({
+      where: {
+        fromEntityId: { in: courseIds },
+        relationType: 'BELONGS_TO',
+        isActive: true
+      }
+    });
+
+    const deptMap: Record<string, string> = {};
+    departmentRelations.forEach(rel => {
+      deptMap[rel.fromEntityId] = rel.toEntityId;
+    });
+
     const formattedCourses = courses.map((course: any) => {
       const attrs: Record<string, string | number | boolean | Date | null> = {};
       course.values.forEach((v: any) => {
@@ -424,6 +439,7 @@ router.get("/", authenticateToken, async (req, res) => {
         code: attrs.courseCode || attrs.code,
         credits: attrs.credits,
         department: attrs.department,
+        departmentId: deptMap[course.id],
         semester: attrs.semester,
         courseType: attrs.courseType || attrs.type,
         capacity: attrs.capacity || 30,
@@ -479,6 +495,15 @@ router.get("/:id", authenticateToken, async (req, res) => {
       attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate || v.valueDateTime || v.valueText;
     });
 
+    // Get department relation
+    const deptRelation = await prisma.entityRelation.findFirst({
+      where: {
+        fromEntityId: id,
+        relationType: 'BELONGS_TO',
+        isActive: true
+      }
+    });
+
     // Get instructor
     const instructorRelation = (course as any).relationsTo.find((r: any) => r.relationType === 'TEACHES');
     let instructor = null;
@@ -529,6 +554,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
       code: attrs.courseCode || attrs.code,
       credits: attrs.credits,
       department: attrs.department,
+      departmentId: deptRelation?.toEntityId,
       semester: attrs.semester,
       courseType: attrs.courseType || attrs.type,
       capacity: attrs.capacity || 30,

@@ -391,6 +391,71 @@ export default function StaffManagement() {
     return result;
   }, [staffList, searchTerm, filterDepartment, sortField, sortDirection]);
 
+  // Calculate performance metrics based on real data
+  const performanceMetrics = useMemo(() => {
+    if (!staffStudents.length) {
+      return {
+        averageGrade: 'N/A',
+        passRate: 'N/A',
+        averageAttendance: 'N/A',
+        totalStudents: 0,
+        coursesAssigned: staffCourses.length
+      };
+    }
+
+    // Calculate average grade (assuming grades are A, B, C, D, F or numeric)
+    const gradesWithValues = staffStudents
+      .filter(s => s.grade && s.grade !== 'N/A')
+      .map(s => {
+        const grade = s.grade!;
+        // Convert letter grades to numeric
+        if (grade === 'A') return 4.0;
+        if (grade === 'B') return 3.0;
+        if (grade === 'C') return 2.0;
+        if (grade === 'D') return 1.0;
+        if (grade === 'F') return 0.0;
+        // Try to parse as number
+        const numeric = parseFloat(grade);
+        return isNaN(numeric) ? null : numeric;
+      })
+      .filter(v => v !== null) as number[];
+
+    const avgGrade = gradesWithValues.length > 0
+      ? (gradesWithValues.reduce((a, b) => a + b, 0) / gradesWithValues.length).toFixed(2)
+      : 'N/A';
+
+    // Calculate pass rate (grades C or above, or numeric >= 2.0)
+    const passingStudents = staffStudents.filter(s => {
+      if (!s.grade || s.grade === 'N/A') return false;
+      const grade = s.grade;
+      if (['A', 'B', 'C'].includes(grade)) return true;
+      if (['D', 'F'].includes(grade)) return false;
+      const numeric = parseFloat(grade);
+      return !isNaN(numeric) && numeric >= 2.0;
+    });
+
+    const passRate = staffStudents.length > 0
+      ? Math.round((passingStudents.length / staffStudents.length) * 100)
+      : 0;
+
+    // Calculate average attendance
+    const attendanceValues = staffStudents
+      .map(s => s.attendance || 0)
+      .filter(a => a > 0);
+
+    const avgAttendance = attendanceValues.length > 0
+      ? Math.round(attendanceValues.reduce((a, b) => a + b, 0) / attendanceValues.length)
+      : 0;
+
+    return {
+      averageGrade: avgGrade,
+      passRate: passRate > 0 ? `${passRate}%` : 'N/A',
+      averageAttendance: avgAttendance > 0 ? `${avgAttendance}%` : 'N/A',
+      totalStudents: staffStudents.length,
+      coursesAssigned: staffCourses.length
+    };
+  }, [staffStudents, staffCourses]);
+
   // Use departmentsList for the filter dropdown
   const departments = useMemo(() => {
     return departmentsList.map(d => d.name);
@@ -950,7 +1015,6 @@ export default function StaffManagement() {
                           <th>Course</th>
                           <th>Grade</th>
                           <th>Attendance</th>
-                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -972,10 +1036,6 @@ export default function StaffManagement() {
                                 <div className={styles.attendanceFill} style={{ width: `${student.attendance}%` }}></div>
                                 <span>{student.attendance}%</span>
                               </div>
-                            </td>
-                            <td>
-                              <button className={styles.iconBtn}><EyeIcon /></button>
-                              <button className={styles.iconBtn}><MailIcon /></button>
                             </td>
                           </tr>
                         ))}
@@ -1022,27 +1082,45 @@ export default function StaffManagement() {
                     <div className={styles.performanceGrid}>
                       <div className={styles.performanceCard}>
                         <div className={styles.performanceIcon}><CheckCircleIcon /></div>
-                        <div className={styles.performanceValue}>4.8/5.0</div>
-                        <div className={styles.performanceLabel}>Student Rating</div>
-                        <div className={styles.performanceTrend}>↑ 0.2 from last semester</div>
+                        <div className={styles.performanceValue}>
+                          {performanceMetrics.averageGrade !== 'N/A' 
+                            ? `${performanceMetrics.averageGrade}/4.0` 
+                            : 'N/A'}
+                        </div>
+                        <div className={styles.performanceLabel}>Average Grade</div>
+                        <div className={styles.performanceTrend}>
+                          {performanceMetrics.totalStudents > 0 
+                            ? `Based on ${performanceMetrics.totalStudents} students`
+                            : 'No data available'}
+                        </div>
                       </div>
                       <div className={styles.performanceCard}>
                         <div className={styles.performanceIcon}><ChartIcon /></div>
-                        <div className={styles.performanceValue}>87%</div>
+                        <div className={styles.performanceValue}>{performanceMetrics.passRate}</div>
                         <div className={styles.performanceLabel}>Pass Rate</div>
-                        <div className={styles.performanceTrend}>↑ 3% from last semester</div>
+                        <div className={styles.performanceTrend}>
+                          {performanceMetrics.passRate !== 'N/A' 
+                            ? 'C grade or above'
+                            : 'No graded students'}
+                        </div>
                       </div>
                       <div className={styles.performanceCard}>
                         <div className={styles.performanceIcon}><CalendarIcon /></div>
-                        <div className={styles.performanceValue}>95%</div>
-                        <div className={styles.performanceLabel}>Attendance</div>
-                        <div className={styles.performanceTrend}>Consistent</div>
+                        <div className={styles.performanceValue}>{performanceMetrics.averageAttendance}</div>
+                        <div className={styles.performanceLabel}>Average Attendance</div>
+                        <div className={styles.performanceTrend}>
+                          {performanceMetrics.averageAttendance !== 'N/A'
+                            ? 'Across all students'
+                            : 'No attendance data'}
+                        </div>
                       </div>
                       <div className={styles.performanceCard}>
-                        <div className={styles.performanceIcon}><FileTextIcon /></div>
-                        <div className={styles.performanceValue}>42</div>
-                        <div className={styles.performanceLabel}>Assignments Graded</div>
-                        <div className={styles.performanceTrend}>This month</div>
+                        <div className={styles.performanceIcon}><BookOpenIcon /></div>
+                        <div className={styles.performanceValue}>{performanceMetrics.coursesAssigned}</div>
+                        <div className={styles.performanceLabel}>Courses Assigned</div>
+                        <div className={styles.performanceTrend}>
+                          {performanceMetrics.totalStudents} total students
+                        </div>
                       </div>
                     </div>
                   </div>
