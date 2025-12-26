@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./Assignments.module.css";
 import api from "../../lib/api";
-import { BookOpenIcon, EditIcon, ChartIcon, TrashIcon, XIcon, AlertTriangleIcon } from "../../components/ui/Icons";
+import { BookOpenIcon, EditIcon, ChartIcon, TrashIcon, XIcon, AlertTriangleIcon, BookIcon } from "../../components/ui/Icons";
 
 type AssignmentStatus = "DRAFT" | "PUBLISHED" | "CLOSED" | "GRADED";
 
@@ -77,12 +77,14 @@ export default function Assignments() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [showCourseModal, setShowCourseModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
 
   // Form data
   const [formData, setFormData] = useState({
     title: "",
+    courseName: "",
     description: "",
     status: "DRAFT" as AssignmentStatus,
     courseId: "",
@@ -120,7 +122,7 @@ export default function Assignments() {
 
   const fetchCourses = async () => {
     try {
-      const res = await api.get<Course[]>("/staff-courses");
+      const res = await api.get<Course[]>("/curriculum");
       setCourses(res.data);
     } catch (err) {
       console.error("Failed to fetch courses:", err);
@@ -213,9 +215,10 @@ export default function Assignments() {
   const resetForm = () => {
     setFormData({
       title: "",
+      courseName: "",
       description: "",
       status: "DRAFT",
-      courseId: courses[0]?.id || "",
+      courseId: "",
       dueDate: "",
       dueTime: "23:59",
       publishDate: "",
@@ -225,6 +228,11 @@ export default function Assignments() {
       latePenalty: 10,
       instructions: "",
     });
+  };
+
+  const selectCourse = (course: Course) => {
+    setFormData({ ...formData, courseId: course.id, courseName: `${course.code} - ${course.name}` });
+    setShowCourseModal(false);
   };
 
   const handleAdd = () => {
@@ -237,6 +245,7 @@ export default function Assignments() {
     const dueDateTime = new Date(assignment.dueDate);
     setFormData({
       title: assignment.title,
+      courseName: assignment.course ? `${assignment.course.code} - ${assignment.course.name}` : "",
       description: assignment.description || "",
       status: assignment.status,
       courseId: assignment.courseId,
@@ -609,18 +618,18 @@ export default function Assignments() {
                   </div>
                   <div className={styles.formGroup}>
                     <label>Course *</label>
-                    <select
-                      value={formData.courseId}
-                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                      required
-                    >
-                      <option value="">Select a course</option>
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.code} - {course.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={styles.selectWithButton}>
+                      <input
+                        type="text"
+                        value={formData.courseName}
+                        placeholder="Select a course"
+                        readOnly
+                        required
+                      />
+                      <button type="button" onClick={() => setShowCourseModal(true)}>
+                        <BookIcon size={16} /> Select
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className={styles.formRow3}>
@@ -781,17 +790,18 @@ export default function Assignments() {
                   </div>
                   <div className={styles.formGroup}>
                     <label>Course *</label>
-                    <select
-                      value={formData.courseId}
-                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                      required
-                    >
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.code} - {course.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={styles.selectWithButton}>
+                      <input
+                        type="text"
+                        value={formData.courseName}
+                        placeholder="Select a course"
+                        readOnly
+                        required
+                      />
+                      <button type="button" onClick={() => setShowCourseModal(true)}>
+                        <BookIcon size={16} /> Select
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className={styles.formRow3}>
@@ -1038,6 +1048,47 @@ export default function Assignments() {
                 disabled={formLoading || submissions.length === 0}
               >
                 {formLoading ? "Saving..." : "Save Grades"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Course Selection Modal */}
+      {showCourseModal && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2>Select Course</h2>
+              <button className={styles.closeBtn} onClick={() => setShowCourseModal(false)}>
+                <XIcon />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.courseList}>
+                {courses.length === 0 ? (
+                  <div className={styles.noSubmissions}>No courses available</div>
+                ) : (
+                  courses.map((course) => (
+                    <div
+                      key={course.id}
+                      className={`${styles.courseItem} ${formData.courseId === course.id ? styles.selected : ''}`}
+                      onClick={() => selectCourse(course)}
+                    >
+                      <div className={styles.courseItemCode}>{course.code}</div>
+                      <div className={styles.courseItemName}>{course.name}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => setShowCourseModal(false)}
+              >
+                Cancel
               </button>
             </div>
           </div>
