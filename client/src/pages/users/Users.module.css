@@ -23,13 +23,13 @@
 .title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text);
   margin: 0;
 }
 
 .subtitle {
   font-size: 0.9rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -125,12 +125,12 @@
 .statValue {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--text);
 }
 
 .statLabel {
   font-size: 0.8rem;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 /* Filter Bar */
@@ -140,10 +140,11 @@
   gap: 1rem;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
-  background: white;
+  background: var(--card-bg);
   padding: 1rem 1.25rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .searchBox {
@@ -164,9 +165,11 @@
 .searchBox input {
   width: 100%;
   padding: 0.65rem 2.5rem 0.65rem 2.5rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.9rem;
+  background: var(--input-bg);
+  color: var(--text);
   transition: all 0.2s;
 }
 
@@ -182,22 +185,23 @@
   background: none;
   border: none;
   font-size: 1.25rem;
-  color: #999;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0.25rem;
   line-height: 1;
 }
 
 .clearSearch:hover {
-  color: #333;
+  color: var(--text);
 }
 
 .filterSelect {
   padding: 0.65rem 2rem 0.65rem 1rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.9rem;
-  background: white;
+  background: var(--input-bg);
+  color: var(--text);
   cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
@@ -212,16 +216,17 @@
 
 .resultCount {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   margin-left: auto;
 }
 
 /* Table Container */
 .tableContainer {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
+  border: 1px solid var(--border);
 }
 
 .table {
@@ -230,14 +235,14 @@
 }
 
 .table thead {
-  background: linear-gradient(135deg, #f8f9fa, #f1f3f5);
+  background: var(--hover-bg);
 }
 
 .table th {
   padding: 1rem 1.25rem;
   text-align: left;
   font-weight: 600;
-  color: #495057;
+  color: var(--text-secondary);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -251,13 +256,13 @@
 }
 
 .table th.sortable:hover {
-  background: #e9ecef;
+  background: var(--active-bg);
 }
 
 .table td {
   padding: 0.875rem 1.25rem;
-  border-bottom: 1px solid #f1f3f5;
-  color: #212529;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
   vertical-align: middle;
 }
 
@@ -266,12 +271,12 @@
 }
 
 .table tbody tr:hover {
-  background: #f8f9ff;
+  background: var(--hover-bg);
 }
 
 .table tbody tr.inactive {
   opacity: 0.6;
-  background: #fafafa;
+  background: var(--background-secondary);
 }
 
 /* User Cell */
@@ -299,12 +304,12 @@
 
 .userEmail {
   font-weight: 500;
-  color: #1a1a2e;
+  color: var(--text);
 }
 
 .userId {
   font-size: 0.75rem;
-  color: #999;
+  color: var(--text-muted);
   font-family: monospace;
 }
 
@@ -416,7 +421,7 @@
 
 .dateCell {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 /* Actions */
@@ -430,7 +435,7 @@
   height: 36px;
   border: none;
   border-radius: 8px;
-  background: #f1f3f5;
+  background: var(--hover-bg);
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -440,7 +445,7 @@
 }
 
 .actionBtn:hover {
-  background: #e9ecef;
+  background: var(--active-bg);
   transform: scale(1.1);
 }
 
@@ -461,8 +466,8 @@
 .spinner {
   width: 48px;
   height: 48px;
-  border: 4px solid #e0e0e0;
-  border-top-color: #4f6ef7;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -474,7 +479,7 @@
 }
 
 .loadingContainer p {
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 1rem;
 }
 
@@ -499,12 +504,12 @@
 }
 
 .errorContainer p {
-  color: #6c757d;
+  color: var(--text-secondary);
   margin: 0;
 }
 
 .retryBtn {
-  background: #4f6ef7;
+  background: var(--primary);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -516,7 +521,7 @@
 }
 
 .retryBtn:hover {
-  background: #3b5bdb;
+  background: var(--primary-dark);
 }
 
 /* Empty State */
@@ -526,10 +531,11 @@
   align-items: center;
   justify-content: center;
   padding: 4rem 2rem;
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
   text-align: center;
+  border: 1px solid var(--border);
 }
 
 .emptyIcon {
@@ -539,13 +545,13 @@
 }
 
 .emptyState h3 {
-  color: #1a1a2e;
+  color: var(--text);
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
 }
 
 .emptyState p {
-  color: #6c757d;
+  color: var(--text-secondary);
   margin: 0 0 1.5rem 0;
 }
 
@@ -566,13 +572,13 @@
 
 /* Modal */
 .modal {
-  background: white;
+  background: var(--modal-bg);
   border-radius: 16px;
   width: 100%;
   max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   animation: slideUp 0.3s ease-out;
 }
 
@@ -592,28 +598,28 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid var(--border);
 }
 
 .modalHeader h2 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text);
 }
 
 .closeBtn {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #999;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0;
   line-height: 1;
 }
 
 .closeBtn:hover {
-  color: #333;
+  color: var(--text);
 }
 
 .modalBody {
@@ -625,8 +631,8 @@
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid #f1f3f5;
-  background: #fafafa;
+  border-top: 1px solid var(--border);
+  background: var(--hover-bg);
 }
 
 /* Form Groups */
@@ -639,23 +645,25 @@
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #495057;
+  color: var(--text-secondary);
 }
 
 .formGroup input,
 .formGroup select {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.95rem;
+  background: var(--input-bg);
+  color: var(--text);
   transition: all 0.2s;
 }
 
 .formGroup input:focus,
 .formGroup select:focus {
   outline: none;
-  border-color: #4f6ef7;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(79, 110, 247, 0.1);
 }
 
@@ -680,7 +688,7 @@
 .helpText {
   margin: 0.5rem 0 0 0;
   font-size: 0.8rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
@@ -698,8 +706,8 @@
 
 /* Modal Buttons */
 .cancelBtn {
-  background: #f1f3f5;
-  color: #495057;
+  background: var(--hover-bg);
+  color: var(--text-secondary);
   border: none;
   padding: 0.75rem 1.25rem;
   border-radius: 8px;
@@ -710,7 +718,7 @@
 }
 
 .cancelBtn:hover {
-  background: #e9ecef;
+  background: var(--active-bg);
 }
 
 .submitBtn {
@@ -741,12 +749,12 @@
 }
 
 .successMessage > p {
-  color: #6c757d;
+  color: var(--text-secondary);
   margin-bottom: 1.5rem;
 }
 
 .credentialsBox {
-  background: #f8f9fa;
+  background: var(--hover-bg);
   border-radius: 12px;
   padding: 1.25rem;
   margin-bottom: 1.25rem;
@@ -758,7 +766,7 @@
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border);
 }
 
 .credentialRow:last-child {
@@ -767,7 +775,7 @@
 
 .credentialLabel {
   font-size: 0.75rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -775,7 +783,7 @@
 .credentialValue {
   font-size: 1rem;
   font-weight: 500;
-  color: #1a1a2e;
+  color: var(--text);
 }
 
 .passwordDisplay {
@@ -787,19 +795,19 @@
 
 .passwordDisplay code {
   flex: 1;
-  background: white;
+  background: var(--card-bg);
   padding: 0.75rem 1rem;
   border-radius: 6px;
   font-size: 1.1rem;
   font-family: 'Consolas', 'Monaco', monospace;
   font-weight: 600;
-  color: #4f6ef7;
-  border: 2px dashed #4f6ef7;
+  color: var(--primary);
+  border: 2px dashed var(--primary);
   letter-spacing: 1px;
 }
 
 .copyBtn {
-  background: #4f6ef7;
+  background: var(--primary);
   color: white;
   border: none;
   padding: 0.6rem 1rem;

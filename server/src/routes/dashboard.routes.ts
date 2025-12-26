@@ -44,18 +44,79 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
 router.get("/stats", authenticateToken, async (req, res) => {
   try {
     // Get counts from database
-    const [totalStudents, totalStaff, totalCourses, totalEvents] = await Promise.all([
+    const [
+      totalStudents, 
+      totalStaff, 
+      totalParents,
+      totalCourses, 
+      activeCourses,
+      totalEvents,
+      totalDepartments,
+      totalRooms,
+      totalAssessments,
+      totalAssignments,
+      totalAnnouncements
+    ] = await Promise.all([
       prisma.account.count({ where: { role: 'STUDENT' } }),
-      prisma.account.count({ where: { role: { in: ['STAFF', 'ADMIN'] } } }),
+      prisma.account.count({ where: { role: 'STAFF' } }),
+      prisma.account.count({ where: { role: 'PARENT' } }),
       prisma.entity.count({ where: { type: 'COURSE' } }),
+      prisma.entity.count({ where: { type: 'COURSE', isActive: true } }),
       prisma.entity.count({ where: { type: 'EVENT' } }),
+      prisma.entity.count({ where: { type: 'DEPARTMENT' } }),
+      prisma.entity.count({ where: { type: 'ROOM' } }),
+      prisma.entity.count({ where: { type: 'ASSESSMENT' } }),
+      prisma.entity.count({ where: { type: 'ASSIGNMENT' } }),
+      prisma.entity.count({ where: { type: 'ANNOUNCEMENT' } }),
     ]);
+
+    // Get entity type distribution for chart
+    const entityDistribution = await prisma.entity.groupBy({
+      by: ['type'],
+      _count: { id: true },
+      where: { isActive: true }
+    });
+
+    // Get recent entities for activity feed
+    const recentActivity = await prisma.entity.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        createdAt: true,
+      }
+    });
+
+    // Get user role distribution
+    const userDistribution = await prisma.account.groupBy({
+      by: ['role'],
+      _count: { id: true }
+    });
 
     res.json({
       totalStudents,
       totalStaff,
+      totalParents,
       totalCourses,
+      activeCourses,
       totalEvents,
+      totalDepartments,
+      totalRooms,
+      totalAssessments,
+      totalAssignments,
+      totalAnnouncements,
+      totalUsers: totalStudents + totalStaff + totalParents,
+      entityDistribution: entityDistribution.map(e => ({
+        type: e.type,
+        count: e._count.id
+      })),
+      userDistribution: userDistribution.map(u => ({
+        role: u.role,
+        count: u._count.id
+      })),
+      recentActivity
     });
   } catch (error) {
     console.error("Dashboard stats error:", error);

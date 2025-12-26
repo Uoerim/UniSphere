@@ -1,5 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './Departments.module.css';
+import { BuildingIcon, CheckCircleIcon, BookOpenIcon, StaffIcon, AlertTriangleIcon, SearchIcon, UserIcon, EditIcon, TrashIcon, LockIcon, UnlockIcon } from '../../components/ui/Icons';
+
+interface Course {
+  id: string;
+  name: string;
+  code?: string;
+  credits?: number;
+  isActive: boolean;
+}
 
 interface Department {
   id: string;
@@ -7,14 +16,12 @@ interface Department {
   description?: string;
   code?: string;
   head?: string;
-  building?: string;
-  floor?: string;
-  phone?: string;
   email?: string;
   isActive: boolean;
   createdAt: string;
   courseCount: number;
   staffCount: number;
+  courses?: Course[];
 }
 
 interface DepartmentStats {
@@ -30,18 +37,13 @@ interface StaffMember {
   email?: string;
 }
 
-interface Building {
-  id: string;
-  name: string;
-}
-
 export default function Departments() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stats, setStats] = useState<DepartmentStats | null>(null);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
-  const [buildingsList, setBuildingsList] = useState<Building[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [departmentCourses, setDepartmentCourses] = useState<Record<string, Course[]>>({});
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,9 +61,6 @@ export default function Departments() {
     description: '',
     code: '',
     head: '',
-    building: '',
-    floor: '',
-    phone: '',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,7 +69,7 @@ export default function Departments() {
     fetchDepartments();
     fetchStats();
     fetchStaff();
-    fetchBuildings();
+    fetchAllCourses();
   }, []);
 
   const fetchDepartments = async () => {
@@ -112,32 +111,58 @@ export default function Departments() {
   const fetchStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/staff', {
+      // Fetch staff accounts (users with STAFF role)
+      const response = await fetch('http://localhost:4000/api/users?role=STAFF', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setStaffList(data);
+        // Map accounts to staff list format
+        const staffAccounts = data
+          .filter((acc: any) => acc.role === 'STAFF' && acc.isActive)
+          .map((acc: any) => ({
+            id: acc.id,
+            name: acc.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            email: acc.email
+          }));
+        setStaffList(staffAccounts);
       }
     } catch (err) {
       console.error('Failed to fetch staff:', err);
     }
   };
 
-  const fetchBuildings = async () => {
+  const fetchAllCourses = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/facilities/buildings', {
+      const response = await fetch('http://localhost:4000/api/curriculum', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setBuildingsList(data);
+        const courses = await response.json();
+        // Group courses by departmentId
+        const grouped: Record<string, Course[]> = {};
+        courses.forEach((course: any) => {
+          // Courses with BELONGS_TO relation have departmentId
+          // If no departmentId, they'll be in an 'unassigned' group
+          const deptId = course.departmentId || 'unassigned';
+          if (!grouped[deptId]) {
+            grouped[deptId] = [];
+          }
+          grouped[deptId].push({
+            id: course.id,
+            name: course.name,
+            code: course.code,
+            credits: course.credits,
+            isActive: course.isActive
+          });
+        });
+        setDepartmentCourses(grouped);
       }
     } catch (err) {
-      console.error('Failed to fetch buildings:', err);
+      console.error('Failed to fetch courses:', err);
     }
   };
 
@@ -149,8 +174,7 @@ export default function Departments() {
       result = result.filter(d =>
         d.name.toLowerCase().includes(term) ||
         d.code?.toLowerCase().includes(term) ||
-        d.head?.toLowerCase().includes(term) ||
-        d.building?.toLowerCase().includes(term)
+        d.head?.toLowerCase().includes(term)
       );
     }
 
@@ -167,9 +191,6 @@ export default function Departments() {
       description: '',
       code: '',
       head: '',
-      building: '',
-      floor: '',
-      phone: '',
     });
     setFormError('');
   };
@@ -303,10 +324,6 @@ export default function Departments() {
       description: dept.description || '',
       code: dept.code || '',
       head: dept.head || '',
-      building: dept.building || '',
-      floor: dept.floor || '',
-      phone: dept.phone || '',
-
     });
     setFormError('');
     setShowEditModal(true);
@@ -342,7 +359,7 @@ export default function Departments() {
       {/* Error Banner */}
       {error && (
         <div className={styles.errorBanner}>
-          <span>⚠️</span> {error}
+          <AlertTriangleIcon size={16} /> {error}
           <button onClick={() => setError('')}>×</button>
         </div>
       )}
@@ -351,28 +368,28 @@ export default function Departments() {
       {stats && (
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.primary}`}>🏛️</div>
+            <div className={`${styles.statIcon} ${styles.primary}`}><BuildingIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalDepartments}</div>
               <div className={styles.statLabel}>Total Departments</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+            <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.activeDepartments}</div>
               <div className={styles.statLabel}>Active</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.info}`}>📚</div>
+            <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalCourses}</div>
               <div className={styles.statLabel}>Total Courses</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.warning}`}>👨‍🏫</div>
+            <div className={`${styles.statIcon} ${styles.warning}`}><StaffIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalStaff}</div>
               <div className={styles.statLabel}>Staff Members</div>
@@ -384,7 +401,7 @@ export default function Departments() {
       {/* Filters */}
       <div className={styles.filtersBar}>
         <div className={styles.searchBox}>
-          <span>🔍</span>
+          <SearchIcon size={16} />
           <input
             type="text"
             placeholder="Search departments..."
@@ -407,7 +424,7 @@ export default function Departments() {
       <div className={styles.departmentsGrid}>
         {filteredDepartments.length === 0 ? (
           <div className={styles.emptyState}>
-            <span>🏛️</span>
+            <BuildingIcon size={48} />
             <h3>No departments found</h3>
             <p>Try adjusting your filters or add a new department</p>
           </div>
@@ -427,29 +444,26 @@ export default function Departments() {
                 )}
                 <div className={styles.departmentStats}>
                   <div className={styles.deptStat}>
-                    <span>📚</span>
+                    <BookOpenIcon size={14} />
                     <span>{dept.courseCount} Courses</span>
                   </div>
                   <div className={styles.deptStat}>
-                    <span>👨‍🏫</span>
+                    <StaffIcon size={14} />
                     <span>{dept.staffCount} Staff</span>
                   </div>
                 </div>
                 <div className={styles.departmentMeta}>
                   {dept.head && (
-                    <span className={styles.metaItem}>👤 {dept.head}</span>
-                  )}
-                  {dept.building && (
-                    <span className={styles.metaItem}>🏢 {dept.building}{dept.floor ? `, Floor ${dept.floor}` : ''}</span>
+                    <span className={styles.metaItem}><UserIcon size={14} /> {dept.head}</span>
                   )}
                 </div>
               </div>
               <div className={styles.cardActions}>
-                <button onClick={() => openEditModal(dept)}>✏️ Edit</button>
+                <button onClick={() => openEditModal(dept)}><EditIcon size={14} /> Edit</button>
                 <button onClick={() => handleToggleStatus(dept)}>
-                  {dept.isActive ? '🔒 Deactivate' : '🔓 Activate'}
+                  {dept.isActive ? <><LockIcon size={14} /> Deactivate</> : <><UnlockIcon size={14} /> Activate</>}
                 </button>
-                <button className={styles.deleteBtn} onClick={() => openDeleteModal(dept)}>🗑️</button>
+                <button className={styles.deleteBtn} onClick={() => openDeleteModal(dept)}><TrashIcon size={14} /></button>
               </div>
             </div>
           ))
@@ -465,7 +479,7 @@ export default function Departments() {
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={14} /> {formError}</div>}
 
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
@@ -495,38 +509,7 @@ export default function Departments() {
                     <option value="">Select Department Head</option>
                     {staffList.map(staff => (
                       <option key={staff.id} value={staff.name}>{staff.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Building</label>
-                  <select
-                    value={formData.building}
-                    onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                  >
-                    <option value="">Select Building</option>
-                    {buildingsList.map(building => (
-                      <option key={building.id} value={building.name}>{building.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Floor</label>
-                  <input
-                    type="text"
-                    value={formData.floor}
-                    onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                    placeholder="e.g., 3rd Floor"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Phone</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="e.g., +1 234 567 8900"
-                  />
+                    ))}n                  </select>
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Description</label>
@@ -564,7 +547,7 @@ export default function Departments() {
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={14} /> {formError}</div>}
 
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
@@ -594,34 +577,6 @@ export default function Departments() {
                       <option key={staff.id} value={staff.name}>{staff.name}</option>
                     ))}
                   </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Building</label>
-                  <select
-                    value={formData.building}
-                    onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                  >
-                    <option value="">Select Building</option>
-                    {buildingsList.map(building => (
-                      <option key={building.id} value={building.name}>{building.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Floor</label>
-                  <input
-                    type="text"
-                    value={formData.floor}
-                    onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Phone</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Description</label>
@@ -659,7 +614,7 @@ export default function Departments() {
             </div>
             <div className={styles.modalBody}>
               <div className={styles.deleteWarning}>
-                <span>⚠️</span>
+                <AlertTriangleIcon size={32} />
                 <h3>Are you sure you want to delete "{selectedDepartment.name}"?</h3>
                 <p>This action cannot be undone. All associated data will be permanently removed.</p>
               </div>

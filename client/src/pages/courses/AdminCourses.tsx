@@ -1,6 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './Courses.module.css';
 import SchedulePicker from '../../components/ui/SchedulePicker';
+import {
+  BookOpenIcon,
+  CheckCircleIcon,
+  BuildingIcon,
+  UsersIcon,
+  AlertTriangleIcon,
+  ChartIcon,
+  EyeIcon,
+  EditIcon,
+  TrashIcon,
+  LockIcon,
+  UnlockIcon,
+  SearchIcon,
+  ClockIcon
+} from '../../components/ui/Icons';
 
 // Types
 interface Instructor {
@@ -25,6 +40,8 @@ interface Room {
   id: string;
   name: string;
   building?: string;
+  roomType?: string;
+  capacity?: number;
 }
 
 interface Course {
@@ -34,6 +51,7 @@ interface Course {
   code?: string;
   credits?: number;
   department?: string;
+  departmentId?: string;
   courseType?: string;
   capacity?: number;
   room?: string;
@@ -41,7 +59,8 @@ interface Course {
   scheduleDisplay?: string;
   isActive: boolean;
   createdAt: string;
-  instructor?: Instructor | null;
+  instructor?: Instructor | null;  // Legacy support
+  instructors?: Instructor[];       // Multiple instructors
   enrolledStudents: number;
   prerequisites?: PrerequisiteCourse[];
 }
@@ -87,6 +106,8 @@ export default function AdminCourses() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showInstructorModal, setShowInstructorModal] = useState(false);
+  const [showRoomModal, setShowRoomModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   // Form state
@@ -96,17 +117,19 @@ export default function AdminCourses() {
     code: '',
     credits: 3,
     department: '',
+    departmentId: '',
     courseType: '',
     capacity: 30,
-    room: '',
+    roomIds: [] as string[],
     schedule: '',
     scheduleDisplay: '',
-    instructorId: '',
+    instructorIds: [] as string[],
     prerequisiteIds: [] as string[],
     courseContent: '',
     hasLecture: true,
     hasTutorial: false,
     hasLab: false,
+    isActive: true,
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -174,7 +197,7 @@ export default function AdminCourses() {
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/departments', {
+      const response = await fetch('http://localhost:4000/api/curriculum/departments/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -190,17 +213,39 @@ export default function AdminCourses() {
   const fetchRooms = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/facilities/rooms', {
+      const response = await fetch('http://localhost:4000/api/facilities', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setRoomsList(data);
+        // Map facilities to Room format
+        const rooms = data.map((f: any) => ({
+          id: String(f.id),
+          name: f.name,
+          building: f.roomNumber || '',
+          roomType: mapFacilityTypeToRoomType(f.type),
+          capacity: f.capacity
+        }));
+        setRoomsList(rooms);
       }
     } catch (err) {
       console.error('Failed to fetch rooms:', err);
     }
+  };
+
+  // Helper to map facility types to room types for grouping
+  const mapFacilityTypeToRoomType = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      'LECTURE_HALL': 'Lecture Hall',
+      'CLASSROOM': 'Classroom',
+      'COMPUTER_LAB': 'Computer Lab',
+      'LABORATORY': 'Laboratory',
+      'TUTORIAL_ROOM': 'Tutorial Room',
+      'CONFERENCE_ROOM': 'Other',
+      'OFFICE': 'Other'
+    };
+    return typeMap[type] || 'Other';
   };
 
   // Filtered and sorted courses
@@ -213,12 +258,13 @@ export default function AdminCourses() {
         c.name.toLowerCase().includes(term) ||
         c.code?.toLowerCase().includes(term) ||
         c.department?.toLowerCase().includes(term) ||
+        c.instructors?.some(i => i.name?.toLowerCase().includes(term)) ||
         c.instructor?.name?.toLowerCase().includes(term)
       );
     }
 
     if (filterDepartment !== 'all') {
-      result = result.filter(c => c.department === filterDepartment);
+      result = result.filter(c => c.departmentId === filterDepartment);
     }
 
     if (filterStatus !== 'all') {
@@ -251,10 +297,14 @@ export default function AdminCourses() {
     return result;
   }, [courses, searchTerm, filterDepartment, filterStatus, filterCourseType, sortField, sortDirection]);
 
-  const departments = useMemo(() => {
-    const deps = new Set(courses.map(c => c.department).filter(Boolean));
-    return Array.from(deps) as string[];
-  }, [courses]);
+  // Create a mapping of department IDs to names for display
+  const departmentMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    departmentsList.forEach(dept => {
+      map[dept.id] = dept.name;
+    });
+    return map;
+  }, [departmentsList]);
 
   const courseTypes = useMemo(() => {
     const types = new Set(courses.map(c => c.courseType).filter(Boolean));
@@ -268,17 +318,19 @@ export default function AdminCourses() {
       code: '',
       credits: 3,
       department: '',
+      departmentId: '',
       courseType: '',
       capacity: 30,
-      room: '',
+      roomIds: [],
       schedule: '',
       scheduleDisplay: '',
-      instructorId: '',
+      instructorIds: [],
       prerequisiteIds: [],
       courseContent: '',
       hasLecture: true,
       hasTutorial: false,
       hasLab: false,
+      isActive: true,
     });
     setFormError('');
   };
@@ -294,13 +346,23 @@ export default function AdminCourses() {
 
     try {
       const token = localStorage.getItem('token');
+      // Convert roomIds to room names for storage
+      const roomNames = formData.roomIds
+        .map(id => roomsList.find(r => r.id === id)?.name)
+        .filter(Boolean)
+        .join(', ');
+      
       const response = await fetch('http://localhost:4000/api/curriculum', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          room: roomNames,
+          departmentId: formData.departmentId || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -330,13 +392,23 @@ export default function AdminCourses() {
 
     try {
       const token = localStorage.getItem('token');
+      // Convert roomIds to room names for storage
+      const roomNames = formData.roomIds
+        .map(id => roomsList.find(r => r.id === id)?.name)
+        .filter(Boolean)
+        .join(', ');
+      
       const response = await fetch(`http://localhost:4000/api/curriculum/${selectedCourse.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          room: roomNames,
+          departmentId: formData.departmentId || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -407,23 +479,31 @@ export default function AdminCourses() {
 
   const openEditModal = (course: Course) => {
     setSelectedCourse(course);
+    // Parse room names back to IDs for the form
+    const savedRoomNames = course.room ? course.room.split(', ').map(n => n.trim()) : [];
+    const matchedRoomIds = savedRoomNames
+      .map(name => roomsList.find(r => r.name === name)?.id)
+      .filter(Boolean) as string[];
+    
     setFormData({
       name: course.name,
       description: course.description || '',
       code: course.code || '',
       credits: course.credits || 3,
       department: course.department || '',
+      departmentId: course.departmentId || '',
       courseType: course.courseType || '',
       capacity: course.capacity || 30,
-      room: course.room || '',
+      roomIds: matchedRoomIds,
       schedule: course.schedule || '',
       scheduleDisplay: course.scheduleDisplay || '',
-      instructorId: course.instructor?.id || '',
+      instructorIds: course.instructors?.map(i => i.id) || (course.instructor ? [course.instructor.id] : []),
       prerequisiteIds: course.prerequisites?.map(p => p.id) || [],
       courseContent: (course as any).courseContent || '',
       hasLecture: (course as any).hasLecture !== false,
       hasTutorial: (course as any).hasTutorial || false,
       hasLab: (course as any).hasLab || false,
+      isActive: course.isActive,
     });
     setFormError('');
     setShowEditModal(true);
@@ -445,6 +525,82 @@ export default function AdminCourses() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  // Parse and render schedule nicely
+  const renderSchedule = (scheduleDisplay?: string, scheduleJson?: string) => {
+    // If we have a formatted display string, use it
+    if (scheduleDisplay && !scheduleDisplay.startsWith('[')) {
+      const slots = scheduleDisplay.split(';').map(s => s.trim()).filter(Boolean);
+      
+      return (
+        <div className={styles.scheduleContainer}>
+          {slots.map((slot, index) => {
+            const match = slot.match(/^([A-Za-z]+)\s+(.+)$/);
+            if (match) {
+              const days = match[1];
+              const time = match[2];
+              return (
+                <div key={index} className={styles.scheduleSlot}>
+                  <div className={styles.scheduleDays}>
+                    {days.split('').map((day, i) => (
+                      <span key={i} className={styles.scheduleDay}>{day}</span>
+                    ))}
+                  </div>
+                  <div className={styles.scheduleDivider}></div>
+                  <div className={styles.scheduleTime}>
+                    <ClockIcon size={12} />
+                    {time}
+                  </div>
+                </div>
+              );
+            }
+            return <span key={index} className={styles.scheduleText}>{slot}</span>;
+          })}
+        </div>
+      );
+    }
+
+    // Try to parse JSON schedule
+    const jsonStr = scheduleJson || scheduleDisplay;
+    if (!jsonStr) return <span className={styles.noData}>Not set</span>;
+
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const formatTime = (time: string) => {
+          if (!time) return '';
+          const [hours, minutes] = time.split(':');
+          const h = parseInt(hours);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h % 12 || 12;
+          return `${h12}:${minutes} ${ampm}`;
+        };
+
+        return (
+          <div className={styles.scheduleContainer}>
+            {parsed.map((slot: { id: string; days: string[]; startTime: string; endTime: string }, index: number) => (
+              <div key={slot.id || index} className={styles.scheduleSlot}>
+                <div className={styles.scheduleDays}>
+                  {slot.days.map((day, i) => (
+                    <span key={i} className={styles.scheduleDay}>{day}</span>
+                  ))}
+                </div>
+                <div className={styles.scheduleDivider}></div>
+                <div className={styles.scheduleTime}>
+                  <ClockIcon size={12} />
+                  {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+    } catch {
+      // Not valid JSON, display as text
+    }
+
+    return <span className={styles.scheduleText}>{jsonStr}</span>;
   };
 
   const handleSort = (field: SortField) => {
@@ -481,7 +637,7 @@ export default function AdminCourses() {
       {/* Error Message */}
       {error && (
         <div className={styles.errorBanner}>
-          <span>⚠️</span> {error}
+          <AlertTriangleIcon size={16} /> {error}
           <button onClick={() => setError('')}>×</button>
         </div>
       )}
@@ -490,28 +646,28 @@ export default function AdminCourses() {
       {stats && (
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.primary}`}>📚</div>
+            <div className={`${styles.statIcon} ${styles.primary}`}><BookOpenIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalCourses}</div>
               <div className={styles.statLabel}>Total Courses</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+            <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.activeCourses}</div>
               <div className={styles.statLabel}>Active</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.info}`}>🏛️</div>
+            <div className={`${styles.statIcon} ${styles.info}`}><BuildingIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.departmentCount}</div>
               <div className={styles.statLabel}>Departments</div>
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.warning}`}>👨‍🎓</div>
+            <div className={`${styles.statIcon} ${styles.warning}`}><UsersIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalEnrollments}</div>
               <div className={styles.statLabel}>Total Enrollments</div>
@@ -523,7 +679,7 @@ export default function AdminCourses() {
       {/* Filters */}
       <div className={styles.filtersBar}>
         <div className={styles.searchBox}>
-          <span>🔍</span>
+          <SearchIcon size={16} color="#64748b" />
           <input
             type="text"
             placeholder="Search courses..."
@@ -537,8 +693,8 @@ export default function AdminCourses() {
           className={styles.filterSelect}
         >
           <option value="all">All Departments</option>
-          {departments.map(dep => (
-            <option key={dep} value={dep}>{dep}</option>
+          {departmentsList.map(dept => (
+            <option key={dept.id} value={dept.id}>{dept.name}</option>
           ))}
         </select>
         <select
@@ -588,7 +744,7 @@ export default function AdminCourses() {
         <div className={styles.coursesGrid}>
           {filteredCourses.length === 0 ? (
             <div className={styles.emptyState}>
-              <span>📚</span>
+              <BookOpenIcon size={48} />
               <h3>No courses found</h3>
               <p>Try adjusting your filters or add a new course</p>
             </div>
@@ -606,37 +762,37 @@ export default function AdminCourses() {
                   <p className={styles.courseDescription}>{course.description}</p>
                 )}
                 <div className={styles.courseMeta}>
-                  {course.department && (
-                    <span className={styles.metaItem}>🏛️ {course.department}</span>
+                  {course.departmentId && (
+                    <span className={styles.metaItem}><BuildingIcon size={14} /> {departmentMap[course.departmentId] || 'Unknown'}</span>
                   )}
                   {course.credits && (
-                    <span className={styles.metaItem}>📊 {course.credits} Credits</span>
+                    <span className={styles.metaItem}><ChartIcon size={14} /> {course.credits} Credits</span>
                   )}
                   {course.courseType && (
-                    <span className={styles.metaItem}>📚 {course.courseType}</span>
+                    <span className={styles.metaItem}><BookOpenIcon size={14} /> {course.courseType}</span>
                   )}
                 </div>
                 <div className={styles.courseDetails}>
                   <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Instructor:</span>
+                    <span className={styles.detailLabel}>Instructor{(course.instructors?.length || 0) > 1 ? 's' : ''}:</span>
                     <span className={styles.detailValue}>
-                      {course.instructor?.name || 'Not Assigned'}
+                      {course.instructors && course.instructors.length > 0 
+                        ? course.instructors.map(i => i.name).join(', ')
+                        : course.instructor?.name || 'Not Assigned'}
                     </span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Enrolled:</span>
                     <span className={styles.detailValue}>
-                      {course.enrolledStudents} / {course.capacity || 30}
+                      {course.enrolledStudents}/{course.capacity || 30}
                     </span>
                   </div>
-                  {(course.scheduleDisplay || course.schedule) && (
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Schedule:</span>
-                      <span className={styles.detailValue}>
-                        {course.scheduleDisplay || course.schedule}
-                      </span>
-                    </div>
-                  )}
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Schedule:</span>
+                    <span className={styles.detailValue}>
+                      {renderSchedule(course.scheduleDisplay, course.schedule)}
+                    </span>
+                  </div>
                   {course.prerequisites && course.prerequisites.length > 0 && (
                     <div className={styles.detailRow}>
                       <span className={styles.detailLabel}>Prerequisites:</span>
@@ -648,20 +804,20 @@ export default function AdminCourses() {
                 </div>
                 <div className={styles.cardActions}>
                   <button className={styles.viewBtn} onClick={() => openDetailsModal(course)}>
-                    👁️ View
+                    <EyeIcon size={14} /> View
                   </button>
                   <button className={styles.editBtn} onClick={() => openEditModal(course)}>
-                    ✏️ Edit
+                    <EditIcon size={14} /> Edit
                   </button>
                   <button
                     className={styles.toggleBtn}
                     onClick={() => handleToggleStatus(course)}
                     title={course.isActive ? 'Deactivate' : 'Activate'}
                   >
-                    {course.isActive ? '🔒' : '🔓'}
+                    {course.isActive ? <LockIcon size={14} /> : <UnlockIcon size={14} />}
                   </button>
                   <button className={styles.deleteBtn} onClick={() => openDeleteModal(course)}>
-                    🗑️
+                    <TrashIcon size={14} />
                   </button>
                 </div>
               </div>
@@ -704,12 +860,16 @@ export default function AdminCourses() {
                       {course.courseType && <span className={styles.courseTypeTag}>{course.courseType}</span>}
                     </div>
                   </td>
-                  <td>{course.department || '-'}</td>
+                  <td>{course.departmentId ? departmentMap[course.departmentId] || 'Unknown' : '-'}</td>
                   <td className={styles.creditsCell}>{course.credits || '-'}</td>
-                  <td>{course.instructor?.name || 'Not Assigned'}</td>
+                  <td>
+                    {course.instructors && course.instructors.length > 0 
+                      ? course.instructors.map(i => i.name).join(', ')
+                      : course.instructor?.name || 'Not Assigned'}
+                  </td>
                   <td>
                     <span className={styles.enrollmentBadge}>
-                      {course.enrolledStudents} / {course.capacity || 30}
+                      {course.enrolledStudents}/{course.capacity || 30}
                     </span>
                   </td>
                   <td>
@@ -719,12 +879,12 @@ export default function AdminCourses() {
                   </td>
                   <td>
                     <div className={styles.tableActions}>
-                      <button onClick={() => openDetailsModal(course)} title="View Details">👁️</button>
-                      <button onClick={() => openEditModal(course)} title="Edit">✏️</button>
+                      <button onClick={() => openDetailsModal(course)} title="View Details"><EyeIcon size={14} /></button>
+                      <button onClick={() => openEditModal(course)} title="Edit"><EditIcon size={14} /></button>
                       <button onClick={() => handleToggleStatus(course)} title={course.isActive ? 'Deactivate' : 'Activate'}>
-                        {course.isActive ? '🔒' : '🔓'}
+                        {course.isActive ? <LockIcon size={14} /> : <UnlockIcon size={14} />}
                       </button>
-                      <button onClick={() => openDeleteModal(course)} title="Delete">🗑️</button>
+                      <button onClick={() => openDeleteModal(course)} title="Delete"><TrashIcon size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -743,7 +903,7 @@ export default function AdminCourses() {
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={14} /> {formError}</div>}
 
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
@@ -767,12 +927,12 @@ export default function AdminCourses() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    value={formData.departmentId}
+                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                   >
                     <option value="">Select Department</option>
                     {departmentsList.map(dept => (
-                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
                 </div>
@@ -808,32 +968,60 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Room</label>
-                  <select
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  <label>Rooms</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowRoomModal(true)}
                   >
-                    <option value="">Select Room</option>
-                    {roomsList.map(room => (
-                      <option key={room.id} value={room.name}>
-                        {room.building ? `${room.building} - ${room.name}` : room.name}
-                      </option>
-                    ))}
-                  </select>
+                    {formData.roomIds.length > 0
+                      ? `${formData.roomIds.length} room${formData.roomIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Rooms'}
+                  </button>
+                  {formData.roomIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.roomIds.map(id => {
+                        const room = roomsList.find(r => r.id === id);
+                        return room ? (
+                          <span key={id} className={styles.tag}>
+                            {room.building ? `${room.building} - ${room.name}` : room.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, roomIds: formData.roomIds.filter(r => r !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Instructor</label>
-                  <select
-                    value={formData.instructorId}
-                    onChange={(e) => setFormData({ ...formData, instructorId: e.target.value })}
+                  <label>Instructors</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowInstructorModal(true)}
                   >
-                    <option value="">Select Instructor</option>
-                    {instructors.map(inst => (
-                      <option key={inst.id || inst.accountId} value={inst.id || inst.accountId || ''}>
-                        {inst.name} ({inst.email})
-                      </option>
-                    ))}
-                  </select>
+                    {formData.instructorIds.length > 0
+                      ? `${formData.instructorIds.length} instructor${formData.instructorIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Instructors'}
+                  </button>
+                  {formData.instructorIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.instructorIds.map(id => {
+                        const inst = instructors.find(i => i.id === id);
+                        return inst ? (
+                          <span key={id} className={styles.tag}>
+                            {inst.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, instructorIds: formData.instructorIds.filter(i => i !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <SchedulePicker
@@ -855,12 +1043,8 @@ export default function AdminCourses() {
                   <label>Session Types</label>
                   <div className={styles.prerequisitesSelect} style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                     <label className={styles.checkboxLabel} style={{ opacity: 0.7 }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.hasLecture}
-                        disabled
-                      />
-                      <span>📚 Lecture (Required)</span>
+                      <input type="checkbox" checked={formData.hasLecture} disabled />
+                      <span>Lecture (Required)</span>
                     </label>
                     <label className={styles.checkboxLabel}>
                       <input
@@ -868,7 +1052,7 @@ export default function AdminCourses() {
                         checked={formData.hasTutorial}
                         onChange={(e) => setFormData({ ...formData, hasTutorial: e.target.checked })}
                       />
-                      <span>📝 Tutorial</span>
+                      <span>Tutorial</span>
                     </label>
                     <label className={styles.checkboxLabel}>
                       <input
@@ -876,7 +1060,7 @@ export default function AdminCourses() {
                         checked={formData.hasLab}
                         onChange={(e) => setFormData({ ...formData, hasLab: e.target.checked })}
                       />
-                      <span>🔬 Lab</span>
+                      <span>Lab</span>
                     </label>
                   </div>
                 </div>
@@ -885,7 +1069,7 @@ export default function AdminCourses() {
                   <textarea
                     value={formData.courseContent}
                     onChange={(e) => setFormData({ ...formData, courseContent: e.target.value })}
-                    placeholder="Enter lecture topics, one per line...&#10;Week 1: Introduction&#10;Week 2: Core Concepts&#10;Week 3: Advanced Topics"
+                    placeholder="Enter lecture topics, one per line..."
                     rows={4}
                   />
                 </div>
@@ -914,14 +1098,8 @@ export default function AdminCourses() {
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.cancelBtn} onClick={() => setShowAddModal(false)}>
-                Cancel
-              </button>
-              <button
-                className={styles.submitBtn}
-                onClick={handleAddCourse}
-                disabled={isSubmitting}
-              >
+              <button className={styles.cancelBtn} onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className={styles.submitBtn} onClick={handleAddCourse} disabled={isSubmitting}>
                 {isSubmitting ? 'Creating...' : 'Create Course'}
               </button>
             </div>
@@ -938,7 +1116,7 @@ export default function AdminCourses() {
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={14} /> {formError}</div>}
 
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
@@ -960,12 +1138,12 @@ export default function AdminCourses() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    value={formData.departmentId}
+                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                   >
                     <option value="">Select Department</option>
                     {departmentsList.map(dept => (
-                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
                 </div>
@@ -1001,50 +1179,60 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Room</label>
-                  <select
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  <label>Rooms</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowRoomModal(true)}
                   >
-                    <option value="">Select Room</option>
-                    {roomsList.map(room => (
-                      <option key={room.id} value={room.name}>
-                        {room.building ? `${room.building} - ${room.name}` : room.name}
-                      </option>
-                    ))}
-                  </select>
+                    {formData.roomIds.length > 0
+                      ? `${formData.roomIds.length} room${formData.roomIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Rooms'}
+                  </button>
+                  {formData.roomIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.roomIds.map(id => {
+                        const room = roomsList.find(r => r.id === id);
+                        return room ? (
+                          <span key={id} className={styles.tag}>
+                            {room.building ? `${room.building} - ${room.name}` : room.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, roomIds: formData.roomIds.filter(r => r !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Capacity</label>
-                  <input
-                    type="number"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                    min="1"
-                    max="500"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Room</label>
-                  <input
-                    type="text"
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Instructor</label>
-                  <select
-                    value={formData.instructorId}
-                    onChange={(e) => setFormData({ ...formData, instructorId: e.target.value })}
+                  <label>Instructors</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowInstructorModal(true)}
                   >
-                    <option value="">Select Instructor</option>
-                    {instructors.map(inst => (
-                      <option key={inst.id || inst.accountId} value={inst.id || inst.accountId || ''}>
-                        {inst.name} ({inst.email})
-                      </option>
-                    ))}
-                  </select>
+                    {formData.instructorIds.length > 0
+                      ? `${formData.instructorIds.length} instructor${formData.instructorIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Instructors'}
+                  </button>
+                  {formData.instructorIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.instructorIds.map(id => {
+                        const inst = instructors.find(i => i.id === id);
+                        return inst ? (
+                          <span key={id} className={styles.tag}>
+                            {inst.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, instructorIds: formData.instructorIds.filter(i => i !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <SchedulePicker
@@ -1065,12 +1253,8 @@ export default function AdminCourses() {
                   <label>Session Types</label>
                   <div className={styles.prerequisitesSelect} style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                     <label className={styles.checkboxLabel} style={{ opacity: 0.7 }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.hasLecture}
-                        disabled
-                      />
-                      <span>📚 Lecture (Required)</span>
+                      <input type="checkbox" checked={formData.hasLecture} disabled />
+                      <span>Lecture (Required)</span>
                     </label>
                     <label className={styles.checkboxLabel}>
                       <input
@@ -1078,7 +1262,7 @@ export default function AdminCourses() {
                         checked={formData.hasTutorial}
                         onChange={(e) => setFormData({ ...formData, hasTutorial: e.target.checked })}
                       />
-                      <span>📝 Tutorial</span>
+                      <span>Tutorial</span>
                     </label>
                     <label className={styles.checkboxLabel}>
                       <input
@@ -1086,7 +1270,7 @@ export default function AdminCourses() {
                         checked={formData.hasLab}
                         onChange={(e) => setFormData({ ...formData, hasLab: e.target.checked })}
                       />
-                      <span>🔬 Lab</span>
+                      <span>Lab</span>
                     </label>
                   </div>
                 </div>
@@ -1121,17 +1305,25 @@ export default function AdminCourses() {
                     {courses.length <= 1 && <span className={styles.noData}>No other courses available</span>}
                   </div>
                 </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Course Status</label>
+                  <div className={styles.statusToggle}>
+                    <label className={styles.toggleLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      />
+                      <span className={styles.toggleSlider}></span>
+                      <span className={styles.toggleText}>{formData.isActive ? 'Active' : 'Inactive'}</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.cancelBtn} onClick={() => setShowEditModal(false)}>
-                Cancel
-              </button>
-              <button
-                className={styles.submitBtn}
-                onClick={handleEditCourse}
-                disabled={isSubmitting}
-              >
+              <button className={styles.cancelBtn} onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button className={styles.submitBtn} onClick={handleEditCourse} disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
@@ -1149,7 +1341,7 @@ export default function AdminCourses() {
             </div>
             <div className={styles.modalBody}>
               <div className={styles.deleteWarning}>
-                <span className={styles.warningIcon}>⚠️</span>
+                <span className={styles.warningIcon}><AlertTriangleIcon size={24} color="#f59e0b" /></span>
                 <p>Are you sure you want to delete <strong>{selectedCourse.name}</strong>?</p>
                 <p className={styles.warningText}>
                   This will permanently remove the course and all associated data including enrollments.
@@ -1158,14 +1350,8 @@ export default function AdminCourses() {
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.cancelBtn} onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-              <button
-                className={styles.deleteConfirmBtn}
-                onClick={handleDeleteCourse}
-                disabled={isSubmitting}
-              >
+              <button className={styles.cancelBtn} onClick={() => setShowDeleteModal(false)}>Cancel</button>
+              <button className={styles.deleteConfirmBtn} onClick={handleDeleteCourse} disabled={isSubmitting}>
                 {isSubmitting ? 'Deleting...' : 'Delete Course'}
               </button>
             </div>
@@ -1191,7 +1377,7 @@ export default function AdminCourses() {
                   <div className={styles.detailsList}>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Department:</span>
-                      <span>{selectedCourse.department || 'Not specified'}</span>
+                      <span>{selectedCourse.departmentId ? departmentMap[selectedCourse.departmentId] || 'Unknown' : 'Not specified'}</span>
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Credits:</span>
@@ -1219,7 +1405,7 @@ export default function AdminCourses() {
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Schedule:</span>
-                      <span>{selectedCourse.schedule || 'Not set'}</span>
+                      {renderSchedule(selectedCourse.scheduleDisplay, selectedCourse.schedule)}
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Capacity:</span>
@@ -1229,16 +1415,20 @@ export default function AdminCourses() {
                 </div>
 
                 <div className={styles.detailsSection}>
-                  <h3>Instructor</h3>
-                  {selectedCourse.instructor ? (
-                    <div className={styles.instructorCard}>
-                      <div className={styles.instructorAvatar}>
-                        {selectedCourse.instructor.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </div>
-                      <div className={styles.instructorInfo}>
-                        <strong>{selectedCourse.instructor.name}</strong>
-                        <span>{selectedCourse.instructor.email}</span>
-                      </div>
+                  <h3>Instructor{(selectedCourse.instructors?.length || 0) > 1 ? 's' : ''}</h3>
+                  {(selectedCourse.instructors && selectedCourse.instructors.length > 0) || selectedCourse.instructor ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {(selectedCourse.instructors || (selectedCourse.instructor ? [selectedCourse.instructor] : [])).map((instr, idx) => (
+                        <div key={instr.id || idx} className={styles.instructorCard}>
+                          <div className={styles.instructorAvatar}>
+                            {instr.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </div>
+                          <div className={styles.instructorInfo}>
+                            <strong>{instr.name}</strong>
+                            <span>{instr.email}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <p className={styles.noInstructor}>No instructor assigned</p>
@@ -1257,7 +1447,7 @@ export default function AdminCourses() {
                       ></div>
                     </div>
                     <span className={styles.enrollmentText}>
-                      {selectedCourse.enrolledStudents} / {selectedCourse.capacity || 30} students enrolled
+                      {selectedCourse.enrolledStudents}/{selectedCourse.capacity || 30} students enrolled
                     </span>
                   </div>
                 </div>
@@ -1275,7 +1465,7 @@ export default function AdminCourses() {
                     <div className={styles.prerequisitesList}>
                       {selectedCourse.prerequisites.map(prereq => (
                         <span key={prereq.id} className={styles.prerequisiteBadge}>
-                          📚 {prereq.code || prereq.name}
+                          {prereq.code || prereq.name}
                         </span>
                       ))}
                     </div>
@@ -1296,14 +1486,124 @@ export default function AdminCourses() {
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.cancelBtn} onClick={() => setShowDetailsModal(false)}>
-                Close
+              <button className={styles.cancelBtn} onClick={() => setShowDetailsModal(false)}>Close</button>
+              <button className={styles.editBtn} onClick={() => { setShowDetailsModal(false); openEditModal(selectedCourse); }}>
+                <EditIcon size={14} /> Edit Course
               </button>
-              <button className={styles.editBtn} onClick={() => {
-                setShowDetailsModal(false);
-                openEditModal(selectedCourse);
-              }}>
-                ✏️ Edit Course
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Instructor Selection Modal */}
+      {showInstructorModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowInstructorModal(false)}>
+          <div className={styles.modal} style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Select Instructors</h2>
+              <button className={styles.closeBtn} onClick={() => setShowInstructorModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.instructorSearchList}>
+                {instructors.length > 0 ? (
+                  instructors.map(inst => (
+                    <label key={inst.id || inst.accountId} className={styles.instructorItem}>
+                      <input
+                        type="checkbox"
+                        checked={formData.instructorIds.includes(inst.id || '')}
+                        onChange={(e) => {
+                          const instId = inst.id || '';
+                          if (e.target.checked) {
+                            setFormData({ ...formData, instructorIds: [...formData.instructorIds, instId] });
+                          } else {
+                            setFormData({ ...formData, instructorIds: formData.instructorIds.filter(id => id !== instId) });
+                          }
+                        }}
+                      />
+                      <div className={styles.instructorInfo}>
+                        <span className={styles.instructorName}>{inst.name}</span>
+                        <span className={styles.instructorEmail}>{inst.email}</span>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <p className={styles.noData}>No instructors available</p>
+                )}
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.cancelBtn} onClick={() => setShowInstructorModal(false)}>Cancel</button>
+              <button className={styles.submitBtn} onClick={() => setShowInstructorModal(false)}>
+                Done ({formData.instructorIds.length} selected)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room Selection Modal */}
+      {showRoomModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowRoomModal(false)}>
+          <div className={styles.modal} style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Select Rooms</h2>
+              <button className={styles.closeBtn} onClick={() => setShowRoomModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                Select lecture halls, classrooms, labs, or other rooms for this course.
+              </p>
+              
+              {/* Group rooms by type */}
+              {['Lecture Hall', 'Classroom', 'Computer Lab', 'Laboratory', 'Tutorial Room', 'Other'].map(roomType => {
+                const roomsOfType = roomsList.filter(r => 
+                  (r.roomType === roomType) || 
+                  (!r.roomType && roomType === 'Other')
+                );
+                if (roomsOfType.length === 0) return null;
+                
+                return (
+                  <div key={roomType} style={{ marginBottom: '16px' }}>
+                    <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {roomType}s
+                    </h4>
+                    <div className={styles.instructorSearchList}>
+                      {roomsOfType.map(room => (
+                        <label key={room.id} className={styles.instructorItem}>
+                          <input
+                            type="checkbox"
+                            checked={formData.roomIds.includes(room.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, roomIds: [...formData.roomIds, room.id] });
+                              } else {
+                                setFormData({ ...formData, roomIds: formData.roomIds.filter(id => id !== room.id) });
+                              }
+                            }}
+                          />
+                          <div className={styles.instructorInfo}>
+                            <span className={styles.instructorName}>
+                              {room.building ? `${room.building} - ${room.name}` : room.name}
+                            </span>
+                            <span className={styles.instructorEmail}>
+                              {room.capacity ? `Capacity: ${room.capacity}` : ''}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {roomsList.length === 0 && (
+                <p className={styles.noData}>No rooms available. Please add rooms in Facilities first.</p>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.cancelBtn} onClick={() => setShowRoomModal(false)}>Cancel</button>
+              <button className={styles.submitBtn} onClick={() => setShowRoomModal(false)}>
+                Done ({formData.roomIds.length} selected)
               </button>
             </div>
           </div>

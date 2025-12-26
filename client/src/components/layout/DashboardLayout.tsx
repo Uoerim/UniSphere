@@ -1,6 +1,26 @@
 import { useAuth } from '../../context/AuthContext';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import styles from './DashboardLayout.module.css';
+import {
+  DashboardIcon,
+  UsersIcon,
+  StaffIcon,
+  GraduationCapIcon,
+  ParentIcon,
+  BookOpenIcon,
+  BuildingIcon,
+  FileTextIcon,
+  ClipboardIcon,
+  SchoolIcon,
+  MegaphoneIcon,
+  CalendarIcon,
+  SettingsIcon,
+  LogoutIcon,
+  MailIcon,
+  BellIcon,
+  CheckCircleIcon,
+  ChartIcon
+} from '../ui/Icons';
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
@@ -8,31 +28,34 @@ export default function DashboardLayout() {
 
   const getNavSections = () => {
     const mainNav = [
-      { name: 'Dashboard', path: '/dashboard', icon: '📊' },
+      { name: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
     ];
 
     const adminNav = [
-      { name: 'ADMIN: Users', path: '/users', icon: '👥' },
-      { name: 'ADMIN: Staff', path: '/staff', icon: '👨‍🏫' },
-      { name: 'ADMIN: Students', path: '/students', icon: '🎓' },
-      { name: 'ADMIN: Parents', path: '/parents', icon: '👨‍👩‍👧' },
+      { name: 'Users', path: '/users', icon: <UsersIcon /> },
+      { name: 'Staff', path: '/staff', icon: <StaffIcon /> },
+      { name: 'Students', path: '/students', icon: <GraduationCapIcon /> },
+      { name: 'Parents', path: '/parents', icon: <ParentIcon /> },
     ];
 
     const academicNav = [
-      { name: 'Courses', path: '/courses', icon: '📚' },
-      { name: 'Assessments', path: '/assessments', icon: '📝' },
-      { name: 'Assignments', path: '/assignments', icon: '📋' },
+      { name: 'Courses', path: '/courses', icon: <BookOpenIcon /> },
+      { name: 'Departments', path: '/departments', icon: <BuildingIcon /> },
+      { name: 'Assessments', path: '/assessments', icon: <FileTextIcon /> },
+      { name: 'Assignments', path: '/assignments', icon: <ClipboardIcon /> },
     ];
 
-    // Facilities section removed per request
+    const facilitiesNav = [
+      { name: 'Facilities', path: '/facilities', icon: <SchoolIcon /> },
+    ];
 
     const communityNav = [
-      { name: 'Announcements', path: '/announcements', icon: '📢' },
-      { name: 'Events', path: '/events', icon: '🎉' },
+      { name: 'Announcements', path: '/announcements', icon: <MegaphoneIcon /> },
+      { name: 'Events', path: '/events', icon: <CalendarIcon /> },
     ];
 
     const settingsNav = [
-      { name: 'Settings', path: '/settings', icon: '⚙️' },
+      { name: 'Settings', path: '/settings', icon: <SettingsIcon /> },
     ];
 
     switch (user?.role) {
@@ -41,6 +64,7 @@ export default function DashboardLayout() {
           { title: 'Main', items: mainNav },
           { title: 'Administration', items: adminNav },
           { title: 'Academic', items: academicNav },
+          { title: 'Facilities', items: facilitiesNav },
           { title: 'Community', items: communityNav },
           { title: 'System', items: settingsNav },
         ];
@@ -54,9 +78,10 @@ export default function DashboardLayout() {
         return [
           { title: 'Main', items: mainNav },
           { title: 'Academic', items: [
-            { name: 'My Courses', path: '/courses', icon: '📚' },
-            { name: 'My Assignments', path: '/assignments', icon: '📋' },
-            { name: 'My Assessments', path: '/assessments', icon: '📝' },
+            { name: 'My Courses', path: '/courses', icon: <BookOpenIcon /> },
+            { name: 'My Assignments', path: '/assignments', icon: <ClipboardIcon /> },
+            { name: 'My Assessments', path: '/assessments', icon: <FileTextIcon /> },
+            { name: 'My Grades', path: '/grades', icon: <ChartIcon /> },
           ]},
           { title: 'Community', items: communityNav },
         ];
@@ -64,9 +89,9 @@ export default function DashboardLayout() {
         return [
           { title: 'Main', items: mainNav },
           { title: 'Children', items: [
-            { name: 'My Children', path: '/children', icon: '👨‍👧‍👦' },
-            { name: 'Attendance', path: '/attendance', icon: '✅' },
-            { name: 'Grades', path: '/grades', icon: '📊' },
+            { name: 'My Children', path: '/children', icon: <ParentIcon /> },
+            { name: 'Attendance', path: '/attendance', icon: <CheckCircleIcon /> },
+            { name: 'Grades', path: '/grades', icon: <ChartIcon /> },
           ]},
           { title: 'Communication', items: communityNav },
         ];
@@ -87,7 +112,11 @@ export default function DashboardLayout() {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <div className={styles.logo}>
-            <div className={styles.logoIcon}>🎓</div>
+            <img 
+              src="/UniSphere-Logo-GREEN.png" 
+              alt="UniSphere" 
+              className={styles.logoImage}
+            />
             <span>UniSphere</span>
           </div>
         </div>
@@ -114,7 +143,7 @@ export default function DashboardLayout() {
 
         <div className={styles.sidebarFooter}>
           <button onClick={logout} className={styles.logoutBtn}>
-            <span>🚪</span>
+            <LogoutIcon />
             Log Out
           </button>
         </div>
@@ -125,26 +154,17 @@ export default function DashboardLayout() {
         {/* Top Header */}
         <header className={styles.topHeader}>
           <div className={styles.headerLeft}>
-            <span className={styles.welcomeText}>Welcome back, {user?.email?.split('@')[0]}!</span>
+            <span className={styles.welcomeText}>Welcome back, {user?.email?.split('@')[0]}</span>
           </div>
           
           <div className={styles.headerRight}>
             <div className={styles.headerIcon}>
-              ✉️
+              <MailIcon size={18} />
               <span className={styles.notificationBadge}></span>
             </div>
             <div className={styles.headerIcon}>
-              🔔
+              <BellIcon size={18} />
               <span className={styles.notificationBadge}></span>
-            </div>
-            <div className={styles.userProfile}>
-              <div className={styles.userAvatar}>
-                {getInitials(user?.email || '')}
-              </div>
-              <div className={styles.userInfo}>
-                <span className={styles.userName}>{user?.email?.split('@')[0]}</span>
-                <span className={styles.userRole}>{user?.role}</span>
-              </div>
             </div>
           </div>
         </header>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import styles from './StudentManagement.module.css';
+import { GraduationCapIcon, CheckCircleIcon, BookOpenIcon, ChartIcon, SearchIcon, CalendarIcon, EditIcon, TrashIcon, LockIcon, AlertTriangleIcon, XCircleIcon, RefreshIcon } from '../../components/ui/Icons';
 
 // Types
 interface EnrolledCourse {
@@ -27,24 +28,30 @@ interface Student {
   lastName?: string;
   studentId?: string;
   phone?: string;
+  phoneCountry?: string;
   address?: string;
+  city?: string;
+  country?: string;
   dateOfBirth?: string;
+  gender?: string;
+  nationality?: string;
   enrollmentDate?: string;
+  enrollmentStatus?: string;
   program?: string;
+  major?: string;
+  minor?: string;
   year?: string;
+  semester?: string;
   gpa?: string;
+  credits?: number;
   advisor?: string;
+  scholarshipStatus?: string;
+  scholarshipAmount?: number;
   emergencyContact?: string;
   emergencyPhone?: string;
+  notes?: string;
   enrolledCourses: EnrolledCourse[];
   coursesCount: number;
-}
-
-interface AvailableCourse {
-  id: string;
-  name?: string;
-  code?: string;
-  department?: string;
 }
 
 type TabType = 'overview' | 'courses' | 'grades' | 'attendance';
@@ -60,9 +67,7 @@ export default function StudentManagement() {
   // Selected student
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-
-  // Available courses for enrollment
-  const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
+  const [courseStatusFilter, setCourseStatusFilter] = useState<'all' | 'active' | 'dropped'>('all');
 
   // Filters and sorting
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,7 +79,6 @@ export default function StudentManagement() {
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showGradeModal, setShowGradeModal] = useState(false);
 
   // Form state
@@ -84,24 +88,32 @@ export default function StudentManagement() {
     email: '',
     studentId: '',
     phone: '',
+    phoneCountry: '+1',
     address: '',
+    city: '',
+    country: '',
     dateOfBirth: '',
+    gender: '',
+    nationality: '',
     program: '',
+    major: '',
+    minor: '',
     year: '',
+    semester: '',
+    credits: 0,
+    gpa: '',
+    enrollmentDate: '',
+    enrollmentStatus: 'Active',
     advisor: '',
+    scholarshipStatus: 'None',
+    scholarshipAmount: 0,
     emergencyContact: '',
     emergencyPhone: '',
+    notes: '',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdPassword, setCreatedPassword] = useState('');
-
-  // Enrollment form state
-  const [enrollmentData, setEnrollmentData] = useState({
-    courseId: '',
-    grade: 'N/A',
-    attendance: 100
-  });
 
   // Grade edit state
   const [gradeEditData, setGradeEditData] = useState({
@@ -112,7 +124,6 @@ export default function StudentManagement() {
 
   useEffect(() => {
     fetchStudentList();
-    fetchAvailableCourses();
   }, []);
 
   useEffect(() => {
@@ -159,22 +170,6 @@ export default function StudentManagement() {
     }
   };
 
-  const fetchAvailableCourses = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch('http://localhost:4000/api/students/available/courses', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const courses = await response.json();
-        setAvailableCourses(courses);
-      }
-    } catch (err) {
-      console.error('Failed to fetch available courses:', err);
-    }
-  };
 
   // Filtered and sorted student list
   const filteredStudents = useMemo(() => {
@@ -220,6 +215,16 @@ export default function StudentManagement() {
     return result;
   }, [studentList, searchTerm, filterProgram, filterYear, sortField, sortDirection]);
 
+  const filteredEnrolledCourses = useMemo(() => {
+    if (!selectedStudent?.enrolledCourses) return [];
+    if (courseStatusFilter === 'all') return selectedStudent.enrolledCourses;
+    return selectedStudent.enrolledCourses.filter(course => course.status === courseStatusFilter);
+  }, [selectedStudent?.enrolledCourses, courseStatusFilter]);
+
+  const activeCourses = useMemo(() => {
+    return selectedStudent?.enrolledCourses?.filter(course => course.status === 'active') || [];
+  }, [selectedStudent?.enrolledCourses]);
+
   const programs = useMemo(() => {
     const progs = new Set(studentList.map(s => s.program).filter(Boolean));
     return Array.from(progs);
@@ -252,13 +257,28 @@ export default function StudentManagement() {
             lastName: formData.lastName,
             studentId: formData.studentId,
             phone: formData.phone,
+            phoneCountry: formData.phoneCountry,
             address: formData.address,
+            city: formData.city,
+            country: formData.country,
             dateOfBirth: formData.dateOfBirth,
+            gender: formData.gender,
+            nationality: formData.nationality,
             program: formData.program,
+            major: formData.major,
+            minor: formData.minor,
             year: formData.year,
+            semester: formData.semester,
+            credits: formData.credits,
+            gpa: formData.gpa,
+            enrollmentDate: formData.enrollmentDate,
+            enrollmentStatus: formData.enrollmentStatus,
             advisor: formData.advisor,
+            scholarshipStatus: formData.scholarshipStatus,
+            scholarshipAmount: formData.scholarshipAmount,
             emergencyContact: formData.emergencyContact,
             emergencyPhone: formData.emergencyPhone,
+            notes: formData.notes,
           },
         }),
       });
@@ -304,13 +324,28 @@ export default function StudentManagement() {
             lastName: formData.lastName,
             studentId: formData.studentId,
             phone: formData.phone,
+            phoneCountry: formData.phoneCountry,
             address: formData.address,
+            city: formData.city,
+            country: formData.country,
             dateOfBirth: formData.dateOfBirth,
+            gender: formData.gender,
+            nationality: formData.nationality,
             program: formData.program,
+            major: formData.major,
+            minor: formData.minor,
             year: formData.year,
+            semester: formData.semester,
+            credits: formData.credits,
+            gpa: formData.gpa,
+            enrollmentDate: formData.enrollmentDate,
+            enrollmentStatus: formData.enrollmentStatus,
             advisor: formData.advisor,
+            scholarshipStatus: formData.scholarshipStatus,
+            scholarshipAmount: formData.scholarshipAmount,
             emergencyContact: formData.emergencyContact,
             emergencyPhone: formData.emergencyPhone,
+            notes: formData.notes,
           },
         }),
       });
@@ -355,44 +390,52 @@ export default function StudentManagement() {
     }
   };
 
-  const handleEnrollStudent = async () => {
-    if (!selectedStudent || !enrollmentData.courseId) {
-      setFormError('Please select a course');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFormError('');
-
+  const handleToggleStatus = async (student: Student) => {
     try {
       const token = localStorage.getItem('token');
+      const newStatus = !student.isActive;
 
-      const response = await fetch(`http://localhost:4000/api/students/${selectedStudent.id}/courses`, {
-        method: 'POST',
+      await fetch(`http://localhost:4000/api/users/${student.id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          courseId: enrollmentData.courseId,
-          grade: enrollmentData.grade,
-          attendance: enrollmentData.attendance,
-        }),
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+
+      await fetchStudentList();
+      if (selectedStudent?.id === student.id) {
+        setSelectedStudent({ ...selectedStudent, isActive: newStatus });
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to update student status');
+    }
+  };
+
+  const handleResetPassword = async (student: Student) => {
+    if (!confirm(`Reset password for ${student.firstName || student.email}?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`http://localhost:4000/api/users/${student.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
       });
 
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to enroll student');
+        throw new Error('Failed to reset password');
       }
 
-      await fetchStudentDetails(selectedStudent.id);
+      const data = await response.json();
+      alert(`Password reset successfully!\n\nNew temporary password: ${data.tempPassword || data.temporaryPassword}\n\nPlease share this with the student securely.`);
+      
       await fetchStudentList();
-      setShowEnrollModal(false);
-      setEnrollmentData({ courseId: '', grade: 'N/A', attendance: 100 });
     } catch (err: any) {
-      setFormError(err.message);
-    } finally {
-      setIsSubmitting(false);
+      alert(err.message || 'Failed to reset password');
     }
   };
 
@@ -455,13 +498,28 @@ export default function StudentManagement() {
         email: selectedStudent.email,
         studentId: selectedStudent.studentId || '',
         phone: selectedStudent.phone || '',
+        phoneCountry: selectedStudent.phoneCountry || '+1',
         address: selectedStudent.address || '',
+        city: selectedStudent.city || '',
+        country: selectedStudent.country || '',
         dateOfBirth: selectedStudent.dateOfBirth || '',
+        gender: selectedStudent.gender || '',
+        nationality: selectedStudent.nationality || '',
         program: selectedStudent.program || '',
+        major: selectedStudent.major || '',
+        minor: selectedStudent.minor || '',
         year: selectedStudent.year || '',
+        semester: selectedStudent.semester || '',
+        credits: selectedStudent.credits || 0,
+        gpa: selectedStudent.gpa || '',
+        enrollmentDate: selectedStudent.enrollmentDate || '',
+        enrollmentStatus: selectedStudent.enrollmentStatus || 'Active',
         advisor: selectedStudent.advisor || '',
+        scholarshipStatus: selectedStudent.scholarshipStatus || 'None',
+        scholarshipAmount: selectedStudent.scholarshipAmount || 0,
         emergencyContact: selectedStudent.emergencyContact || '',
         emergencyPhone: selectedStudent.emergencyPhone || '',
+        notes: selectedStudent.notes || '',
       });
       setShowEditModal(true);
     }
@@ -483,13 +541,28 @@ export default function StudentManagement() {
       email: '',
       studentId: '',
       phone: '',
+      phoneCountry: '+1',
       address: '',
+      city: '',
+      country: '',
       dateOfBirth: '',
+      gender: '',
+      nationality: '',
       program: '',
+      major: '',
+      minor: '',
       year: '',
+      semester: '',
+      credits: 0,
+      gpa: '',
+      enrollmentDate: '',
+      enrollmentStatus: 'Active',
       advisor: '',
+      scholarshipStatus: 'None',
+      scholarshipAmount: 0,
       emergencyContact: '',
       emergencyPhone: '',
+      notes: '',
     });
     setFormError('');
     setCreatedPassword('');
@@ -567,28 +640,28 @@ export default function StudentManagement() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>🎓</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><GraduationCapIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.total}</div>
             <div className={styles.statLabel}>Total Students</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.active}</div>
             <div className={styles.statLabel}>Active</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><BookOpenIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.programs}</div>
             <div className={styles.statLabel}>Programs</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>📊</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><ChartIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{stats.totalEnrollments}</div>
             <div className={styles.statLabel}>Total Enrollments</div>
@@ -608,7 +681,7 @@ export default function StudentManagement() {
           {/* Filters */}
           <div className={styles.filters}>
             <div className={styles.searchBox}>
-              <span>🔍</span>
+              <span><SearchIcon size={16} /></span>
               <input
                 type="text"
                 placeholder="Search students..."
@@ -658,7 +731,7 @@ export default function StudentManagement() {
           <div className={styles.studentList}>
             {filteredStudents.length === 0 ? (
               <div className={styles.emptyList}>
-                <span>🎓</span>
+                <span><GraduationCapIcon size={48} /></span>
                 <p>No students found</p>
               </div>
             ) : (
@@ -700,22 +773,36 @@ export default function StudentManagement() {
                   <h2>{getFullName(selectedStudent)}</h2>
                   <p>{selectedStudent.email}</p>
                   <div className={styles.detailMeta}>
-                    <span className={styles.metaItem}>🎓 {selectedStudent.program || 'No Program'}</span>
-                    <span className={styles.metaItem}>📅 {selectedStudent.year || 'N/A'}</span>
-                    {selectedStudent.studentId && <span className={styles.metaItem}>🆔 {selectedStudent.studentId}</span>}
-                    {selectedStudent.gpa && <span className={styles.metaItem}>📊 GPA: {selectedStudent.gpa}</span>}
+                    <span className={styles.metaItem}><GraduationCapIcon size={14} /> {selectedStudent.program || 'No Program'}</span>
+                    <span className={styles.metaItem}><CalendarIcon size={14} /> {selectedStudent.year || 'N/A'}</span>
+                    {selectedStudent.studentId && <span className={styles.metaItem}><BookOpenIcon size={14} /> {selectedStudent.studentId}</span>}
+                    {selectedStudent.gpa && <span className={styles.metaItem}><ChartIcon size={14} /> GPA: {selectedStudent.gpa}</span>}
                   </div>
                 </div>
                 <div className={styles.detailActions}>
-                  <button className={styles.editBtn} onClick={openEditModal}>✏️ Edit</button>
-                  <button className={styles.deleteBtn} onClick={() => handleDeleteStudent(selectedStudent.id)}>🗑️</button>
+                  <button className={styles.editBtn} onClick={openEditModal}><EditIcon size={14} /> Edit</button>
+                  <button 
+                    className={styles.toggleBtn} 
+                    onClick={() => handleToggleStatus(selectedStudent)}
+                    title={selectedStudent.isActive ? 'Deactivate' : 'Activate'}
+                  >
+                    {selectedStudent.isActive ? <XCircleIcon size={14} /> : <CheckCircleIcon size={14} />}
+                  </button>
+                  <button 
+                    className={styles.resetBtn} 
+                    onClick={() => handleResetPassword(selectedStudent)}
+                    title="Reset Password"
+                  >
+                    <RefreshIcon size={14} />
+                  </button>
+                  <button className={styles.deleteBtn} onClick={() => handleDeleteStudent(selectedStudent.id)}><TrashIcon size={14} /></button>
                 </div>
               </div>
 
               {/* Temporary Password Alert */}
               {selectedStudent.tempPassword && (
                 <div className={styles.passwordAlert}>
-                  <span>🔐</span>
+                  <span><LockIcon size={20} /></span>
                   <div>
                     <strong>Temporary Password:</strong> {selectedStudent.tempPassword}
                     <br />
@@ -765,17 +852,40 @@ export default function StudentManagement() {
                         </div>
                         <div className={styles.infoRow}>
                           <span className={styles.infoLabel}>Phone</span>
-                          <span className={styles.infoValue}>{selectedStudent.phone || 'Not provided'}</span>
+                          <span className={styles.infoValue}>
+                            {selectedStudent.phone ? `${selectedStudent.phoneCountry || ''} ${selectedStudent.phone}` : 'Not provided'}
+                          </span>
                         </div>
                         <div className={styles.infoRow}>
-                          <span className={styles.infoLabel}>Address</span>
-                          <span className={styles.infoValue}>{selectedStudent.address || 'Not provided'}</span>
+                          <span className={styles.infoLabel}>Gender</span>
+                          <span className={styles.infoValue}>{selectedStudent.gender || 'Not provided'}</span>
                         </div>
                         <div className={styles.infoRow}>
                           <span className={styles.infoLabel}>Date of Birth</span>
                           <span className={styles.infoValue}>{selectedStudent.dateOfBirth || 'Not provided'}</span>
                         </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Nationality</span>
+                          <span className={styles.infoValue}>{selectedStudent.nationality || 'Not provided'}</span>
+                        </div>
                       </div>
+
+                      <div className={styles.infoCard}>
+                        <h4>Location</h4>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Address</span>
+                          <span className={styles.infoValue}>{selectedStudent.address || 'Not provided'}</span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>City</span>
+                          <span className={styles.infoValue}>{selectedStudent.city || 'Not provided'}</span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Country</span>
+                          <span className={styles.infoValue}>{selectedStudent.country || 'Not provided'}</span>
+                        </div>
+                      </div>
+
                       <div className={styles.infoCard}>
                         <h4>Academic Information</h4>
                         <div className={styles.infoRow}>
@@ -787,14 +897,70 @@ export default function StudentManagement() {
                           <span className={styles.infoValue}>{selectedStudent.program || 'Not assigned'}</span>
                         </div>
                         <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Major</span>
+                          <span className={styles.infoValue}>{selectedStudent.major || 'Not specified'}</span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Minor</span>
+                          <span className={styles.infoValue}>{selectedStudent.minor || 'None'}</span>
+                        </div>
+                        <div className={styles.infoRow}>
                           <span className={styles.infoLabel}>Year</span>
                           <span className={styles.infoValue}>{selectedStudent.year || 'N/A'}</span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Semester</span>
+                          <span className={styles.infoValue}>{selectedStudent.semester || 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      <div className={styles.infoCard}>
+                        <h4>Academic Status</h4>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>GPA</span>
+                          <span className={styles.infoValue}>{selectedStudent.gpa || 'N/A'}</span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Credits Completed</span>
+                          <span className={styles.infoValue}>{selectedStudent.credits || 0}</span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Enrollment Status</span>
+                          <span className={`${styles.infoValue} ${styles.statusBadge} ${
+                            selectedStudent.enrollmentStatus === 'Active' ? styles.activeStatus :
+                            selectedStudent.enrollmentStatus === 'Graduated' ? styles.graduatedStatus :
+                            selectedStudent.enrollmentStatus === 'On Leave' ? styles.onLeaveStatus :
+                            styles.inactiveStatus
+                          }`}>
+                            {selectedStudent.enrollmentStatus || 'Active'}
+                          </span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Enrollment Date</span>
+                          <span className={styles.infoValue}>{selectedStudent.enrollmentDate || 'Not recorded'}</span>
                         </div>
                         <div className={styles.infoRow}>
                           <span className={styles.infoLabel}>Advisor</span>
                           <span className={styles.infoValue}>{selectedStudent.advisor || 'Not assigned'}</span>
                         </div>
                       </div>
+
+                      <div className={styles.infoCard}>
+                        <h4>Financial Information</h4>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Scholarship Status</span>
+                          <span className={`${styles.infoValue} ${selectedStudent.scholarshipStatus && selectedStudent.scholarshipStatus !== 'None' ? styles.scholarshipActive : ''}`}>
+                            {selectedStudent.scholarshipStatus || 'None'}
+                          </span>
+                        </div>
+                        <div className={styles.infoRow}>
+                          <span className={styles.infoLabel}>Scholarship Amount</span>
+                          <span className={styles.infoValue}>
+                            {selectedStudent.scholarshipAmount ? `$${selectedStudent.scholarshipAmount.toLocaleString()}` : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+
                       <div className={styles.infoCard}>
                         <h4>Emergency Contact</h4>
                         <div className={styles.infoRow}>
@@ -806,6 +972,7 @@ export default function StudentManagement() {
                           <span className={styles.infoValue}>{selectedStudent.emergencyPhone || 'Not provided'}</span>
                         </div>
                       </div>
+
                       <div className={styles.infoCard}>
                         <h4>Account Information</h4>
                         <div className={styles.infoRow}>
@@ -819,21 +986,34 @@ export default function StudentManagement() {
                           <span className={styles.infoValue}>{formatDate(selectedStudent.createdAt)}</span>
                         </div>
                       </div>
+
+                      {selectedStudent.notes && (
+                        <div className={`${styles.infoCard} ${styles.notesCard}`}>
+                          <h4>Notes</h4>
+                          <div className={styles.notesContent}>
+                            {selectedStudent.notes}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className={styles.quickStats}>
                       <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>{selectedStudent.enrolledCourses?.length || 0}</div>
-                        <div className={styles.quickStatLabel}>Enrolled Courses</div>
+                        <div className={styles.quickStatValue}>{activeCourses.length}</div>
+                        <div className={styles.quickStatLabel}>Active Courses</div>
                       </div>
                       <div className={styles.quickStatCard}>
                         <div className={styles.quickStatValue}>{selectedStudent.gpa || 'N/A'}</div>
                         <div className={styles.quickStatLabel}>Current GPA</div>
                       </div>
                       <div className={styles.quickStatCard}>
+                        <div className={styles.quickStatValue}>{selectedStudent.credits || 0}</div>
+                        <div className={styles.quickStatLabel}>Credits Completed</div>
+                      </div>
+                      <div className={styles.quickStatCard}>
                         <div className={styles.quickStatValue}>
-                          {selectedStudent.enrolledCourses?.length 
-                            ? Math.round(selectedStudent.enrolledCourses.reduce((acc, c) => acc + c.attendance, 0) / selectedStudent.enrolledCourses.length)
+                          {activeCourses.length 
+                            ? Math.round(activeCourses.reduce((acc, c) => acc + c.attendance, 0) / activeCourses.length)
                             : 0}%
                         </div>
                         <div className={styles.quickStatLabel}>Avg Attendance</div>
@@ -846,20 +1026,29 @@ export default function StudentManagement() {
                   <div className={styles.coursesTab}>
                     <div className={styles.tabHeader}>
                       <h3>Enrolled Courses</h3>
-                      <button className={styles.enrollBtn} onClick={() => setShowEnrollModal(true)}>
-                        + Enroll in Course
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Status</span>
+                        <select
+                          value={courseStatusFilter}
+                          onChange={e => setCourseStatusFilter(e.target.value as 'all' | 'active' | 'dropped')}
+                          style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fff' }}
+                        >
+                          <option value="all">All</option>
+                          <option value="active">Active</option>
+                          <option value="dropped">Dropped</option>
+                        </select>
+                      </div>
                     </div>
-                    {selectedStudent.enrolledCourses?.length > 0 ? (
+                    {filteredEnrolledCourses.length > 0 ? (
                       <div className={styles.coursesList}>
-                        {selectedStudent.enrolledCourses.map(course => (
+                        {filteredEnrolledCourses.map(course => (
                           <div key={course.enrollmentId} className={styles.courseCard}>
                             <div className={styles.courseInfo}>
-                              <div className={styles.courseCode}>{course.code || 'N/A'}</div>
-                              <div className={styles.courseName}>{course.name || 'Unnamed Course'}</div>
+                              <div className={styles.courseCode}>{course.code || course.courseCode || 'N/A'}</div>
+                              <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed Course'}</div>
                               <div className={styles.courseMeta}>
-                                <span>📚 {course.department || 'N/A'}</span>
-                                <span>📅 Enrolled: {formatDate(course.enrolledAt)}</span>
+                                <span><BookOpenIcon size={14} /> {course.department || 'N/A'}</span>
+                                <span><CalendarIcon size={14} /> Enrolled: {formatDate(course.enrolledAt)}</span>
                                 <span className={`${styles.statusBadge} ${course.status === 'active' ? styles.activeStatus : styles.droppedStatus}`}>
                                   {course.status}
                                 </span>
@@ -875,10 +1064,10 @@ export default function StudentManagement() {
                             </div>
                             <div className={styles.courseActions}>
                               <button className={styles.editGradeBtn} onClick={() => openGradeModal(course)}>
-                                ✏️ Edit Grade
+                                <EditIcon size={14} /> Edit Grade
                               </button>
                               <button className={styles.removeBtn} onClick={() => handleRemoveEnrollment(course.enrollmentId)}>
-                                🗑️
+                                <TrashIcon size={14} />
                               </button>
                             </div>
                           </div>
@@ -886,11 +1075,8 @@ export default function StudentManagement() {
                       </div>
                     ) : (
                       <div className={styles.emptyCourses}>
-                        <span>📚</span>
+                        <span><BookOpenIcon size={48} /></span>
                         <p>No courses enrolled</p>
-                        <button className={styles.enrollBtn} onClick={() => setShowEnrollModal(true)}>
-                          Enroll in Course
-                        </button>
                       </div>
                     )}
                   </div>
@@ -901,7 +1087,7 @@ export default function StudentManagement() {
                     <div className={styles.tabHeader}>
                       <h3>Grade Report</h3>
                     </div>
-                    {selectedStudent.enrolledCourses?.length > 0 ? (
+                    {activeCourses.length > 0 ? (
                       <table className={styles.gradesTable}>
                         <thead>
                           <tr>
@@ -914,10 +1100,10 @@ export default function StudentManagement() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedStudent.enrolledCourses.map(course => (
+                          {activeCourses.map(course => (
                             <tr key={course.enrollmentId}>
-                              <td><span className={styles.codeBadge}>{course.code || 'N/A'}</span></td>
-                              <td>{course.name || 'Unnamed Course'}</td>
+                              <td><span className={styles.codeBadge}>{course.code || course.courseCode || 'N/A'}</span></td>
+                              <td>{course.name || course.courseName || 'Unnamed Course'}</td>
                               <td>{course.department || 'N/A'}</td>
                               <td>
                                 <span className={`${styles.gradeBadge} ${getGradeColor(course.grade)}`}>
@@ -930,7 +1116,7 @@ export default function StudentManagement() {
                                 </span>
                               </td>
                               <td>
-                                <button className={styles.iconBtn} onClick={() => openGradeModal(course)}>✏️</button>
+                                <button className={styles.iconBtn} onClick={() => openGradeModal(course)}><EditIcon size={14} /></button>
                               </td>
                             </tr>
                           ))}
@@ -938,7 +1124,7 @@ export default function StudentManagement() {
                       </table>
                     ) : (
                       <div className={styles.emptyCourses}>
-                        <span>📊</span>
+                        <span><ChartIcon size={48} /></span>
                         <p>No grades to display</p>
                       </div>
                     )}
@@ -950,14 +1136,14 @@ export default function StudentManagement() {
                     <div className={styles.tabHeader}>
                       <h3>Attendance Report</h3>
                     </div>
-                    {selectedStudent.enrolledCourses?.length > 0 ? (
+                    {activeCourses.length > 0 ? (
                       <div className={styles.attendanceList}>
-                        {selectedStudent.enrolledCourses.map(course => (
+                        {activeCourses.map(course => (
                           <div key={course.enrollmentId} className={styles.attendanceCard}>
                             <div className={styles.attendanceInfo}>
                               <div className={styles.attendanceCourse}>
-                                <span className={styles.codeBadge}>{course.code || 'N/A'}</span>
-                                {course.name || 'Unnamed Course'}
+                                <span className={styles.codeBadge}>{course.code || course.courseCode || 'N/A'}</span>
+                                {course.name || course.courseName || 'Unnamed Course'}
                               </div>
                             </div>
                             <div className={styles.attendanceBar}>
@@ -975,7 +1161,7 @@ export default function StudentManagement() {
                       </div>
                     ) : (
                       <div className={styles.emptyCourses}>
-                        <span>📅</span>
+                        <span><CalendarIcon size={48} /></span>
                         <p>No attendance records</p>
                       </div>
                     )}
@@ -985,7 +1171,7 @@ export default function StudentManagement() {
             </>
           ) : (
             <div className={styles.noSelection}>
-              <div className={styles.noSelectionIcon}>🎓</div>
+              <div className={styles.noSelectionIcon}><GraduationCapIcon size={64} /></div>
               <h3>Select a Student</h3>
               <p>Choose a student from the list to view their profile, courses, grades, and attendance.</p>
             </div>
@@ -1004,7 +1190,7 @@ export default function StudentManagement() {
             <div className={styles.modalBody}>
               {createdPassword ? (
                 <div className={styles.successMessage}>
-                  <div className={styles.successIcon}>✅</div>
+                  <div className={styles.successIcon}><CheckCircleIcon size={48} /></div>
                   <h3>Student account created successfully!</h3>
                   <div className={styles.credentialsBox}>
                     <p><strong>Email:</strong> {formData.email}</p>
@@ -1020,7 +1206,7 @@ export default function StudentManagement() {
                 </div>
               ) : (
                 <>
-                  {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+                  {formError && <div className={styles.formError}><AlertTriangleIcon size={16} /> {formError}</div>}
                   
                   <div className={styles.formSection}>
                     <h4>Personal Information</h4>
@@ -1057,32 +1243,97 @@ export default function StudentManagement() {
                       </div>
                       <div className={styles.formGroup}>
                         <label>Phone</label>
+                        <div className={styles.phoneInput}>
+                          <select
+                            value={formData.phoneCountry}
+                            onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
+                            className={styles.phoneCountrySelect}
+                          >
+                            <option value="+1">+1 (US)</option>
+                            <option value="+44">+44 (UK)</option>
+                            <option value="+61">+61 (AU)</option>
+                            <option value="+49">+49 (DE)</option>
+                            <option value="+33">+33 (FR)</option>
+                            <option value="+81">+81 (JP)</option>
+                            <option value="+86">+86 (CN)</option>
+                            <option value="+91">+91 (IN)</option>
+                            <option value="+971">+971 (UAE)</option>
+                            <option value="+966">+966 (SA)</option>
+                          </select>
+                          <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                            placeholder="(555) 123-4567"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label>Gender</label>
+                        <select
+                          value={formData.gender}
+                          onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                          <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Date of Birth</label>
                         <input
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                          placeholder="+1 (555) 123-4567"
+                          type="date"
+                          value={formData.dateOfBirth}
+                          onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                         />
                       </div>
                     </div>
 
-                    <div className={styles.formGroup}>
-                      <label>Address</label>
-                      <input
-                        type="text"
-                        value={formData.address}
-                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                        placeholder="123 Main St, City, State"
-                      />
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label>Nationality</label>
+                        <input
+                          type="text"
+                          value={formData.nationality}
+                          onChange={(e) => setFormData(prev => ({ ...prev, nationality: e.target.value }))}
+                          placeholder="e.g., American"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Country</label>
+                        <input
+                          type="text"
+                          value={formData.country}
+                          onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                          placeholder="e.g., United States"
+                        />
+                      </div>
                     </div>
 
-                    <div className={styles.formGroup}>
-                      <label>Date of Birth</label>
-                      <input
-                        type="date"
-                        value={formData.dateOfBirth}
-                        onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                      />
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label>City</label>
+                        <input
+                          type="text"
+                          value={formData.city}
+                          onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                          placeholder="e.g., New York"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Address</label>
+                        <input
+                          type="text"
+                          value={formData.address}
+                          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                          placeholder="123 Main St, Suite 100"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1098,6 +1349,17 @@ export default function StudentManagement() {
                           placeholder="STU-2025-001"
                         />
                       </div>
+                      <div className={styles.formGroup}>
+                        <label>Enrollment Date</label>
+                        <input
+                          type="date"
+                          value={formData.enrollmentDate}
+                          onChange={(e) => setFormData(prev => ({ ...prev, enrollmentDate: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.formRow}>
                       <div className={styles.formGroup}>
                         <label>Program</label>
                         <select
@@ -1117,9 +1379,27 @@ export default function StudentManagement() {
                           <option value="Law">Law</option>
                         </select>
                       </div>
+                      <div className={styles.formGroup}>
+                        <label>Major</label>
+                        <input
+                          type="text"
+                          value={formData.major}
+                          onChange={(e) => setFormData(prev => ({ ...prev, major: e.target.value }))}
+                          placeholder="e.g., Software Engineering"
+                        />
+                      </div>
                     </div>
 
                     <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label>Minor</label>
+                        <input
+                          type="text"
+                          value={formData.minor}
+                          onChange={(e) => setFormData(prev => ({ ...prev, minor: e.target.value }))}
+                          placeholder="e.g., Data Science"
+                        />
+                      </div>
                       <div className={styles.formGroup}>
                         <label>Year</label>
                         <select
@@ -1132,15 +1412,102 @@ export default function StudentManagement() {
                           <option value="Junior">Junior</option>
                           <option value="Senior">Senior</option>
                           <option value="Graduate">Graduate</option>
+                          <option value="PhD">PhD</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label>Semester</label>
+                        <select
+                          value={formData.semester}
+                          onChange={(e) => setFormData(prev => ({ ...prev, semester: e.target.value }))}
+                        >
+                          <option value="">Select Semester</option>
+                          <option value="Fall 2024">Fall 2024</option>
+                          <option value="Spring 2025">Spring 2025</option>
+                          <option value="Summer 2025">Summer 2025</option>
+                          <option value="Fall 2025">Fall 2025</option>
+                          <option value="Spring 2026">Spring 2026</option>
                         </select>
                       </div>
                       <div className={styles.formGroup}>
-                        <label>Advisor</label>
+                        <label>Credits Completed</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="200"
+                          value={formData.credits}
+                          onChange={(e) => setFormData(prev => ({ ...prev, credits: parseInt(e.target.value) || 0 }))}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label>GPA</label>
                         <input
                           type="text"
-                          value={formData.advisor}
-                          onChange={(e) => setFormData(prev => ({ ...prev, advisor: e.target.value }))}
-                          placeholder="Dr. Smith"
+                          value={formData.gpa}
+                          onChange={(e) => setFormData(prev => ({ ...prev, gpa: e.target.value }))}
+                          placeholder="e.g., 3.75"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Enrollment Status</label>
+                        <select
+                          value={formData.enrollmentStatus}
+                          onChange={(e) => setFormData(prev => ({ ...prev, enrollmentStatus: e.target.value }))}
+                        >
+                          <option value="Active">Active</option>
+                          <option value="On Leave">On Leave</option>
+                          <option value="Probation">Probation</option>
+                          <option value="Suspended">Suspended</option>
+                          <option value="Graduated">Graduated</option>
+                          <option value="Withdrawn">Withdrawn</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label>Advisor</label>
+                      <input
+                        type="text"
+                        value={formData.advisor}
+                        onChange={(e) => setFormData(prev => ({ ...prev, advisor: e.target.value }))}
+                        placeholder="Dr. Smith"
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.formSection}>
+                    <h4>Financial Information</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label>Scholarship Status</label>
+                        <select
+                          value={formData.scholarshipStatus}
+                          onChange={(e) => setFormData(prev => ({ ...prev, scholarshipStatus: e.target.value }))}
+                        >
+                          <option value="None">None</option>
+                          <option value="Full Scholarship">Full Scholarship</option>
+                          <option value="Partial Scholarship">Partial Scholarship</option>
+                          <option value="Merit-Based">Merit-Based</option>
+                          <option value="Need-Based">Need-Based</option>
+                          <option value="Athletic">Athletic</option>
+                          <option value="Research Grant">Research Grant</option>
+                        </select>
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Scholarship Amount ($)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.scholarshipAmount}
+                          onChange={(e) => setFormData(prev => ({ ...prev, scholarshipAmount: parseInt(e.target.value) || 0 }))}
+                          placeholder="0"
                         />
                       </div>
                     </div>
@@ -1170,8 +1537,22 @@ export default function StudentManagement() {
                     </div>
                   </div>
 
+                  <div className={styles.formSection}>
+                    <h4>Additional Notes</h4>
+                    <div className={styles.formGroup}>
+                      <label>Notes</label>
+                      <textarea
+                        value={formData.notes}
+                        onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Any additional notes about the student..."
+                        rows={4}
+                        className={styles.textarea}
+                      />
+                    </div>
+                  </div>
+
                   <p className={styles.formNote}>
-                    🔐 A temporary password will be generated and shown after creation.
+                    <LockIcon size={14} /> A temporary password will be generated and shown after creation.
                   </p>
                 </>
               )}
@@ -1197,7 +1578,7 @@ export default function StudentManagement() {
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
+              {formError && <div className={styles.formError}><AlertTriangleIcon size={16} /> {formError}</div>}
               
               <div className={styles.formSection}>
                 <h4>Personal Information</h4>
@@ -1228,11 +1609,29 @@ export default function StudentManagement() {
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
                     <label>Phone</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    />
+                    <div className={styles.phoneInput}>
+                      <select
+                        value={formData.phoneCountry}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phoneCountry: e.target.value }))}
+                        className={styles.phoneCountrySelect}
+                      >
+                        <option value="+1">+1 (US)</option>
+                        <option value="+44">+44 (UK)</option>
+                        <option value="+61">+61 (AU)</option>
+                        <option value="+49">+49 (DE)</option>
+                        <option value="+33">+33 (FR)</option>
+                        <option value="+81">+81 (JP)</option>
+                        <option value="+86">+86 (CN)</option>
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+971">+971 (UAE)</option>
+                        <option value="+966">+966 (SA)</option>
+                      </select>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      />
+                    </div>
                   </div>
                   <div className={styles.formGroup}>
                     <label>Date of Birth</label>
@@ -1240,6 +1639,49 @@ export default function StudentManagement() {
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Gender</label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Nationality</label>
+                    <input
+                      type="text"
+                      value={formData.nationality}
+                      onChange={(e) => setFormData(prev => ({ ...prev, nationality: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Country</label>
+                    <input
+                      type="text"
+                      value={formData.country}
+                      onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>City</label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -1266,6 +1708,17 @@ export default function StudentManagement() {
                     />
                   </div>
                   <div className={styles.formGroup}>
+                    <label>Enrollment Date</label>
+                    <input
+                      type="date"
+                      value={formData.enrollmentDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, enrollmentDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
                     <label>Program</label>
                     <select
                       value={formData.program}
@@ -1284,9 +1737,25 @@ export default function StudentManagement() {
                       <option value="Law">Law</option>
                     </select>
                   </div>
+                  <div className={styles.formGroup}>
+                    <label>Major</label>
+                    <input
+                      type="text"
+                      value={formData.major}
+                      onChange={(e) => setFormData(prev => ({ ...prev, major: e.target.value }))}
+                    />
+                  </div>
                 </div>
 
                 <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Minor</label>
+                    <input
+                      type="text"
+                      value={formData.minor}
+                      onChange={(e) => setFormData(prev => ({ ...prev, minor: e.target.value }))}
+                    />
+                  </div>
                   <div className={styles.formGroup}>
                     <label>Year</label>
                     <select
@@ -1299,14 +1768,98 @@ export default function StudentManagement() {
                       <option value="Junior">Junior</option>
                       <option value="Senior">Senior</option>
                       <option value="Graduate">Graduate</option>
+                      <option value="PhD">PhD</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Semester</label>
+                    <select
+                      value={formData.semester}
+                      onChange={(e) => setFormData(prev => ({ ...prev, semester: e.target.value }))}
+                    >
+                      <option value="">Select Semester</option>
+                      <option value="Fall 2024">Fall 2024</option>
+                      <option value="Spring 2025">Spring 2025</option>
+                      <option value="Summer 2025">Summer 2025</option>
+                      <option value="Fall 2025">Fall 2025</option>
+                      <option value="Spring 2026">Spring 2026</option>
                     </select>
                   </div>
                   <div className={styles.formGroup}>
-                    <label>Advisor</label>
+                    <label>Credits Completed</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="200"
+                      value={formData.credits}
+                      onChange={(e) => setFormData(prev => ({ ...prev, credits: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>GPA</label>
                     <input
                       type="text"
-                      value={formData.advisor}
-                      onChange={(e) => setFormData(prev => ({ ...prev, advisor: e.target.value }))}
+                      value={formData.gpa}
+                      onChange={(e) => setFormData(prev => ({ ...prev, gpa: e.target.value }))}
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Enrollment Status</label>
+                    <select
+                      value={formData.enrollmentStatus}
+                      onChange={(e) => setFormData(prev => ({ ...prev, enrollmentStatus: e.target.value }))}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="On Leave">On Leave</option>
+                      <option value="Probation">Probation</option>
+                      <option value="Suspended">Suspended</option>
+                      <option value="Graduated">Graduated</option>
+                      <option value="Withdrawn">Withdrawn</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Advisor</label>
+                  <input
+                    type="text"
+                    value={formData.advisor}
+                    onChange={(e) => setFormData(prev => ({ ...prev, advisor: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formSection}>
+                <h4>Financial Information</h4>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Scholarship Status</label>
+                    <select
+                      value={formData.scholarshipStatus}
+                      onChange={(e) => setFormData(prev => ({ ...prev, scholarshipStatus: e.target.value }))}
+                    >
+                      <option value="None">None</option>
+                      <option value="Full Scholarship">Full Scholarship</option>
+                      <option value="Partial Scholarship">Partial Scholarship</option>
+                      <option value="Merit-Based">Merit-Based</option>
+                      <option value="Need-Based">Need-Based</option>
+                      <option value="Athletic">Athletic</option>
+                      <option value="Research Grant">Research Grant</option>
+                    </select>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Scholarship Amount ($)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.scholarshipAmount}
+                      onChange={(e) => setFormData(prev => ({ ...prev, scholarshipAmount: parseInt(e.target.value) || 0 }))}
                     />
                   </div>
                 </div>
@@ -1333,92 +1886,25 @@ export default function StudentManagement() {
                   </div>
                 </div>
               </div>
+
+              <div className={styles.formSection}>
+                <h4>Additional Notes</h4>
+                <div className={styles.formGroup}>
+                  <label>Notes</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Any additional notes about the student..."
+                    rows={4}
+                    className={styles.textarea}
+                  />
+                </div>
+              </div>
             </div>
             <div className={styles.modalFooter}>
               <button className={styles.cancelBtn} onClick={() => setShowEditModal(false)}>Cancel</button>
               <button className={styles.submitBtn} onClick={handleUpdateStudent} disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Enroll in Course Modal */}
-      {showEnrollModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowEnrollModal(false)}>
-          <div className={styles.modalSmall} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>Enroll in Course</h2>
-              <button className={styles.closeBtn} onClick={() => setShowEnrollModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}>⚠️ {formError}</div>}
-              
-              <div className={styles.formGroup}>
-                <label>Select Course *</label>
-                <select
-                  value={enrollmentData.courseId}
-                  onChange={(e) => setEnrollmentData(prev => ({ ...prev, courseId: e.target.value }))}
-                >
-                  <option value="">Choose a course...</option>
-                  {availableCourses.map(course => (
-                    <option key={course.id} value={course.id}>
-                      {course.code} - {course.name || 'Unnamed Course'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Initial Grade</label>
-                  <select
-                    value={enrollmentData.grade}
-                    onChange={(e) => setEnrollmentData(prev => ({ ...prev, grade: e.target.value }))}
-                  >
-                    <option value="N/A">N/A</option>
-                    <option value="A+">A+</option>
-                    <option value="A">A</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B">B</option>
-                    <option value="B-">B-</option>
-                    <option value="C+">C+</option>
-                    <option value="C">C</option>
-                    <option value="C-">C-</option>
-                    <option value="D+">D+</option>
-                    <option value="D">D</option>
-                    <option value="D-">D-</option>
-                    <option value="F">F</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Attendance %</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={enrollmentData.attendance}
-                    onChange={(e) => setEnrollmentData(prev => ({ ...prev, attendance: parseInt(e.target.value) || 0 }))}
-                  />
-                </div>
-              </div>
-
-              {availableCourses.length === 0 && (
-                <p className={styles.formNote}>
-                  ⚠️ No courses available. Please create courses first.
-                </p>
-              )}
-            </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.cancelBtn} onClick={() => setShowEnrollModal(false)}>Cancel</button>
-              <button 
-                className={styles.submitBtn} 
-                onClick={handleEnrollStudent} 
-                disabled={isSubmitting || !enrollmentData.courseId}
-              >
-                {isSubmitting ? 'Enrolling...' : 'Enroll Student'}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./ParentManagement.module.css";
 import api from "../../lib/api";
+import { UsersIcon, AlertTriangleIcon, EditIcon, TrashIcon, XIcon, LockIcon, CheckCircleIcon, XCircleIcon } from "../../components/ui/Icons";
 
 interface Child {
   id: string;
@@ -11,15 +12,17 @@ interface Child {
 
 interface Parent {
   id: string;
-  name: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone?: string;
   phoneCountry?: string;
   address?: string;
   occupation?: string;
   relationship?: string;
-  emergencyContact?: boolean;
   status: "ACTIVE" | "INACTIVE";
+  isActive?: boolean;
   children: Child[];
   createdAt: string;
 }
@@ -84,11 +87,15 @@ export default function ParentManagement() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showChildrenModal, setShowChildrenModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedParent, setSelectedParent] = useState<Parent | null>(null);
+  const [createdTempPassword, setCreatedTempPassword] = useState<string | null>(null);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
 
   // Form data
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     phone: "",
@@ -96,10 +103,22 @@ export default function ParentManagement() {
     address: "",
     occupation: "",
     relationship: "Father",
-    emergencyContact: false,
     selectedChildren: [] as string[],
   });
   const [formLoading, setFormLoading] = useState(false);
+
+  // Helper to get display name from parent
+  const getParentName = (parent: Parent) => {
+    if (parent.firstName || parent.lastName) {
+      return `${parent.firstName || ''} ${parent.lastName || ''}`.trim();
+    }
+    return parent.name || parent.email;
+  };
+
+  // Helper to check if parent is active
+  const isParentActive = (parent: Parent) => {
+    return parent.status === "ACTIVE" || parent.isActive === true;
+  };
 
   useEffect(() => {
     fetchParents();
@@ -120,7 +139,7 @@ export default function ParentManagement() {
 
   const fetchStats = async () => {
     try {
-      const res = await api.get<Stats>("/parents/stats");
+      const res = await api.get<Stats>("/parents/stats/overview");
       setStats(res.data);
     } catch (err) {
       console.error("Failed to fetch stats:", err);
@@ -129,7 +148,7 @@ export default function ParentManagement() {
 
   const fetchAvailableStudents = async () => {
     try {
-      const res = await api.get<Student[]>("/parents/available-students");
+      const res = await api.get<Student[]>("/parents/available/students");
       setAvailableStudents(res.data);
     } catch (err) {
       console.error("Failed to fetch available students:", err);
@@ -138,9 +157,10 @@ export default function ParentManagement() {
 
   const filteredParents = useMemo(() => {
     return parents.filter((parent) => {
+      const parentName = getParentName(parent);
       const matchesSearch =
         searchQuery === "" ||
-        parent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        parentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         parent.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         parent.children.some(
           (child) =>
@@ -148,7 +168,7 @@ export default function ParentManagement() {
             child.studentId.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
-      const matchesStatus = filterStatus === "all" || parent.status === filterStatus;
+      const matchesStatus = filterStatus === "all" || parent.status === filterStatus || (filterStatus === "ACTIVE" && parent.isActive) || (filterStatus === "INACTIVE" && !parent.isActive);
       const matchesRelationship = filterRelationship === "all" || parent.relationship === filterRelationship;
 
       return matchesSearch && matchesStatus && matchesRelationship;
@@ -157,7 +177,8 @@ export default function ParentManagement() {
 
   const resetForm = () => {
     setFormData({
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
       phone: "",
@@ -165,7 +186,6 @@ export default function ParentManagement() {
       address: "",
       occupation: "",
       relationship: "Father",
-      emergencyContact: false,
       selectedChildren: [],
     });
   };
@@ -177,8 +197,17 @@ export default function ParentManagement() {
 
   const handleEdit = (parent: Parent) => {
     setSelectedParent(parent);
+    // Get firstName and lastName - either from direct properties or from name
+    let firstName = parent.firstName || '';
+    let lastName = parent.lastName || '';
+    if (!firstName && !lastName && parent.name) {
+      const nameParts = parent.name.split(' ');
+      firstName = nameParts[0] || '';
+      lastName = nameParts.slice(1).join(' ') || '';
+    }
     setFormData({
-      name: parent.name,
+      firstName,
+      lastName,
       email: parent.email,
       password: "",
       phone: parent.phone || "",
@@ -186,7 +215,6 @@ export default function ParentManagement() {
       address: parent.address || "",
       occupation: parent.occupation || "",
       relationship: parent.relationship || "Father",
-      emergencyContact: parent.emergencyContact || false,
       selectedChildren: parent.children.map((c) => c.id),
     });
     setShowEditModal(true);
@@ -211,19 +239,21 @@ export default function ParentManagement() {
     setFormLoading(true);
     try {
       const payload = {
-        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
-        password: formData.password,
         phone: formData.phone,
-        phoneCountry: formData.phoneCountry,
+        phoneCountryCode: formData.phoneCountry,
         address: formData.address,
         occupation: formData.occupation,
         relationship: formData.relationship,
-        emergencyContact: formData.emergencyContact,
-        childrenIds: formData.selectedChildren,
+        childIds: formData.selectedChildren,
       };
-      await api.post("/parents", payload);
+      const response = await api.post<{ tempPassword: string; email: string }>("/parents", payload);
       setShowAddModal(false);
+      setCreatedEmail(formData.email);
+      setCreatedTempPassword(response.data.tempPassword);
+      setShowSuccessModal(true);
       fetchParents();
       fetchStats();
       fetchAvailableStudents();
@@ -241,14 +271,14 @@ export default function ParentManagement() {
     setFormLoading(true);
     try {
       const payload: Record<string, unknown> = {
-        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone,
-        phoneCountry: formData.phoneCountry,
+        phoneCountryCode: formData.phoneCountry,
         address: formData.address,
         occupation: formData.occupation,
         relationship: formData.relationship,
-        emergencyContact: formData.emergencyContact,
       };
       if (formData.password) {
         payload.password = formData.password;
@@ -284,8 +314,8 @@ export default function ParentManagement() {
 
   const handleToggleStatus = async (parent: Parent) => {
     try {
-      const newStatus = parent.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-      await api.put(`/parents/${parent.id}`, { status: newStatus });
+      const newIsActive = !isParentActive(parent);
+      await api.put(`/parents/${parent.id}`, { isActive: newIsActive });
       fetchParents();
       fetchStats();
     } catch (err) {
@@ -294,7 +324,7 @@ export default function ParentManagement() {
   };
 
   const handleResetPassword = async (parent: Parent) => {
-    if (!confirm(`Reset password for ${parent.name}?`)) return;
+    if (!confirm(`Reset password for ${getParentName(parent)}?`)) return;
     try {
       const res = await api.post<{ temporaryPassword: string }>(`/parents/${parent.id}/reset-password`);
       alert(`Password reset to: ${res.data.temporaryPassword}`);
@@ -375,7 +405,7 @@ export default function ParentManagement() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.titleSection}>
-          <h1>👨‍👩‍👧‍👦 Parent Management</h1>
+          <h1><UsersIcon size={28} /> Parent Management</h1>
           <p>Manage parent accounts and their connections to students</p>
         </div>
         <div className={styles.headerActions}>
@@ -401,7 +431,7 @@ export default function ParentManagement() {
         </div>
         <div className={`${styles.statCard} ${styles.warning}`}>
           <h3>Avg. Children/Parent</h3>
-          <div className={styles.value}>{stats.averageChildren.toFixed(1)}</div>
+          <div className={styles.value}>{(stats.averageChildren ?? 0).toFixed(1)}</div>
         </div>
       </div>
 
@@ -470,17 +500,17 @@ export default function ParentManagement() {
           {filteredParents.map((parent) => (
             <div
               key={parent.id}
-              className={`${styles.parentCard} ${parent.status === "INACTIVE" ? styles.inactive : ""}`}
+              className={`${styles.parentCard} ${!isParentActive(parent) ? styles.inactive : ""}`}
             >
               <div className={styles.cardHeader}>
-                <h3>{parent.name}</h3>
+                <h3>{getParentName(parent)}</h3>
                 <p className={styles.parentEmail}>{parent.email}</p>
                 <span
                   className={`${styles.statusBadge} ${
-                    parent.status === "ACTIVE" ? styles.active : styles.inactive
+                    isParentActive(parent) ? styles.active : styles.inactive
                   }`}
                 >
-                  {parent.status}
+                  {isParentActive(parent) ? "ACTIVE" : "INACTIVE"}
                 </span>
               </div>
               <div className={styles.cardBody}>
@@ -500,11 +530,6 @@ export default function ParentManagement() {
                   <div className={styles.infoRow}>
                     <strong>Occupation:</strong>
                     <span className={styles.value}>{parent.occupation}</span>
-                  </div>
-                )}
-                {parent.emergencyContact && (
-                  <div className={styles.infoRow}>
-                    <span className={styles.value}>🚨 Emergency Contact</span>
                   </div>
                 )}
 
@@ -534,7 +559,7 @@ export default function ParentManagement() {
                             onClick={() => handleRemoveChild(parent, child.id)}
                             title="Remove child"
                           >
-                            ✕
+                            <XIcon size={14} />
                           </button>
                         </div>
                       ))}
@@ -544,16 +569,16 @@ export default function ParentManagement() {
               </div>
               <div className={styles.cardFooter}>
                 <button className={styles.editBtn} onClick={() => handleEdit(parent)}>
-                  ✏️ Edit
+                  <EditIcon size={14} /> Edit
                 </button>
                 <button className={styles.toggleBtn} onClick={() => handleToggleStatus(parent)}>
-                  {parent.status === "ACTIVE" ? "🚫" : "✅"}
+                  {isParentActive(parent) ? <XCircleIcon size={16} /> : <CheckCircleIcon size={16} />}
                 </button>
                 <button className={styles.resetBtn} onClick={() => handleResetPassword(parent)}>
-                  🔑
+                  <LockIcon size={16} />
                 </button>
                 <button className={styles.deleteBtn} onClick={() => handleDelete(parent)}>
-                  🗑️
+                  <TrashIcon size={16} />
                 </button>
               </div>
             </div>
@@ -568,22 +593,34 @@ export default function ParentManagement() {
             <div className={styles.modalHeader}>
               <h2>Add New Parent</h2>
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <form onSubmit={handleSubmitAdd}>
               <div className={styles.modalBody}>
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
-                    <label>Full Name *</label>
+                    <label>First Name *</label>
                     <input
                       type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       required
-                      placeholder="Enter full name"
+                      placeholder="Enter first name"
                     />
                   </div>
+                  <div className={styles.formGroup}>
+                    <label>Last Name *</label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      required
+                      placeholder="Enter last name"
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
                   <div className={styles.formGroup}>
                     <label>Email *</label>
                     <input
@@ -592,18 +629,6 @@ export default function ParentManagement() {
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
                       placeholder="Enter email address"
-                    />
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Password *</label>
-                    <input
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
-                      placeholder="Enter password"
                     />
                   </div>
                   <div className={styles.formGroup}>
@@ -662,20 +687,6 @@ export default function ParentManagement() {
                     />
                   </div>
                 </div>
-                <div className={styles.formGroup}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={formData.emergencyContact}
-                      onChange={(e) =>
-                        setFormData({ ...formData, emergencyContact: e.target.checked })
-                      }
-                      style={{ marginRight: "0.5rem" }}
-                    />
-                    Mark as Emergency Contact
-                  </label>
-                </div>
-
                 {/* Children Selection */}
                 <div className={styles.childrenSelection}>
                   <h4>Connect to Students</h4>
@@ -740,21 +751,32 @@ export default function ParentManagement() {
             <div className={styles.modalHeader}>
               <h2>Edit Parent</h2>
               <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <form onSubmit={handleSubmitEdit}>
               <div className={styles.modalBody}>
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
-                    <label>Full Name *</label>
+                    <label>First Name *</label>
                     <input
                       type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       required
                     />
                   </div>
+                  <div className={styles.formGroup}>
+                    <label>Last Name *</label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
                   <div className={styles.formGroup}>
                     <label>Email *</label>
                     <input
@@ -762,17 +784,6 @@ export default function ParentManagement() {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
-                    />
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>New Password (leave blank to keep current)</label>
-                    <input
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Enter new password"
                     />
                   </div>
                   <div className={styles.formGroup}>
@@ -789,6 +800,15 @@ export default function ParentManagement() {
                       ))}
                     </select>
                   </div>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>New Password (leave blank to keep current)</label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Enter new password"
+                  />
                 </div>
                 <div className={styles.formGroup}>
                   <label>Phone</label>
@@ -831,19 +851,6 @@ export default function ParentManagement() {
                     />
                   </div>
                 </div>
-                <div className={styles.formGroup}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={formData.emergencyContact}
-                      onChange={(e) =>
-                        setFormData({ ...formData, emergencyContact: e.target.checked })
-                      }
-                      style={{ marginRight: "0.5rem" }}
-                    />
-                    Mark as Emergency Contact
-                  </label>
-                </div>
               </div>
               <div className={styles.modalFooter}>
                 <button
@@ -869,16 +876,16 @@ export default function ParentManagement() {
             <div className={styles.modalHeader}>
               <h2>Delete Parent</h2>
               <button className={styles.closeBtn} onClick={() => setShowDeleteModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <div className={styles.modalBody}>
               <p>
-                Are you sure you want to delete <strong>{selectedParent.name}</strong>?
+                Are you sure you want to delete <strong>{getParentName(selectedParent)}</strong>?
               </p>
               {selectedParent.children.length > 0 && (
                 <p style={{ color: "var(--warning)", marginTop: "0.5rem" }}>
-                  ⚠️ This parent is connected to {selectedParent.children.length} student(s). The
+                  <AlertTriangleIcon size={16} /> This parent is connected to {selectedParent.children.length} student(s). The
                   connections will be removed.
                 </p>
               )}
@@ -912,9 +919,9 @@ export default function ParentManagement() {
         <div className={styles.modal}>
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
-              <h2>Manage Children for {selectedParent.name}</h2>
+              <h2>Manage Children for {getParentName(selectedParent)}</h2>
               <button className={styles.closeBtn} onClick={() => setShowChildrenModal(false)}>
-                ✕
+                <XIcon size={18} />
               </button>
             </div>
             <div className={styles.modalBody}>
@@ -972,6 +979,51 @@ export default function ParentManagement() {
                 disabled={formLoading}
               >
                 {formLoading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal - Show Temp Password */}
+      {showSuccessModal && createdTempPassword && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2>Parent Created Successfully</h2>
+              <button className={styles.closeBtn} onClick={() => {
+                setShowSuccessModal(false);
+                setCreatedTempPassword(null);
+                setCreatedEmail(null);
+              }}>
+                <XIcon size={18} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.successMessage}>
+                <CheckCircleIcon size={48} />
+                <p>The parent account has been created successfully.</p>
+              </div>
+              <div className={styles.credentialsBox}>
+                <h4>Login Credentials</h4>
+                <p><strong>Email:</strong> {createdEmail}</p>
+                <p><strong>Temporary Password:</strong> <code>{createdTempPassword}</code></p>
+                <p className={styles.warningText}>
+                  ⚠️ Please share these credentials securely with the parent. They will be required to change their password on first login.
+                </p>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.submitBtn}
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setCreatedTempPassword(null);
+                  setCreatedEmail(null);
+                }}
+              >
+                Done
               </button>
             </div>
           </div>

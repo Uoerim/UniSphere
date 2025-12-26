@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { AlertTriangleIcon, UsersIcon, UserIcon, BookOpenIcon, ChartIcon, BuildingIcon, CalendarIcon, EyeIcon } from '../../components/ui/Icons';
 import styles from './Courses.module.css';
 
 interface Instructor {
@@ -35,7 +35,6 @@ interface Child {
  * Features: View each child's courses, see course details
  */
 export default function ParentCourses() {
-  const { user } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -129,14 +128,14 @@ export default function ParentCourses() {
       {/* Error Message */}
       {error && (
         <div className={styles.errorBanner}>
-          <span>⚠️</span> {error}
+          <AlertTriangleIcon size={16} /> {error}
           <button onClick={() => setError('')}>×</button>
         </div>
       )}
 
       {children.length === 0 ? (
         <div className={styles.emptyState}>
-          <span>👨‍👩‍👧‍👦</span>
+          <UsersIcon size={48} />
           <h3>No Children Found</h3>
           <p>You don't have any children linked to your account. Please contact the administrator to link your children's accounts.</p>
         </div>
@@ -150,7 +149,7 @@ export default function ParentCourses() {
                 className={`${styles.tab} ${selectedChild?.id === child.id ? styles.activeTab : ''}`}
                 onClick={() => setSelectedChild(child)}
               >
-                👤 {child.name} ({child.courses.length} courses)
+                <UserIcon size={16} /> {child.name} ({child.courses.length} courses)
               </button>
             ))}
           </div>
@@ -160,21 +159,21 @@ export default function ParentCourses() {
             <>
               <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
-                  <div className={`${styles.statIcon} ${styles.primary}`}>👤</div>
+                  <div className={`${styles.statIcon} ${styles.primary}`}><UserIcon size={24} /></div>
                   <div className={styles.statInfo}>
                     <div className={styles.statValue}>{selectedChild.name}</div>
                     <div className={styles.statLabel}>Student</div>
                   </div>
                 </div>
                 <div className={styles.statCard}>
-                  <div className={`${styles.statIcon} ${styles.success}`}>📚</div>
+                  <div className={`${styles.statIcon} ${styles.success}`}><BookOpenIcon size={24} /></div>
                   <div className={styles.statInfo}>
                     <div className={styles.statValue}>{selectedChild.courses.length}</div>
                     <div className={styles.statLabel}>Enrolled Courses</div>
                   </div>
                 </div>
                 <div className={styles.statCard}>
-                  <div className={`${styles.statIcon} ${styles.info}`}>📊</div>
+                  <div className={`${styles.statIcon} ${styles.info}`}><ChartIcon size={24} /></div>
                   <div className={styles.statInfo}>
                     <div className={styles.statValue}>
                       {selectedChild.courses.reduce((acc, c) => acc + (c.credits || 0), 0)}
@@ -187,7 +186,7 @@ export default function ParentCourses() {
               {/* Child's Courses */}
               {selectedChild.courses.length === 0 ? (
                 <div className={styles.emptyState}>
-                  <span>📚</span>
+                  <BookOpenIcon size={48} />
                   <h3>No Enrolled Courses</h3>
                   <p>{selectedChild.name} is not enrolled in any courses yet.</p>
                 </div>
@@ -207,13 +206,13 @@ export default function ParentCourses() {
                       )}
                       <div className={styles.courseMeta}>
                         {course.department && (
-                          <span className={styles.metaItem}>🏛️ {course.department}</span>
+                          <span className={styles.metaItem}><BuildingIcon size={14} /> {course.department}</span>
                         )}
                         {course.credits && (
-                          <span className={styles.metaItem}>📊 {course.credits} Credits</span>
+                          <span className={styles.metaItem}><ChartIcon size={14} /> {course.credits} Credits</span>
                         )}
                         {course.semester && (
-                          <span className={styles.metaItem}>📅 {course.semester}</span>
+                          <span className={styles.metaItem}><CalendarIcon size={14} /> {course.semester}</span>
                         )}
                       </div>
                       <div className={styles.courseDetails}>
@@ -237,7 +236,7 @@ export default function ParentCourses() {
                           className={styles.viewBtn}
                           onClick={() => openCourseDetails(course)}
                         >
-                          👁️ View Details
+                          <EyeIcon size={16} /> View Details
                         </button>
                       </div>
                     </div>

@@ -389,13 +389,18 @@
 }
 
 .editBtn,
-.deleteBtn {
+.deleteBtn,
+.toggleBtn,
+.resetBtn {
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 8px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .editBtn {
@@ -407,9 +412,30 @@
   background: #3b5bdb;
 }
 
+.toggleBtn {
+  background: #fef3c7;
+  color: #d97706;
+  padding: 0.5rem;
+}
+
+.toggleBtn:hover {
+  background: #fde68a;
+}
+
+.resetBtn {
+  background: #e0f2fe;
+  color: #0284c7;
+  padding: 0.5rem;
+}
+
+.resetBtn:hover {
+  background: #bae6fd;
+}
+
 .deleteBtn {
   background: #fee2e2;
   color: #dc2626;
+  padding: 0.5rem;
 }
 
 .deleteBtn:hover {
@@ -1106,6 +1132,82 @@
   font-size: 0.85rem;
   color: #6c757d;
   margin-bottom: 1.5rem;
+}
+
+/* Phone Input */
+.phoneInput {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.phoneCountrySelect {
+  width: 110px;
+  flex-shrink: 0;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: white;
+}
+
+.phoneInput input {
+  flex: 1;
+}
+
+/* Textarea */
+.textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #4f6ef7;
+  box-shadow: 0 0 0 3px rgba(79, 110, 247, 0.1);
+}
+
+/* Notes Card */
+.notesCard {
+  grid-column: span 2;
+}
+
+.notesContent {
+  color: #495057;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding: 0.5rem 0;
+}
+
+/* Status Badges */
+.graduatedStatus {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: white !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.onLeaveStatus {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: white !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.scholarshipActive {
+  color: #059669 !important;
+  font-weight: 600;
 }
 
 /* Responsive */

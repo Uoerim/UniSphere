@@ -1,15 +1,15 @@
 .dashboardContainer {
   display: flex;
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--background);
 }
 
 .sidebar {
   width: 250px;
-  background: white;
-  border-right: 1px solid #e1e8ed;
+  background: var(--sidebar-bg, var(--card-bg));
+  border-right: 1px solid var(--border);
   padding: 20px;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
 }
@@ -17,10 +17,10 @@
 .sidebarTitle {
   font-size: 20px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--text);
   margin-bottom: 30px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #5b8dee;
+  border-bottom: 2px solid var(--primary);
 }
 
 .nav {
@@ -33,27 +33,27 @@
 .navLink {
   padding: 12px 16px;
   border-radius: 8px;
-  color: #4a5568;
+  color: var(--text-secondary);
   text-decoration: none;
   font-weight: 500;
   transition: all 0.2s;
 }
 
 .navLink:hover {
-  background: #f0f4ff;
-  color: #5b8dee;
+  background: var(--hover-bg);
+  color: var(--primary);
   transform: translateX(4px);
 }
 
 .navLink.active {
-  background: #5b8dee;
+  background: var(--primary);
   color: white;
 }
 
 .logoutBtn {
   margin-top: 20px;
   padding: 12px 16px;
-  background: #ef4444;
+  background: var(--danger);
   color: white;
   border: none;
   border-radius: 8px;
@@ -63,7 +63,7 @@
 }
 
 .logoutBtn:hover {
-  background: #dc2626;
+  opacity: 0.9;
 }
 
 .content {
@@ -73,12 +73,12 @@
 
 .content h1 {
   font-size: 32px;
-  color: #1a1a2e;
+  color: var(--text);
   margin-bottom: 8px;
 }
 
 .roleText {
-  color: #718096;
+  color: var(--text-secondary);
   font-size: 16px;
   margin-bottom: 30px;
 }
@@ -90,19 +90,20 @@
 }
 
 .statCard {
-  background: white;
+  background: var(--card-bg);
   padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .statCard h3 {
   font-size: 18px;
-  color: #1a1a2e;
+  color: var(--text);
   margin-bottom: 12px;
 }
 
 .statCard p {
-  color: #718096;
+  color: var(--text-secondary);
   margin: 0;
 }

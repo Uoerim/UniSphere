@@ -290,6 +290,15 @@ staffCoursesRouter.get("/:staffId/students", authenticateToken, requireAdminOrSt
         ])
       );
 
+      const studentEmail =
+        studentValues.email ||
+        studentValues.Email ||
+        studentValues.emailAddress ||
+        studentValues['Email Address'] ||
+        studentValues.contactEmail ||
+        (typeof studentValues.username === 'string' && studentValues.username.includes('@') ? studentValues.username : undefined) ||
+        studentValues.name;
+
       const courseValues = Object.fromEntries(
         course.values.map((v: any) => [
           v.attribute.name,
@@ -304,8 +313,8 @@ staffCoursesRouter.get("/:staffId/students", authenticateToken, requireAdminOrSt
         id: student.id,
         name: studentValues.firstName && studentValues.lastName
           ? `${studentValues.firstName} ${studentValues.lastName}`
-          : studentValues.name || studentValues.email || student.id,
-        email: studentValues.email,
+          : studentValues.name || studentEmail || student.id,
+        email: studentEmail,
         ...studentValues,
         course: {
           id: course.id,

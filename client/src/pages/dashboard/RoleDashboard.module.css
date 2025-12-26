@@ -557,6 +557,40 @@
   margin-bottom: 6px;
 }
 
+/* Simple table for grades */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.simpleTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.simpleTable th,
+.simpleTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.simpleTable th {
+  font-weight: 600;
+  color: #1f2937;
+  background: #f9fafb;
+}
+
+.simpleTable tr:hover td {
+  background: #f9fafb;
+}
+
+.badge.muted {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
 .announcementDate {
   font-size: 12px;
   color: #9ca3af;
