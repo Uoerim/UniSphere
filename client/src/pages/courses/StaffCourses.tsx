@@ -41,6 +41,70 @@ export default function StaffCourses() {
   const [courseStudents, setCourseStudents] = useState<Student[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
+  const dayAbbreviations: Record<string, string> = {
+    'M': 'Mon', 'T': 'Tue', 'W': 'Wed', 'R': 'Thu', 'Th': 'Thu', 'F': 'Fri', 'S': 'Sat', 'U': 'Sun',
+    'Mo': 'Mon', 'Tu': 'Tue', 'We': 'Wed', 'Fr': 'Fri', 'Sa': 'Sat', 'Su': 'Sun',
+    'Monday': 'Mon', 'Tuesday': 'Tue', 'Wednesday': 'Wed', 'Thursday': 'Thu',
+    'Friday': 'Fri', 'Saturday': 'Sat', 'Sunday': 'Sun'
+  };
+
+  const formatSchedule = (schedule?: string | any) => {
+    if (!schedule) return 'TBD';
+
+    try {
+      const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+      
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item: any) => {
+            if (!item) return '';
+            
+            let daysStr = '';
+            if (Array.isArray(item.days)) {
+              daysStr = item.days.map((d: string) => dayAbbreviations[d] || d).join('/');
+            } else if (item.day) {
+              daysStr = dayAbbreviations[item.day] || item.day;
+            }
+            
+            let timeStr = '';
+            if (item.startTime && item.endTime) {
+              const start = item.startTime.substring(0, 5);
+              const end = item.endTime.substring(0, 5);
+              timeStr = `${start}-${end}`;
+            }
+            
+            return [daysStr, timeStr].filter(Boolean).join(' ');
+          })
+          .filter(Boolean)
+          .join(', ');
+      }
+      
+      if (parsed && typeof parsed === 'object') {
+        let daysStr = '';
+        if (Array.isArray(parsed.days)) {
+          daysStr = parsed.days.map((d: string) => dayAbbreviations[d] || d).join('/');
+        } else if (parsed.day) {
+          daysStr = dayAbbreviations[parsed.day] || parsed.day;
+        }
+        
+        let timeStr = '';
+        if (parsed.startTime && parsed.endTime) {
+          const start = parsed.startTime.substring(0, 5);
+          const end = parsed.endTime.substring(0, 5);
+          timeStr = `${start}-${end}`;
+        }
+        
+        return [daysStr, timeStr].filter(Boolean).join(' ') || 'TBD';
+      }
+    } catch {
+      if (typeof schedule === 'string' && schedule.length < 100) {
+        return schedule;
+      }
+    }
+
+    return 'TBD';
+  };
+
   useEffect(() => {
     fetchMyCourses();
   }, []);
@@ -190,7 +254,7 @@ export default function StaffCourses() {
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Schedule:</span>
-                  <span className={styles.detailValue}>{course.schedule || 'TBD'}</span>
+                  <span className={styles.detailValue}>{formatSchedule(course.schedule)}</span>
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Enrolled:</span>

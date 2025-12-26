@@ -111,6 +111,37 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
       }
     });
 
+    // Fetch BELONGS_TO relations separately for departments
+    const courseIds = relations.map(r => r.toEntityId);
+    const belongsToRelations = await prisma.entityRelation.findMany({
+      where: {
+        relationType: 'BELONGS_TO',
+        fromEntityId: { in: courseIds }
+      },
+      include: {
+        toEntity: {
+          include: {
+            values: { include: { attribute: true } }
+          }
+        }
+      }
+    });
+
+    // Create a map of course ID to department
+    const courseDeptMap = new Map<string, any>();
+    belongsToRelations.forEach(rel => {
+      const deptAttrs: Record<string, any> = {};
+      rel.toEntity.values.forEach((v: any) => {
+        deptAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      courseDeptMap.set(rel.fromEntityId, {
+        id: rel.toEntityId,
+        name: rel.toEntity.name || deptAttrs.departmentName || deptAttrs.name || 'Unknown Department',
+        code: deptAttrs.departmentCode || deptAttrs.code,
+        ...deptAttrs
+      });
+    });
+
     const courses = relations.map((rel: any) => {
       const course = rel.toEntity;
       const attrs: Record<string, any> = {};
@@ -144,6 +175,9 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
       // Extract course name with fallbacks (same as student.routes)
       const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
 
+      // Get department from map
+      const department = courseDeptMap.get(course.id);
+
       return {
         id: course.id,
         name: courseName,
@@ -151,7 +185,9 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         isActive: course.isActive,
         code: attrs.courseCode || attrs.code,
         credits: attrs.credits,
-        department: attrs.department,
+        department: department ? department.name : attrs.department,
+        departmentId: department?.id,
+        departmentData: department,
         semester: attrs.semester,
         courseType: attrs.courseType,
         room: attrs.room,
@@ -366,11 +402,27 @@ router.get("/", authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    // Fetch BELONGS_TO relations separately for departments
+    const belongsToRelations = await prisma.entityRelation.findMany({
+      where: {
+        relationType: 'BELONGS_TO',
+        fromEntityId: { in: courses.map(c => c.id) }
+      }
+    });
+
+    // Create a map of course ID to department ID
+    const courseDeptMap = new Map<string, string>();
+    belongsToRelations.forEach(rel => {
+      courseDeptMap.set(rel.fromEntityId, rel.toEntityId);
+    });
+
     const formattedCourses = courses.map((course: any) => {
       const attrs: Record<string, string | number | boolean | Date | null> = {};
       course.values.forEach((v: any) => {
         attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate || v.valueDateTime || v.valueText;
       });
+
+      const departmentId = courseDeptMap.get(course.id);
 
       // Find all instructors (TEACHES relations)
       const instructorRelations = course.relationsTo.filter((r: any) => r.relationType === 'TEACHES' && r.isActive);
@@ -382,6 +434,7 @@ router.get("/", authenticateToken, async (req, res) => {
         });
         return {
           id: instructorEntity.id,
+          accountId: instructorEntity.accountId,
           name: instrAttrs.firstName && instrAttrs.lastName
             ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
             : instructorEntity.account?.email || 'Unknown',
@@ -424,6 +477,7 @@ router.get("/", authenticateToken, async (req, res) => {
         code: attrs.courseCode || attrs.code,
         credits: attrs.credits,
         department: attrs.department,
+        departmentId,
         semester: attrs.semester,
         courseType: attrs.courseType || attrs.type,
         capacity: attrs.capacity || 30,
