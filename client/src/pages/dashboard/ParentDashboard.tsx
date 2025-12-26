@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { BookOpenIcon, ChartIcon, CalendarIcon, ClipboardIcon, CheckCircleIcon, UsersIcon, BellIcon, FileTextIcon } from '../../components/ui/Icons';
 import styles from './RoleDashboard.module.css';
@@ -10,6 +11,7 @@ interface Child {
   attendance: number;
   gpa: number;
   avatar: string;
+  courseCount?: number;
 }
 
 interface Grade {
@@ -35,30 +37,19 @@ interface Payment {
 }
 
 export default function ParentDashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = useState<string>('');
   const [grades, setGrades] = useState<Grade[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data - in production, fetch from API
-    const childrenData = [
-      { id: '1', name: 'Alex Johnson', grade: '10th Grade', attendance: 95, gpa: 3.8, avatar: 'A' },
-      { id: '2', name: 'Emma Johnson', grade: '7th Grade', attendance: 98, gpa: 3.9, avatar: 'E' },
-    ];
-    setChildren(childrenData);
-    setSelectedChild(childrenData[0].id);
+    fetchChildren();
 
-    setGrades([
-      { course: 'Mathematics', grade: 'A', percentage: 92, trend: 'up' },
-      { course: 'English', grade: 'A-', percentage: 88, trend: 'stable' },
-      { course: 'Science', grade: 'B+', percentage: 85, trend: 'up' },
-      { course: 'History', grade: 'A', percentage: 94, trend: 'up' },
-      { course: 'Physical Education', grade: 'A', percentage: 96, trend: 'stable' },
-    ]);
-
+    // Events and payments remain as sample data - can be connected to API later
     setEvents([
       { id: '1', title: 'Parent-Teacher Conference', date: '2025-12-27', type: 'meeting' },
       { id: '2', title: 'Winter Concert', date: '2025-12-28', type: 'event' },
@@ -72,6 +63,45 @@ export default function ParentDashboard() {
       { id: '3', description: 'Field Trip Fee', amount: 75, dueDate: '2025-12-28', status: 'pending' },
     ]);
   }, []);
+
+  const fetchChildren = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('http://localhost:4000/api/parents/me/children', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const formattedChildren = data.map((child: any) => ({
+          id: child.id,
+          name: child.name,
+          grade: child.grade || 'N/A',
+          attendance: 95, // Placeholder until attendance API
+          gpa: 0.0, // Placeholder until grades API
+          avatar: child.avatar,
+          courseCount: child.courseCount || 0
+        }));
+        setChildren(formattedChildren);
+        if (formattedChildren.length > 0) {
+          setSelectedChild(formattedChildren[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch children:', error);
+    } finally {
+      setIsLoading(false);
+    }
+
+    // Grades remain as sample until grades API is connected
+    setGrades([
+      { course: 'Mathematics', grade: 'A', percentage: 92, trend: 'up' },
+      { course: 'English', grade: 'A-', percentage: 88, trend: 'stable' },
+      { course: 'Science', grade: 'B+', percentage: 85, trend: 'up' },
+      { course: 'History', grade: 'A', percentage: 94, trend: 'up' },
+      { course: 'Physical Education', grade: 'A', percentage: 96, trend: 'stable' },
+    ]);
+  };
 
   const currentChild = children.find(c => c.id === selectedChild) || children[0];
 
@@ -189,8 +219,8 @@ export default function ParentDashboard() {
                 <div className={styles.gradeInfo}>
                   <div className={styles.courseName}>{grade.course}</div>
                   <div className={styles.gradeBar}>
-                    <div 
-                      className={styles.gradeFill} 
+                    <div
+                      className={styles.gradeFill}
                       style={{ width: `${grade.percentage}%` }}
                     />
                   </div>
@@ -217,10 +247,10 @@ export default function ParentDashboard() {
                 <div className={styles.eventContent}>
                   <div className={styles.eventTitle}>{event.title}</div>
                   <div className={styles.eventDate}>
-                    {new Date(event.date).toLocaleDateString('en-US', { 
-                      weekday: 'short', 
-                      month: 'short', 
-                      day: 'numeric' 
+                    {new Date(event.date).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric'
                     })}
                   </div>
                 </div>
