@@ -1,6 +1,6 @@
 .container {
     padding: 24px;
-    max-width: 1200px;
+    max-width: 1080px;
     margin: 0 auto;
 }
 
@@ -76,9 +76,10 @@
 /* Stats Grid */
 .statsGrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
+    align-items: stretch;
 }
 
 .statCard {
@@ -89,6 +90,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    justify-content: center;
 }
 
 .statIcon {
@@ -136,8 +138,9 @@
 /* Main Grid */
 .mainGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 24px;
+    justify-items: center;
 }
 
 /* Card */
@@ -146,6 +149,8 @@
     border-radius: 16px;
     padding: 24px;
     border: 1px solid var(--border);
+    width: 100%;
+    max-width: 780px;
 }
 
 .cardHeader {
@@ -187,6 +192,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    align-items: center;
 }
 
 .courseItem {
@@ -198,6 +204,8 @@
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
+    width: 100%;
+    max-width: 720px;
 }
 
 .courseItem:hover {

@@ -21,6 +21,8 @@ interface Course {
   schedule?: string;
   room?: string;
   capacity?: number;
+  department?: string;
+  departmentCode?: string;
 }
 interface Task {
   id: string;
@@ -86,6 +88,8 @@ export default function StaffDashboard() {
         room: c.room || 'TBD',
         capacity: c.capacity,
         students: c.enrolledStudents ?? 0,
+        department: c.department || c.departmentData?.name,
+        departmentCode: c.departmentData?.code,
       }));
       setCourses(normalized);
     } catch (err: any) {
@@ -138,7 +142,7 @@ export default function StaffDashboard() {
 
   // Helpers for calculating dashboard stats
   const totalStudents = courses.reduce((sum: number, c: Course) => sum + (c.students || 0), 0);
-  const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Pending').length;
+  const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Submitted').length;
   const highPriorityTasks = tasks.filter((t: Task) => t.priority === 'high').length;
 
   if (loading) {
@@ -228,6 +232,11 @@ export default function StaffDashboard() {
                   <span className={styles.studentCount}>{course.students} students</span>
                 </div>
                 <div className={styles.courseName}>{course.name}</div>
+                {course.department && (
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '6px' }}>
+                    📚 {course.departmentCode ? `${course.departmentCode} - ` : ''}{course.department}
+                  </div>
+                )}
                 <div className={styles.courseDetails}>
                   <span><ClockIcon size={14} /> {course.schedule || 'Schedule TBD'}</span>
                   <span><MapPinIcon size={14} /> {course.room || 'Room TBD'}</span>

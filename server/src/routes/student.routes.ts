@@ -313,24 +313,58 @@ studentRouter.get("/me/courses", authenticateToken, async (req, res) => {
       return res.json([]);
     }
 
-    const courses = entity.relationsFrom
-      ?.filter((rel: any) => rel.relationType === "ENROLLED_IN")
-      ?.map((rel: any) => {
-        const course = normalizeEntity(rel.toEntity);
-        const metadata = rel.metadata ? JSON.parse(rel.metadata) : {};
-        return {
-          ...course,
-          name: extractCourseName(rel.toEntity),
-          courseName: extractCourseName(rel.toEntity),
-          code: extractCourseCode(rel.toEntity),
-          courseCode: extractCourseCode(rel.toEntity),
-          enrollmentId: rel.id,
-          grade: metadata.grade ?? 'N/A',
-          attendance: metadata.attendance ?? 0,
-          enrolledAt: rel.startDate || rel.createdAt,
-          status: rel.isActive ? 'active' : 'dropped'
-        };
-      }) || [];
+    const enrollments = entity.relationsFrom?.filter((rel: any) => rel.relationType === "ENROLLED_IN") || [];
+    const courseIds = enrollments.map((rel: any) => rel.toEntityId);
+
+    // Fetch department relations for courses
+    const belongsToRelations = await prisma.entityRelation.findMany({
+      where: {
+        relationType: 'BELONGS_TO',
+        fromEntityId: { in: courseIds }
+      },
+      include: {
+        toEntity: {
+          include: {
+            values: { include: { attribute: true } }
+          }
+        }
+      }
+    });
+
+    const courseDeptMap = new Map<string, any>();
+    belongsToRelations.forEach(rel => {
+      const deptAttrs: Record<string, any> = {};
+      rel.toEntity.values.forEach((v: any) => {
+        deptAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      courseDeptMap.set(rel.fromEntityId, {
+        id: rel.toEntityId,
+        name: rel.toEntity.name || deptAttrs.departmentName || deptAttrs.name || 'Unknown Department',
+        code: deptAttrs.departmentCode || deptAttrs.code,
+        ...deptAttrs
+      });
+    });
+
+    const courses = enrollments.map((rel: any) => {
+      const course = normalizeEntity(rel.toEntity);
+      const metadata = rel.metadata ? JSON.parse(rel.metadata) : {};
+      const department = courseDeptMap.get(rel.toEntityId);
+
+      return {
+        ...course,
+        name: extractCourseName(rel.toEntity),
+        courseName: extractCourseName(rel.toEntity),
+        code: extractCourseCode(rel.toEntity),
+        courseCode: extractCourseCode(rel.toEntity),
+        enrollmentId: rel.id,
+        grade: metadata.grade ?? 'N/A',
+        attendance: metadata.attendance ?? 0,
+        enrolledAt: rel.startDate || rel.createdAt,
+        status: rel.isActive ? 'active' : 'dropped',
+        department: department?.name,
+        departmentCode: department?.code,
+      };
+    });
 
     res.json(courses);
   } catch (error) {
