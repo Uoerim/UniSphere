@@ -483,4 +483,64 @@ model Message {
   @@map("messages")
 }
 
+// ============================================
+// REAL-TIME CHAT
+// ============================================
 
+model Conversation {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  participants  ConversationParticipant[]
+  messages      ChatMessage[]
+  
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id              String       @id @default(cuid())
+  conversationId  String
+  accountId       String
+  joinedAt        DateTime     @default(now())
+  lastReadAt      DateTime?
+  
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@unique([conversationId, accountId])
+  @@index([accountId])
+  @@map("conversation_participants")
+}
+
+model ChatMessage {
+  id              String       @id @default(cuid())
+  conversationId  String
+  senderId        String       // accountId
+  content         String       @db.Text
+  createdAt       DateTime     @default(now())
+  
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("chat_messages")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id          String   @id @default(cuid())
+  accountId   String
+  type        String   // "message", "assignment", "grade", "announcement"
+  title       String
+  body        String   @db.Text
+  link        String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  @@index([accountId])
+  @@index([isRead])
+  @@map("notifications")
+}

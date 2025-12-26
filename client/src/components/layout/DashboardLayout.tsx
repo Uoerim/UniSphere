@@ -1,6 +1,7 @@
 import { useAuth } from '../../context/AuthContext';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import styles from './DashboardLayout.module.css';
+import NotificationBell from '../ui/NotificationBell';
 import {
   DashboardIcon,
   UsersIcon,
@@ -17,8 +18,6 @@ import {
   SettingsIcon,
   LogoutIcon,
   MailIcon,
-  BellIcon,
-  CheckCircleIcon,
   ChartIcon
 } from '../ui/Icons';
 
@@ -161,14 +160,10 @@ export default function DashboardLayout() {
           </div>
 
           <div className={styles.headerRight}>
-            <div className={styles.headerIcon}>
+            <Link to="/messages" className={styles.headerIcon}>
               <MailIcon size={18} />
-              <span className={styles.notificationBadge}></span>
-            </div>
-            <div className={styles.headerIcon}>
-              <BellIcon size={18} />
-              <span className={styles.notificationBadge}></span>
-            </div>
+            </Link>
+            <NotificationBell />
           </div>
         </header>
 
