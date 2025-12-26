@@ -69,14 +69,40 @@ const resolveInstructorEntityId = async (instructorId?: string | null) => {
 router.get("/my-courses", authenticateToken, async (req, res) => {
   try {
     const user = (req as any).user;
+    console.log('📚 /my-courses called for user:', user.id, user.role);
 
     // Find the user's entity via account relation
-    const account = await prisma.account.findUnique({
+    let account = await prisma.account.findUnique({
       where: { id: user.id },
       include: { entity: true }
     });
 
+    console.log('🔍 Account found:', account?.id, 'Entity ID:', account?.entity?.id);
+
+    // If no entity, create one
     if (!account?.entity) {
+      console.log('⚠️  No entity found, creating one for user:', user.id);
+      const newEntity = await prisma.entity.create({
+        data: {
+          name: user.email || `${user.role} ${user.id}`,
+          type: user.role === 'STAFF' ? 'STAFF' : 'STUDENT',
+          isActive: true
+        }
+      });
+      // Link entity to account
+      await prisma.account.update({
+        where: { id: user.id },
+        data: { entityId: newEntity.id }
+      });
+      account = await prisma.account.findUnique({
+        where: { id: user.id },
+        include: { entity: true }
+      });
+      console.log('✓ Entity created:', newEntity.id);
+    }
+
+    if (!account?.entity) {
+      console.log('❌ No entity even after creation');
       return res.json([]);
     }
 
@@ -84,6 +110,7 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
 
     // Get courses based on user role
     const relationType = user.role === 'STAFF' ? 'TEACHES' : 'ENROLLED_IN';
+    console.log('🔎 Looking for', relationType, 'relations from entity:', userEntityId);
 
     const relations = await prisma.entityRelation.findMany({
       where: {
@@ -110,6 +137,9 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         }
       }
     });
+
+    console.log('✅ Found', relations.length, 'relations');
+    relations.forEach(r => console.log('  - Relation to:', r.toEntity.name, '(', r.toEntity.id, ')'));
 
     // Fetch BELONGS_TO relations separately for departments
     const courseIds = relations.map(r => r.toEntityId);
@@ -1183,6 +1213,100 @@ router.get("/stats/overview", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Get course stats error:", error);
     res.status(500).json({ error: "Failed to fetch course statistics" });
+  }
+});
+
+// ASSIGN CURRENT INSTRUCTOR TO A COURSE
+// POST /api/curriculum/:courseId/assign-instructor
+router.post("/:courseId/assign-instructor", authenticateToken, requireAdminOrStaff, async (req, res) => {
+  try {
+    const courseId = req.params.courseId;
+    const user = (req as any).user;
+
+    console.log('📎 Assign instructor to course:', courseId, 'for user:', user.id);
+
+    // Get the staff member's entity
+    let account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+
+    if (!account?.entity) {
+      console.log('⚠️  No entity found, creating one for staff member:', user.id);
+      // Create entity if it doesn't exist
+      const newEntity = await prisma.entity.create({
+        data: {
+          name: user.email || `Staff ${user.id}`,
+          type: 'STAFF',
+          isActive: true
+        }
+      });
+      // Link entity to account
+      await prisma.account.update({
+        where: { id: user.id },
+        data: { entityId: newEntity.id }
+      });
+      account = await prisma.account.findUnique({
+        where: { id: user.id },
+        include: { entity: true }
+      });
+      console.log('✓ Entity created:', newEntity.id);
+    }
+
+    if (!account?.entity) {
+      console.log('❌ Still no entity after creation');
+      return res.status(400).json({ error: "Failed to create staff member entity" });
+    }
+
+    const staffEntityId = account.entity.id;
+    console.log('✓ Staff entity ID:', staffEntityId);
+
+    // Check if course exists
+    const course = await prisma.entity.findUnique({
+      where: { id: courseId }
+    });
+
+    if (!course) {
+      console.log('❌ Course not found:', courseId);
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    console.log('✓ Course found:', course.name);
+
+    // Check if TEACHES relation already exists
+    const existingRelation = await prisma.entityRelation.findFirst({
+      where: {
+        fromEntityId: staffEntityId,
+        toEntityId: courseId,
+        relationType: 'TEACHES'
+      }
+    });
+
+    if (existingRelation) {
+      console.log('⚠️  Relation already exists');
+      return res.status(400).json({ error: "This instructor is already assigned to this course" });
+    }
+
+    // Create TEACHES relation
+    const newRelation = await prisma.entityRelation.create({
+      data: {
+        fromEntityId: staffEntityId,
+        toEntityId: courseId,
+        relationType: 'TEACHES',
+        startDate: new Date()
+      }
+    });
+
+    console.log('✅ TEACHES relation created:', newRelation.id);
+
+    res.json({ 
+      message: "Instructor assigned to course successfully",
+      courseId,
+      instructorId: staffEntityId
+    });
+  } catch (error) {
+    console.error("Assign instructor error:", error);
+    res.status(500).json({ error: "Failed to assign instructor to course" });
   }
 });
 

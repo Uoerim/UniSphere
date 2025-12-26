@@ -39,16 +39,16 @@ const ASSESSMENT_TYPES = ['Final', 'Midterm', 'Quiz'] as const;
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const user = (req as any).user;
-    
-    // For students, only show assessments for their enrolled courses
-    let courseFilter: any = {};
-    if (user.role === 'STUDENT') {
-      const account = await prisma.account.findUnique({
-        where: { id: user.id },
-        include: { entity: true }
-      });
-      
-      if (account?.entity) {
+
+    // Determine allowed courses by role using relations, not a courseId field
+    let allowedCourseIds: string[] = [];
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+
+    if (account?.entity) {
+      if (user.role === 'STUDENT') {
         const enrollments = await prisma.entityRelation.findMany({
           where: {
             fromEntityId: account.entity.id,
@@ -57,15 +57,22 @@ router.get("/", authenticateToken, async (req, res) => {
           },
           select: { toEntityId: true }
         });
-        courseFilter = { courseId: { in: enrollments.map(e => e.toEntityId) } };
+        allowedCourseIds = enrollments.map(e => e.toEntityId);
+      } else if (user.role === 'STAFF') {
+        const teaches = await prisma.entityRelation.findMany({
+          where: {
+            fromEntityId: account.entity.id,
+            relationType: 'TEACHES',
+            isActive: true
+          },
+          select: { toEntityId: true }
+        });
+        allowedCourseIds = teaches.map(t => t.toEntityId);
       }
     }
 
     const assessments = await prisma.entity.findMany({
-      where: { 
-        type: 'ASSESSMENT',
-        ...courseFilter
-      },
+      where: { type: 'ASSESSMENT' },
       include: {
         values: { include: { attribute: true } },
         relationsFrom: {
@@ -80,46 +87,53 @@ router.get("/", authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const formatted = assessments.map(assessment => {
-      const attrs: Record<string, any> = {};
-      assessment.values.forEach(v => {
-        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
-      });
-
-      // Get related course
-      const courseRel = assessment.relationsFrom.find(r => r.relationType === 'ASSESSMENT_FOR');
-      let course = null;
-      if (courseRel) {
-        const courseAttrs: Record<string, any> = {};
-        courseRel.toEntity.values.forEach(v => {
-          courseAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+    const formatted = assessments
+      .map(assessment => {
+        const attrs: Record<string, any> = {};
+        assessment.values.forEach(v => {
+          attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
         });
-        course = {
-          id: courseRel.toEntity.id,
-          name: courseRel.toEntity.name,
-          code: courseAttrs.courseCode || courseAttrs.code
-        };
-      }
 
-      return {
-        id: assessment.id,
-        name: assessment.name,
-        description: assessment.description,
-        isActive: assessment.isActive,
-        createdAt: assessment.createdAt,
-        assessmentType: attrs.assessmentType, // Final, Midterm, Quiz
-        totalMarks: attrs.totalMarks || attrs.maxScore,
-        passingMarks: attrs.passingMarks,
-        duration: attrs.duration, // in minutes
-        date: attrs.date || attrs.examDate,
-        startTime: attrs.startTime,
-        endTime: attrs.endTime,
-        room: attrs.room || attrs.location,
-        instructions: attrs.instructions,
-        course,
-        weight: attrs.weight // percentage of final grade
-      };
-    });
+        // Get related course via relation (no courseId column exists)
+        const courseRel = assessment.relationsFrom.find(r => r.relationType === 'ASSESSMENT_FOR');
+        let course = null as null | { id: string; name: string; code?: any };
+        if (courseRel) {
+          const courseAttrs: Record<string, any> = {};
+          courseRel.toEntity.values.forEach(v => {
+            courseAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+          });
+          course = {
+            id: courseRel.toEntity.id,
+            name: courseRel.toEntity.name,
+            code: courseAttrs.courseCode || courseAttrs.code
+          };
+        }
+
+        // Filter for students and staff by allowed courses
+        if ((user.role === 'STUDENT' || user.role === 'STAFF') && course && allowedCourseIds.length > 0 && !allowedCourseIds.includes(course.id)) {
+          return null;
+        }
+
+        return {
+          id: assessment.id,
+          name: assessment.name,
+          description: assessment.description,
+          isActive: assessment.isActive,
+          createdAt: assessment.createdAt,
+          assessmentType: attrs.assessmentType,
+          totalMarks: attrs.totalMarks || attrs.maxScore,
+          passingMarks: attrs.passingMarks,
+          duration: attrs.duration,
+          date: attrs.date || attrs.examDate,
+          startTime: attrs.startTime,
+          endTime: attrs.endTime,
+          room: attrs.room || attrs.location,
+          instructions: attrs.instructions,
+          course,
+          weight: attrs.weight
+        };
+      })
+      .filter(Boolean);
 
     res.json(formatted);
   } catch (error) {
@@ -132,6 +146,41 @@ router.get("/", authenticateToken, async (req, res) => {
 router.get("/course/:courseId", authenticateToken, async (req, res) => {
   try {
     const { courseId } = req.params;
+    const user = (req as any).user;
+
+    // Access control: staff must teach, students must be enrolled
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+
+    if (!account?.entity) {
+      return res.status(403).json({ error: "User entity not found" });
+    }
+
+    if (user.role === 'STAFF') {
+      const teaches = await prisma.entityRelation.findFirst({
+        where: {
+          fromEntityId: account.entity.id,
+          toEntityId: courseId,
+          relationType: 'TEACHES',
+          isActive: true
+        }
+      });
+      if (!teaches) return res.status(403).json({ error: "You do not teach this course" });
+    }
+
+    if (user.role === 'STUDENT') {
+      const enrolled = await prisma.entityRelation.findFirst({
+        where: {
+          fromEntityId: account.entity.id,
+          toEntityId: courseId,
+          relationType: 'ENROLLED_IN',
+          isActive: true
+        }
+      });
+      if (!enrolled) return res.status(403).json({ error: "You are not enrolled in this course" });
+    }
 
     const relations = await prisma.entityRelation.findMany({
       where: {

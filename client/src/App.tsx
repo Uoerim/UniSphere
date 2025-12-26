@@ -15,7 +15,6 @@ import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
 import StaffManagement from './pages/staff/StaffManagement';
 import StaffPage from './pages/staff/StaffPage';
-import Departments from './pages/departments/Departments';
 import ParentManagement from './pages/parents/ParentManagement';
 import Assessments from './pages/assessments/Assessments';
 import Assignments from './pages/assignments/Assignments';
@@ -86,7 +85,6 @@ function AppRoutes() {
           <Route path="staff-old" element={<Staff />} />
           <Route path="courses" element={<CoursesRouter />} />
           <Route path="facilities" element={<Facilities />} />
-          <Route path="departments" element={<Departments />} />
           <Route path="parents" element={<ParentManagement />} />
           <Route path="assessments" element={<Assessments />} />
           <Route path="assignments" element={<Assignments />} />

@@ -41,7 +41,8 @@ router.get("/", authenticateToken, async (req, res) => {
     const user = (req as any).user;
     
     // For students, only show assignments for their enrolled courses
-    let enrolledCourseIds: string[] = [];
+    // For staff, only show assignments for their taught courses
+    let allowedCourseIds: string[] = [];
     if (user.role === 'STUDENT') {
       const account = await prisma.account.findUnique({
         where: { id: user.id },
@@ -57,7 +58,24 @@ router.get("/", authenticateToken, async (req, res) => {
           },
           select: { toEntityId: true }
         });
-        enrolledCourseIds = enrollments.map(e => e.toEntityId);
+        allowedCourseIds = enrollments.map(e => e.toEntityId);
+      }
+    } else if (user.role === 'STAFF') {
+      const account = await prisma.account.findUnique({
+        where: { id: user.id },
+        include: { entity: true }
+      });
+      
+      if (account?.entity) {
+        const teaches = await prisma.entityRelation.findMany({
+          where: {
+            fromEntityId: account.entity.id,
+            relationType: 'TEACHES',
+            isActive: true
+          },
+          select: { toEntityId: true }
+        });
+        allowedCourseIds = teaches.map(t => t.toEntityId);
       }
     }
 
@@ -99,8 +117,8 @@ router.get("/", authenticateToken, async (req, res) => {
           };
         }
 
-        // Filter for students
-        if (user.role === 'STUDENT' && course && !enrolledCourseIds.includes(course.id)) {
+        // Filter for students and staff - only show assignments for allowed courses
+        if ((user.role === 'STUDENT' || user.role === 'STAFF') && course && !allowedCourseIds.includes(course.id)) {
           return null;
         }
 

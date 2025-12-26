@@ -133,10 +133,18 @@ staffDashboardRouter.get("/courses/:staffId", authenticateToken, async (req, res
   }
 });
 
-// Get staff tasks
+// Get staff tasks (for logged-in staff)
 staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) => {
   try {
     const { staffId } = req.params;
+    const user = (req as any).user;
+    
+    // Verify the requesting user is getting their own tasks
+    if (user.id !== staffId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    console.log('📋 Getting tasks for staff:', staffId);
     
     // Get staff by accountId
     const staff = await getStaffByAccountId(staffId);
@@ -145,6 +153,8 @@ staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) 
       where: { staffId: staff.id },
       orderBy: { dueDate: "asc" },
     });
+
+    console.log('✅ Found', tasks.length, 'tasks');
 
     const formattedTasks = tasks.map((task) => ({
       id: task.id,
@@ -156,7 +166,7 @@ staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) 
 
     res.json(formattedTasks);
   } catch (error: any) {
-    console.error("Error fetching tasks:", error);
+    console.error("❌ Error fetching tasks:", error);
     res.status(500).json({ error: error.message || "Failed to fetch tasks" });
   }
 });
@@ -355,10 +365,18 @@ staffDashboardRouter.get("/messages/:staffId", authenticateToken, async (req, re
   }
 });
 
-// Get staff submissions (recent student work)
+// Get staff submissions (recent student work from their courses)
 staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req, res) => {
   try {
     const { staffId } = req.params;
+    const user = (req as any).user;
+    
+    // Verify the requesting user is getting their own submissions
+    if (user.id !== staffId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    console.log('📤 Getting submissions for staff:', staffId);
 
     // Get staff by accountId
     const staff = await getStaffByAccountId(staffId);
@@ -394,9 +412,10 @@ staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req,
       });
     });
 
+    console.log('✅ Found', submissions.length, 'submissions');
     res.json(submissions.slice(0, 50)); // Limit to 50 recent
   } catch (error: any) {
-    console.error("Error fetching submissions:", error);
+    console.error("❌ Error fetching submissions:", error);
     res.status(500).json({ error: error.message || "Failed to fetch submissions" });
   }
 });

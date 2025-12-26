@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
 import {
@@ -7,10 +8,6 @@ import {
   UsersIcon,
   BookOpenIcon,
   ClipboardIcon,
-  CalendarIcon,
-  MegaphoneIcon,
-  ChartIcon,
-  MailIcon,
   ClockIcon,
   MapPinIcon
 } from '../../components/ui/Icons';
@@ -39,22 +36,14 @@ interface Student {
   lastSubmission: string;
   grade: string;
 }
-interface Message {
-  id: string;
-  from: string;
-  subject: string;
-  preview: string;
-  time: string;
-  unread: boolean;
-}
 
 export default function StaffDashboard() {
   const { user, token } = useAuth();
+  const navigate = useNavigate();
   void token; // keep token available for future API calls without unused warnings
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentStudents, setRecentStudents] = useState<Student[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   void error; // suppress unused warning
@@ -82,10 +71,9 @@ export default function StaffDashboard() {
 
   const loadCourses = async () => {
     if (!token || !user) return;
-    setLoading(true);
-    setError(null);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${base}/api/curriculum/my-courses`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to load courses');
@@ -102,29 +90,41 @@ export default function StaffDashboard() {
       setCourses(normalized);
     } catch (err: any) {
       setError(err.message || 'Failed to load courses');
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadDashboardData = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !token) return;
     setLoading(true);
     setError(null);
     try {
       const base = import.meta.env.VITE_API_URL || 'http://localhost:4000';
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      const [tasksRes, submissionsRes, messagesRes] = await Promise.all([
+      const [tasksRes, submissionsRes] = await Promise.all([
         fetch(`${base}/api/staff-dashboard/tasks/${user.id}`, { headers }),
         fetch(`${base}/api/staff-dashboard/submissions/${user.id}`, { headers }),
-        fetch(`${base}/api/staff-dashboard/messages/${user.id}`, { headers }),
       ]);
 
-      if (tasksRes.ok) setTasks(await tasksRes.json());
-      if (submissionsRes.ok) setRecentStudents(await submissionsRes.json());
-      if (messagesRes.ok) setMessages(await messagesRes.json());
+      if (tasksRes.ok) {
+        const tasksData = await tasksRes.json();
+        setTasks(tasksData);
+        console.log('✅ Tasks loaded:', tasksData.length);
+      } else {
+        console.warn('❌ Failed to load tasks:', tasksRes.status);
+        setTasks([]);
+      }
+      
+      if (submissionsRes.ok) {
+        const submissionsData = await submissionsRes.json();
+        setRecentStudents(submissionsData);
+        console.log('✅ Submissions loaded:', submissionsData.length);
+      } else {
+        console.warn('❌ Failed to load submissions:', submissionsRes.status);
+        setRecentStudents([]);
+      }
     } catch (err: any) {
+      console.error('Error loading dashboard data:', err);
       setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -133,48 +133,13 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     void loadCourses();
-    // seed demo data for now
-    setTasks([
-      { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
-      { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
-      { id: '3', title: 'Prepare Spring Syllabus', type: 'preparation', dueDate: '2025-12-30', priority: 'medium' },
-      { id: '4', title: 'Submit Research Grant', type: 'admin', dueDate: '2026-01-05', priority: 'medium' },
-      { id: '5', title: 'Review TA Applications', type: 'admin', dueDate: '2026-01-10', priority: 'low' },
-    ]);
-    setRecentStudents([]);
-    setMessages([
-      { id: '1', from: 'Dean Wilson', subject: 'Spring Planning', preview: 'Please review the attached...', time: '2h ago', unread: true },
-      { id: '2', from: 'John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
-      { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
-    ]);
+    void loadDashboardData();
   }, [token, user]);
 
-  useEffect(() => {
-    void loadDashboardData();
-  }, [user?.id, token]);
-
-  // Helpers
-  const getPriorityColor = (priority: Task['priority']) => {
-    switch (priority) {
-      case 'high': return styles.danger;
-      case 'medium': return styles.warning;
-      case 'low': return styles.info;
-      default: return '';
-    }
-  };
-  const getTaskIcon = (type: Task['type']) => {
-    switch (type) {
-      case 'grading': return <FileTextIcon size={18} />;
-      case 'meeting': return <UsersIcon size={18} />;
-      case 'preparation': return <BookOpenIcon size={18} />;
-      case 'admin': return <ClipboardIcon size={18} />;
-      default: return <ClipboardIcon size={18} />;
-    }
-  };
-
+  // Helpers for calculating dashboard stats
   const totalStudents = courses.reduce((sum: number, c: Course) => sum + (c.students || 0), 0);
   const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Pending').length;
-  const unreadMessages = messages.filter((m: Message) => m.unread).length;
+  const highPriorityTasks = tasks.filter((t: Task) => t.priority === 'high').length;
 
   if (loading) {
     return (
@@ -191,7 +156,7 @@ export default function StaffDashboard() {
       <div className={`${styles.welcomeBanner} ${styles.staffBanner}`}>
         <div className={styles.welcomeContent}>
           <h1>Welcome, {user?.email?.split('@')[0] || 'Professor'}</h1>
-          <p>You have {tasks.filter((t: Task) => t.priority === 'high').length} high-priority tasks and {unreadMessages} unread messages.</p>
+          <p>You have {highPriorityTasks} high-priority tasks and {pendingGrading} assignments to grade.</p>
         </div>
         <div className={styles.welcomeStats}>
           <div className={styles.welcomeStat}>
@@ -207,22 +172,6 @@ export default function StaffDashboard() {
             <span className={styles.statLabel}>To Grade</span>
           </div>
         </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className={styles.quickActions}>
-        <button className={`${styles.quickAction} ${styles.primary}`}>
-          <FileTextIcon size={16} /> Grade Assignments
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <CalendarIcon size={16} /> Schedule Class
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <MegaphoneIcon size={16} /> Post Announcement
-        </button>
-        <button className={`${styles.quickAction} ${styles.secondary}`}>
-          <ChartIcon size={16} /> View Reports
-        </button>
       </div>
 
       {/* Stats Cards */}
@@ -249,10 +198,10 @@ export default function StaffDashboard() {
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}><MailIcon size={24} /></div>
+          <div className={`${styles.statIcon} ${styles.info}`}><ClipboardIcon size={24} /></div>
           <div className={styles.statInfo}>
-            <div className={styles.statValue}>{unreadMessages}</div>
-            <div className={styles.statTitle}>Unread Messages</div>
+            <div className={styles.statValue}>{tasks.length}</div>
+            <div className={styles.statTitle}>Total Tasks</div>
           </div>
         </div>
       </div>
@@ -262,7 +211,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>My Courses</h2>
-            <button className={styles.viewAllBtn} onClick={() => {}}>Manage Courses</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/courses')}>Manage Courses</button>
           </div>
           <div className={styles.courseList}>
             {courses.length === 0 && (
@@ -292,27 +241,6 @@ export default function StaffDashboard() {
             ))}
           </div>
         </div>
-        {/* Tasks */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2>Tasks & Deadlines</h2>
-            <button className={styles.viewAllBtn} onClick={() => {}}>All Tasks</button>
-          </div>
-          <div className={styles.taskList}>
-            {tasks.map((task: Task) => (
-              <div key={task.id} className={styles.taskItem}>
-                <div className={styles.taskIcon}>{getTaskIcon(task.type)}</div>
-                <div className={styles.taskContent}>
-                  <div className={styles.taskTitle}>{task.title}</div>
-                  <div className={styles.taskDue}>Due: {task.dueDate}</div>
-                </div>
-                <span className={`${styles.badge} ${getPriorityColor(task.priority)}`}>
-                  {task.priority}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Recent Student Activity */}
         <div className={styles.card}>
@@ -333,26 +261,6 @@ export default function StaffDashboard() {
                 <span className={`${styles.badge} ${student.grade === 'Pending' ? styles.warning : styles.success}`}>
                   {student.grade}
                 </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2>Messages</h2>
-            <button className={styles.viewAllBtn} onClick={() => {}}>Inbox</button>
-          </div>
-          <div className={styles.messageList}>
-            {messages.map((message: Message) => (
-              <div key={message.id} className={`${styles.messageItem} ${message.unread ? styles.unread : ''}`}>
-                <div className={styles.messageContent}>
-                  <div className={styles.messageFrom}>{message.from}</div>
-                  <div className={styles.messageSubject}>{message.subject}</div>
-                  <div className={styles.messagePreview}>{message.preview}</div>
-                </div>
-                <div className={styles.messageTime}>{message.time}</div>
               </div>
             ))}
           </div>
