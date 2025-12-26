@@ -88,9 +88,6 @@ router.get("/", authenticateToken, async (req, res) => {
         createdAt: dept.createdAt,
         code: attrs.code || attrs.departmentCode,
         head: attrs.head || attrs.departmentHead,
-        building: attrs.building,
-        floor: attrs.floor,
-        phone: attrs.phone,
         email: attrs.email,
         courseCount,
         staffCount,
@@ -228,7 +225,7 @@ router.get("/stats/overview", authenticateToken, async (req, res) => {
 // CREATE department
 router.post("/", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { name, description, code, head, building, floor, phone, email } = req.body;
+    const { name, description, code, head, email } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Department name is required" });
@@ -247,9 +244,6 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
     const attributeConfigs = [
       { name: 'code', dataType: 'STRING' as const, displayName: 'Department Code' },
       { name: 'head', dataType: 'STRING' as const, displayName: 'Department Head' },
-      { name: 'building', dataType: 'STRING' as const, displayName: 'Building' },
-      { name: 'floor', dataType: 'STRING' as const, displayName: 'Floor' },
-      { name: 'phone', dataType: 'STRING' as const, displayName: 'Phone' },
       { name: 'email', dataType: 'EMAIL' as const, displayName: 'Email' }
     ];
 
@@ -268,10 +262,7 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
           });
         }
         return { ...attr, configValue: config.name === 'code' ? code : 
-                  config.name === 'head' ? head : 
-                  config.name === 'building' ? building : 
-                  config.name === 'floor' ? floor : 
-                  config.name === 'phone' ? phone : email };
+                  config.name === 'head' ? head : email };
       })
     );
 
@@ -303,7 +294,7 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
 router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, isActive, code, head, building, floor, phone, email } = req.body;
+    const { name, description, isActive, code, head, email } = req.body;
 
     // Update entity
     const department = await prisma.entity.update({
@@ -319,9 +310,6 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
     const attributeUpdates = [
       { name: 'code', value: code },
       { name: 'head', value: head },
-      { name: 'building', value: building },
-      { name: 'floor', value: floor },
-      { name: 'phone', value: phone },
       { name: 'email', value: email }
     ];
 

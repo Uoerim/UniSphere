@@ -7,14 +7,17 @@ interface User {
   name: string;
   role: string;
   createdAt?: string;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  mustChangePassword: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
+  clearMustChangePassword: () => void;
   isLoading: boolean;
 }
 
@@ -23,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -48,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = await response.json();
         setUser(userData);
         setToken(authToken);
+        setMustChangePassword(userData.mustChangePassword || false);
       } else {
         localStorage.removeItem('token');
       }
@@ -77,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
       setToken(data.token);
       setUser(data.user);
+      setMustChangePassword(data.user.mustChangePassword || false);
       localStorage.setItem('token', data.token);
       navigate('/dashboard');
     } catch (error) {
@@ -114,12 +120,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     setToken(null);
+    setMustChangePassword(false);
     localStorage.removeItem('token');
     navigate('/login');
   };
 
+  const clearMustChangePassword = () => {
+    setMustChangePassword(false);
+    if (user) {
+      setUser({ ...user, mustChangePassword: false });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, mustChangePassword, login, register, logout, clearMustChangePassword, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -132,3 +146,4 @@ export function useAuth() {
   }
   return context;
 }
+

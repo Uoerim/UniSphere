@@ -3,6 +3,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
+import {
+  FileTextIcon,
+  UsersIcon,
+  BookOpenIcon,
+  ClipboardIcon,
+  CalendarIcon,
+  MegaphoneIcon,
+  ChartIcon,
+  MailIcon,
+  ClockIcon,
+  MapPinIcon
+} from '../../components/ui/Icons';
 
 // Types
 interface Course {
@@ -47,6 +59,42 @@ export default function StaffDashboard() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const dayName = (abbr: string) => {
+    const map: Record<string, string> = {
+      Su: 'Sunday', Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday'
+    };
+    return map[abbr] || abbr;
+  };
+
+  const formatSchedule = (schedule?: string) => {
+    if (!schedule) return 'Schedule TBD';
+
+    const stringify = (value: unknown) => {
+      if (Array.isArray(value)) {
+        return value
+          .map((item: any) => {
+            if (!item) return '';
+            const days = Array.isArray(item.days) ? item.days.map(dayName).join(', ') : '';
+            const time = item.startTime && item.endTime ? `${item.startTime}–${item.endTime}` : '';
+            return [days, time].filter(Boolean).join(' ');
+          })
+          .filter(Boolean)
+          .join(' | ');
+      }
+      return '';
+    };
+
+    try {
+      const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+      const formatted = stringify(parsed);
+      if (formatted) return formatted;
+    } catch {
+      // fall back to raw schedule string
+    }
+
+    return schedule;
+  };
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -111,11 +159,11 @@ export default function StaffDashboard() {
   };
   const getTaskIcon = (type: Task['type']) => {
     switch (type) {
-      case 'grading': return '📝';
-      case 'meeting': return '👥';
-      case 'preparation': return '📚';
-      case 'admin': return '📋';
-      default: return '📌';
+      case 'grading': return <FileTextIcon size={18} />;
+      case 'meeting': return <UsersIcon size={18} />;
+      case 'preparation': return <BookOpenIcon size={18} />;
+      case 'admin': return <ClipboardIcon size={18} />;
+      default: return <ClipboardIcon size={18} />;
     }
   };
 
@@ -137,7 +185,7 @@ export default function StaffDashboard() {
       {/* Welcome Header */}
       <div className={`${styles.welcomeBanner} ${styles.staffBanner}`}>
         <div className={styles.welcomeContent}>
-          <h1>Welcome, {user?.email?.split('@')[0] || 'Professor'}! 👨‍🏫</h1>
+          <h1>Welcome, {user?.email?.split('@')[0] || 'Professor'}</h1>
           <p>You have {tasks.filter((t: Task) => t.priority === 'high').length} high-priority tasks and {unreadMessages} unread messages.</p>
         </div>
         <div className={styles.welcomeStats}>
@@ -156,31 +204,47 @@ export default function StaffDashboard() {
         </div>
       </div>
 
+      {/* Quick Actions */}
+      <div className={styles.quickActions}>
+        <button className={`${styles.quickAction} ${styles.primary}`}>
+          <FileTextIcon size={16} /> Grade Assignments
+        </button>
+        <button className={`${styles.quickAction} ${styles.secondary}`}>
+          <CalendarIcon size={16} /> Schedule Class
+        </button>
+        <button className={`${styles.quickAction} ${styles.secondary}`}>
+          <MegaphoneIcon size={16} /> Post Announcement
+        </button>
+        <button className={`${styles.quickAction} ${styles.secondary}`}>
+          <ChartIcon size={16} /> View Reports
+        </button>
+      </div>
+
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><BookOpenIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{courses.length}</div>
             <div className={styles.statTitle}>Active Courses</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>👨‍🎓</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><UsersIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{totalStudents}</div>
             <div className={styles.statTitle}>Total Students</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>📝</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><FileTextIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{pendingGrading}</div>
             <div className={styles.statTitle}>Pending Grades</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>✉️</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><MailIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{unreadMessages}</div>
             <div className={styles.statTitle}>Unread Messages</div>
@@ -192,7 +256,7 @@ export default function StaffDashboard() {
         {/* My Courses */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>📚 My Courses</h2>
+            <h2>My Courses</h2>
             <button className={styles.viewAllBtn} onClick={() => navigate('/courses')}>Manage Courses</button>
           </div>
           <div className={styles.courseList}>
@@ -207,12 +271,12 @@ export default function StaffDashboard() {
               <div key={course.id} className={styles.staffCourseItem}>
                 <div className={styles.courseHeader}>
                   <span className={styles.courseCode}>{course.code || '—'}</span>
-                  <span className={styles.studentCount}>👨‍🎓 {course.students}</span>
+                  <span className={styles.studentCount}>{course.students} students</span>
                 </div>
                 <div className={styles.courseName}>{course.name}</div>
                 <div className={styles.courseDetails}>
-                  <span>🕐 {course.schedule || 'Schedule TBD'}</span>
-                  <span>📍 {course.room || 'Room TBD'}</span>
+                  <span><ClockIcon size={14} /> {course.schedule || 'Schedule TBD'}</span>
+                  <span><MapPinIcon size={14} /> {course.room || 'Room TBD'}</span>
                 </div>
                 <div className={styles.courseActions}>
                   <button className={styles.smallBtn} onClick={() => navigate(`/class/${course.id}`)}>View Class</button>
@@ -227,7 +291,7 @@ export default function StaffDashboard() {
         {/* Tasks */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>✅ Tasks & Deadlines</h2>
+            <h2>Tasks & Deadlines</h2>
             <button className={styles.viewAllBtn} onClick={() => navigate('/tasks')}>All Tasks</button>
           </div>
           <div className={styles.taskList}>
@@ -249,7 +313,7 @@ export default function StaffDashboard() {
         {/* Recent Student Activity */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>👨‍🎓 Recent Submissions</h2>
+            <h2>Recent Submissions</h2>
             <button className={styles.viewAllBtn} onClick={() => navigate('/submissions')}>View All</button>
           </div>
           <div className={styles.studentList}>
@@ -273,7 +337,7 @@ export default function StaffDashboard() {
         {/* Messages */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>✉️ Messages</h2>
+            <h2>Messages</h2>
             <button className={styles.viewAllBtn} onClick={() => navigate('/messages')}>Inbox</button>
           </div>
           <div className={styles.messageList}>

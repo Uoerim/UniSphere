@@ -78,18 +78,33 @@ staffRouter.post("/", async (req, res) => {
 staffRouter.get("/", async (_req, res) => {
   const staff = await prisma.entity.findMany({
     where: { type: "STAFF" },
-    include: { values: { include: { attribute: true } } },
+    include: { 
+      values: { include: { attribute: true } },
+      account: { select: { email: true } }
+    },
   });
 
-  const normalized = staff.map((s) => ({
-    id: s.id,
-    ...Object.fromEntries(
+  const normalized = staff.map((s) => {
+    const attrs = Object.fromEntries(
       s.values.map((v) => [
         v.attribute.name,
         v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText,
       ])
-    ),
-  }));
+    );
+    
+    // Build name from firstName/lastName if name not set
+    let name = attrs.name as string | undefined;
+    if (!name && (attrs.firstName || attrs.lastName)) {
+      name = [attrs.firstName, attrs.lastName].filter(Boolean).join(' ');
+    }
+    
+    return {
+      id: s.id,
+      name: name || attrs.fullName || 'Unnamed Staff',
+      email: attrs.email || s.account?.email,
+      ...attrs,
+    };
+  });
 
   res.json(normalized);
 });

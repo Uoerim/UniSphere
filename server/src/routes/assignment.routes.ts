@@ -62,7 +62,7 @@ router.get("/", authenticateToken, async (req, res) => {
     }
 
     const assignmentEntities = await prisma.entity.findMany({
-      where: { type: 'ATTENDANCE' }, // Using ATTENDANCE type for assignments (could add ASSIGNMENT to enum)
+      where: { type: 'ASSIGNMENT' },
       include: {
         values: { include: { attribute: true } },
         relationsFrom: {
@@ -83,9 +83,6 @@ router.get("/", authenticateToken, async (req, res) => {
         assignment.values.forEach(v => {
           attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
         });
-
-        // Skip if not actually an assignment
-        if (attrs.entitySubType !== 'ASSIGNMENT') return null;
 
         // Get related course
         const courseRel = assignment.relationsFrom.find(r => r.relationType === 'ASSIGNMENT_FOR');
@@ -187,21 +184,15 @@ router.get("/course/:courseId", authenticateToken, async (req, res) => {
 router.get("/stats/overview", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
     const assignments = await prisma.entity.findMany({
-      where: { type: 'ATTENDANCE' },
+      where: { type: 'ASSIGNMENT' },
       include: {
         values: { include: { attribute: true } }
       }
     });
 
-    // Filter to only assignments
-    const actualAssignments = assignments.filter(a => {
-      const subType = a.values.find(v => v.attribute.name === 'entitySubType');
-      return subType?.valueString === 'ASSIGNMENT';
-    });
-
     const stats = {
-      total: actualAssignments.length,
-      active: actualAssignments.filter(a => a.isActive).length,
+      total: assignments.length,
+      active: assignments.filter(a => a.isActive).length,
       byStatus: {
         Draft: 0,
         Published: 0,
@@ -214,7 +205,7 @@ router.get("/stats/overview", authenticateToken, requireAdminOrStaff, async (req
     const today = new Date();
     const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    actualAssignments.forEach(a => {
+    assignments.forEach(a => {
       const statusValue = a.values.find(v => v.attribute.name === 'status');
       const dueDateValue = a.values.find(v => v.attribute.name === 'dueDate');
       
@@ -328,7 +319,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
     // Create assignment entity
     const assignment = await prisma.entity.create({
       data: {
-        type: 'ATTENDANCE', // Using ATTENDANCE type (could add ASSIGNMENT to enum)
+        type: 'ASSIGNMENT',
         name: title,
         description
       }
@@ -336,7 +327,6 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
 
     // Get or create attributes
     const attributeConfigs = [
-      { name: 'entitySubType', value: 'ASSIGNMENT', dataType: 'STRING' as const },
       { name: 'title', value: title, dataType: 'STRING' as const },
       { name: 'instructions', value: instructions, dataType: 'TEXT' as const },
       { name: 'dueDate', value: dueDate, dataType: 'DATE' as const },
@@ -357,7 +347,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
             data: {
               name: config.name,
               displayName: config.name.charAt(0).toUpperCase() + config.name.slice(1).replace(/([A-Z])/g, ' $1'),
-              entityTypes: JSON.stringify(['ATTENDANCE']),
+              entityTypes: JSON.stringify(['ASSIGNMENT']),
               dataType: config.dataType,
               category: 'ACADEMIC'
             }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Modal from '../../components/ui/Modal';
+import { MegaphoneIcon, CheckCircleIcon, AlertCircleIcon, CalendarIcon, EditIcon, TrashIcon } from '../../components/ui/Icons';
 import styles from '../../styles/pages.module.css';
 import modalStyles from '../../components/ui/Modal.module.css';
 
@@ -143,28 +144,28 @@ export default function Announcements() {
       {/* Stats */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>📢</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><MegaphoneIcon /></div>
           <div>
             <div className={styles.statValue}>{announcements.length}</div>
             <div className={styles.statLabel}>Total Announcements</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon /></div>
           <div>
             <div className={styles.statValue}>{announcements.filter(a => a.isActive).length}</div>
             <div className={styles.statLabel}>Active</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.danger}`}>🔴</div>
+          <div className={`${styles.statIcon} ${styles.danger}`}><AlertCircleIcon /></div>
           <div>
             <div className={styles.statValue}>{announcements.filter(a => a.priority === 'high').length}</div>
             <div className={styles.statLabel}>High Priority</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>📅</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><CalendarIcon /></div>
           <div>
             <div className={styles.statValue}>{announcements.filter(a => {
               const created = new Date(a.createdAt);
@@ -182,7 +183,7 @@ export default function Announcements() {
       ) : announcements.length === 0 ? (
         <div className={styles.card}>
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>📢</div>
+            <div className={styles.emptyIcon}><MegaphoneIcon /></div>
             <div className={styles.emptyTitle}>No Announcements</div>
             <div className={styles.emptyText}>Create your first announcement to inform the community</div>
             <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setIsModalOpen(true)}>
@@ -210,7 +211,7 @@ export default function Announcements() {
                 fontSize: '24px',
                 flexShrink: 0
               }}>
-                📢
+                <MegaphoneIcon />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
@@ -229,14 +230,14 @@ export default function Announcements() {
                 <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 12px 0' }}>
                   {announcement.content}
                 </p>
-                <div style={{ fontSize: '12px', color: '#9ca3af' }}>
-                  📅 {formatDate(announcement.createdAt)}
+                <div style={{ fontSize: '12px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CalendarIcon /> {formatDate(announcement.createdAt)}
                 </div>
               </div>
               <div className={styles.actions}>
-                <button className={styles.iconBtn} onClick={() => openEditModal(announcement)}>✏️</button>
+                <button className={styles.iconBtn} onClick={() => openEditModal(announcement)}><EditIcon /></button>
                 <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(announcement.id)}>
-                  🗑️
+                  <TrashIcon />
                 </button>
               </div>
             </div>

@@ -23,105 +23,102 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
     }
 };
 
-// GET all buildings
-router.get("/buildings", authenticateToken, async (req, res) => {
+// In-memory facilities storage (would normally be in database)
+let facilities: any[] = [
+    { id: 1, name: 'Physics Lab 101', roomNumber: 'A-101', type: 'LABORATORY', floor: 1, capacity: 30, status: 'AVAILABLE', features: ['Projector', 'Whiteboard', 'Lab Equipment'], notes: '' },
+    { id: 2, name: 'Lecture Hall A', roomNumber: 'LH-A', type: 'LECTURE_HALL', floor: 2, capacity: 200, status: 'AVAILABLE', features: ['Projector', 'Microphone', 'AC'], notes: '' },
+    { id: 3, name: 'Computer Lab 1', roomNumber: 'C-101', type: 'COMPUTER_LAB', floor: 1, capacity: 40, status: 'OCCUPIED', features: ['40 Computers', 'Projector', 'AC'], notes: '' },
+    { id: 4, name: 'Admin Office', roomNumber: 'O-001', type: 'OFFICE', floor: 0, capacity: 5, status: 'AVAILABLE', features: ['Desks', 'AC'], notes: '' },
+    { id: 5, name: 'Conference Room A', roomNumber: 'CR-A', type: 'CONFERENCE_ROOM', floor: 1, capacity: 20, status: 'RESERVED', features: ['Projector', 'Whiteboard', 'Video Conferencing'], notes: '' },
+    { id: 6, name: 'Classroom 101', roomNumber: 'CR-101', type: 'CLASSROOM', floor: 1, capacity: 35, status: 'AVAILABLE', features: ['Whiteboard', 'Projector'], notes: '' },
+    { id: 7, name: 'Classroom 102', roomNumber: 'CR-102', type: 'CLASSROOM', floor: 1, capacity: 35, status: 'AVAILABLE', features: ['Whiteboard', 'Projector'], notes: '' },
+    { id: 8, name: 'Tutorial Room 1', roomNumber: 'TR-1', type: 'TUTORIAL_ROOM', floor: 2, capacity: 15, status: 'AVAILABLE', features: ['Whiteboard'], notes: '' },
+];
+let facilityIdCounter = 9;
+
+// GET all facilities
+router.get("/", authenticateToken, async (_req, res) => {
     try {
-        const buildings = await prisma.entity.findMany({
-            where: { type: 'BUILDING' },
-            include: { values: { include: { attribute: true } } },
-            orderBy: { name: 'asc' }
-        });
-        const formatted = buildings.map(b => {
-            const attrs: Record<string, any> = {};
-            b.values.forEach(v => {
-                attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
-            });
-            return { id: b.id, name: b.name, description: b.description, ...attrs };
-        });
-        res.json(formatted);
+        res.json(facilities);
     } catch (error) {
-        res.status(500).json({ error: "Failed to fetch buildings" });
+        res.status(500).json({ error: "Failed to fetch facilities" });
     }
 });
 
-// CREATE building
-router.post("/buildings", authenticateToken, async (req, res) => {
+// GET single facility
+router.get("/:id", authenticateToken, async (req, res) => {
     try {
-        const { name, description } = req.body;
-        const building = await prisma.entity.create({
-            data: { type: 'BUILDING', name, description }
-        });
-        res.json(building);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to create building" });
-    }
-});
-
-// GET all rooms
-router.get("/rooms", authenticateToken, async (req, res) => {
-    try {
-        const rooms = await prisma.entity.findMany({
-            where: { type: 'ROOM' },
-            include: { values: { include: { attribute: true } }, parent: true },
-            orderBy: { name: 'asc' }
-        });
-        const formatted = rooms.map(r => {
-            const attrs: Record<string, any> = {};
-            r.values.forEach(v => {
-                attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
-            });
-            return { id: r.id, name: r.name, description: r.description, building: r.parent?.name, ...attrs };
-        });
-        res.json(formatted);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch rooms" });
-    }
-});
-
-// CREATE room
-router.post("/rooms", authenticateToken, async (req, res) => {
-    try {
-        const { name, description, buildingId, capacity, floor, roomType } = req.body;
-        const room = await prisma.entity.create({
-            data: {
-                type: 'ROOM',
-                name,
-                description,
-                parentId: buildingId
-            }
-        });
-        // Add EAV attributes
-        const attrConfigs = [
-            { name: 'capacity', value: capacity, dataType: 'NUMBER' as const },
-            { name: 'floor', value: floor, dataType: 'STRING' as const },
-            { name: 'roomType', value: roomType, dataType: 'STRING' as const },
-        ];
-        for (const config of attrConfigs) {
-            if (config.value === undefined || config.value === null) continue;
-            let attr = await prisma.attribute.findFirst({ where: { name: config.name } });
-            if (!attr) {
-                attr = await prisma.attribute.create({
-                    data: {
-                        name: config.name,
-                        displayName: config.name.charAt(0).toUpperCase() + config.name.slice(1),
-                        entityTypes: JSON.stringify(['ROOM']),
-                        dataType: config.dataType,
-                        category: 'FACILITY',
-                    }
-                });
-            }
-            await prisma.value.create({
-                data: {
-                    entityId: room.id,
-                    attributeId: attr.id,
-                    valueString: typeof config.value === 'string' ? config.value : null,
-                    valueNumber: typeof config.value === 'number' ? config.value : null
-                }
-            });
+        const id = parseInt(req.params.id);
+        const facility = facilities.find(f => f.id === id);
+        if (!facility) {
+            return res.status(404).json({ error: "Facility not found" });
         }
-        res.json(room);
+        res.json(facility);
     } catch (error) {
-        res.status(500).json({ error: "Failed to create room" });
+        res.status(500).json({ error: "Failed to fetch facility" });
+    }
+});
+
+// CREATE facility
+router.post("/", authenticateToken, async (req, res) => {
+    try {
+        const { name, roomNumber, type, floor, capacity, status, features, notes } = req.body;
+        const facility = {
+            id: facilityIdCounter++,
+            name,
+            roomNumber,
+            type: type || 'CLASSROOM',
+            floor: floor || 1,
+            capacity: capacity || 0,
+            status: status || 'AVAILABLE',
+            features: features || [],
+            notes: notes || ''
+        };
+        facilities.push(facility);
+        res.status(201).json(facility);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to create facility" });
+    }
+});
+
+// UPDATE facility
+router.put("/:id", authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const index = facilities.findIndex(f => f.id === id);
+        if (index === -1) {
+            return res.status(404).json({ error: "Facility not found" });
+        }
+        const { name, roomNumber, type, floor, capacity, status, features, notes } = req.body;
+        facilities[index] = {
+            ...facilities[index],
+            name: name ?? facilities[index].name,
+            roomNumber: roomNumber ?? facilities[index].roomNumber,
+            type: type ?? facilities[index].type,
+            floor: floor ?? facilities[index].floor,
+            capacity: capacity ?? facilities[index].capacity,
+            status: status ?? facilities[index].status,
+            features: features ?? facilities[index].features,
+            notes: notes ?? facilities[index].notes
+        };
+        res.json(facilities[index]);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to update facility" });
+    }
+});
+
+// DELETE facility
+router.delete("/:id", authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const index = facilities.findIndex(f => f.id === id);
+        if (index === -1) {
+            return res.status(404).json({ error: "Facility not found" });
+        }
+        facilities.splice(index, 1);
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to delete facility" });
     }
 });
 

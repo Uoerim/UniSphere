@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Modal from '../../components/ui/Modal';
+import { BookOpenIcon, CheckCircleIcon, BuildingIcon, StaffIcon, SearchIcon, EditIcon, TrashIcon } from '../../components/ui/Icons';
 import styles from '../../styles/pages.module.css';
 import modalStyles from '../../components/ui/Modal.module.css';
 
@@ -133,28 +134,28 @@ export default function Curriculum() {
       {/* Stats */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.primary}`}>📚</div>
+          <div className={`${styles.statIcon} ${styles.primary}`}><BookOpenIcon /></div>
           <div>
             <div className={styles.statValue}>{courses.length}</div>
             <div className={styles.statLabel}>Total Courses</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}>✅</div>
+          <div className={`${styles.statIcon} ${styles.success}`}><CheckCircleIcon /></div>
           <div>
             <div className={styles.statValue}>{courses.filter(c => c.isActive).length}</div>
             <div className={styles.statLabel}>Active Courses</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}>🏛️</div>
+          <div className={`${styles.statIcon} ${styles.info}`}><BuildingIcon /></div>
           <div>
             <div className={styles.statValue}>{departments.length}</div>
             <div className={styles.statLabel}>Departments</div>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.warning}`}>👨‍🏫</div>
+          <div className={`${styles.statIcon} ${styles.warning}`}><StaffIcon /></div>
           <div>
             <div className={styles.statValue}>{new Set(courses.map(c => c.instructor).filter(Boolean)).size}</div>
             <div className={styles.statLabel}>Instructors</div>
@@ -165,7 +166,7 @@ export default function Curriculum() {
       {/* Filters */}
       <div className={styles.filters}>
         <div className={styles.searchBox}>
-          <span className={styles.searchIcon}>🔍</span>
+          <span className={styles.searchIcon}><SearchIcon /></span>
           <input
             type="text"
             placeholder="Search courses, codes, instructors..."
@@ -191,7 +192,7 @@ export default function Curriculum() {
       ) : filteredCourses.length === 0 ? (
         <div className={styles.card}>
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>📚</div>
+            <div className={styles.emptyIcon}><BookOpenIcon /></div>
             <div className={styles.emptyTitle}>No Courses Found</div>
             <div className={styles.emptyText}>
               {searchTerm || filterDept !== 'all' 
@@ -238,7 +239,7 @@ export default function Curriculum() {
                           fontWeight: '600',
                           fontSize: '14px'
                         }}>
-                          {course.code?.substring(0, 2) || '📚'}
+                          {course.code?.substring(0, 2) || <BookOpenIcon />}
                         </div>
                         <span style={{ fontWeight: '500' }}>{course.name}</span>
                       </div>
@@ -276,9 +277,9 @@ export default function Curriculum() {
                     </td>
                     <td>
                       <div className={styles.actions} style={{ flexDirection: 'row', gap: '4px' }}>
-                        <button className={styles.iconBtn}>✏️</button>
+                        <button className={styles.iconBtn}><EditIcon size={16} /></button>
                         <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(course.id)}>
-                          🗑️
+                          <TrashIcon size={16} />
                         </button>
                       </div>
                     </td>

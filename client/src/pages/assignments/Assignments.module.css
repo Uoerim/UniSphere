@@ -697,6 +697,76 @@
 }
 
 /* Responsive */
+/* Course Selection Styles */
+.selectWithButton {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.selectWithButton input {
+  flex: 1;
+}
+
+.selectWithButton button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 80px;
+}
+
+.selectWithButton button:hover {
+  background: var(--primary-hover);
+}
+
+.courseList {
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.courseItem {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-primary);
+}
+
+.courseItem:hover {
+  border-color: var(--primary);
+  background: var(--bg-secondary);
+}
+
+.courseItem.selected {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.1);
+}
+
+.courseItemCode {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.courseItemName {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
