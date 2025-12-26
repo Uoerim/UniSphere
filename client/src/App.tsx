@@ -30,6 +30,10 @@ import CourseMaterials from './pages/dashboard/CourseMaterials';
 import Announcements from './pages/announcements/Announcements';
 import Events from './pages/events/Events';
 import Settings from './pages/settings/Settings';
+// Parent portal pages
+import MyChildren from './pages/parent/MyChildren';
+import ChildDetails from './pages/parent/ChildDetails';
+import ParentGrades from './pages/parent/ParentGrades';
 
 // Role-based Student page wrapper
 function StudentsPageWrapper() {
@@ -100,6 +104,10 @@ function AppRoutes() {
           <Route path="announcements" element={<Announcements />} />
           <Route path="events" element={<Events />} />
           <Route path="settings" element={<Settings />} />
+          {/* Parent Portal Routes */}
+          <Route path="children" element={<MyChildren />} />
+          <Route path="children/:childId" element={<ChildDetails />} />
+          <Route path="parent-grades" element={<ParentGrades />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

@@ -77,22 +77,25 @@ export default function DashboardLayout() {
       case 'STUDENT':
         return [
           { title: 'Main', items: mainNav },
-          { title: 'Academic', items: [
-            { name: 'My Courses', path: '/courses', icon: <BookOpenIcon /> },
-            { name: 'My Assignments', path: '/assignments', icon: <ClipboardIcon /> },
-            { name: 'My Assessments', path: '/assessments', icon: <FileTextIcon /> },
-            { name: 'My Grades', path: '/grades', icon: <ChartIcon /> },
-          ]},
+          {
+            title: 'Academic', items: [
+              { name: 'My Courses', path: '/courses', icon: <BookOpenIcon /> },
+              { name: 'My Assignments', path: '/assignments', icon: <ClipboardIcon /> },
+              { name: 'My Assessments', path: '/assessments', icon: <FileTextIcon /> },
+              { name: 'My Grades', path: '/grades', icon: <ChartIcon /> },
+            ]
+          },
           { title: 'Community', items: communityNav },
         ];
       case 'PARENT':
         return [
           { title: 'Main', items: mainNav },
-          { title: 'Children', items: [
-            { name: 'My Children', path: '/children', icon: <ParentIcon /> },
-            { name: 'Attendance', path: '/attendance', icon: <CheckCircleIcon /> },
-            { name: 'Grades', path: '/grades', icon: <ChartIcon /> },
-          ]},
+          {
+            title: 'Children', items: [
+              { name: 'My Children', path: '/children', icon: <ParentIcon /> },
+              { name: 'Grades', path: '/parent-grades', icon: <ChartIcon /> },
+            ]
+          },
           { title: 'Communication', items: communityNav },
         ];
       default:
@@ -112,15 +115,15 @@ export default function DashboardLayout() {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <div className={styles.logo}>
-            <img 
-              src="/UniSphere-Logo-GREEN.png" 
-              alt="UniSphere" 
+            <img
+              src="/UniSphere-Logo-GREEN.png"
+              alt="UniSphere"
               className={styles.logoImage}
             />
             <span>UniSphere</span>
           </div>
         </div>
-        
+
         <nav className={styles.sidebarNav}>
           {navSections.map((section, idx) => (
             <div key={idx} className={styles.navSection}>
@@ -156,7 +159,7 @@ export default function DashboardLayout() {
           <div className={styles.headerLeft}>
             <span className={styles.welcomeText}>Welcome back, {user?.email?.split('@')[0]}</span>
           </div>
-          
+
           <div className={styles.headerRight}>
             <div className={styles.headerIcon}>
               <MailIcon size={18} />
