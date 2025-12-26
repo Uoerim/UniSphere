@@ -197,13 +197,6 @@ export default function StaffDashboard() {
             <div className={styles.statTitle}>Pending Grades</div>
           </div>
         </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}><ClipboardIcon size={24} /></div>
-          <div className={styles.statInfo}>
-            <div className={styles.statValue}>{tasks.length}</div>
-            <div className={styles.statTitle}>Total Tasks</div>
-          </div>
-        </div>
       </div>
 
       <div className={styles.mainGrid}>
