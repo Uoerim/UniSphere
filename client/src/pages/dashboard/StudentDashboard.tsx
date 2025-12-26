@@ -59,11 +59,15 @@ export default function StudentDashboard() {
         setEnrolledCourses(enrolled);
       } catch (err: any) {
         setError('Failed to load courses');
-      } finally {
+         console.error('Course fetch error:', err);
+         setError(err.message || 'Failed to load courses');
+       } finally {
         setLoading(false);
       }
     };
-    if (token) fetchCourses();
+       if (token) {
+         fetchCourses();
+       }
     // Keep assignments and announcements as mock/demo for now
     setAssignments([
       { id: '1', title: 'Programming Project 3', course: 'CS101', dueDate: '2025-12-26', status: 'pending' },
