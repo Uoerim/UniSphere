@@ -28,10 +28,55 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
 // GET all announcements
 router.get("/announcements", authenticateToken, async (req, res) => {
   try {
+    const user = (req as any).user;
+
+    // Collect course scopes based on role
+    let enrolledCourseIds: string[] = [];
+    let staffCourseIds: string[] = [];
+
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+
+    if (account?.entity) {
+      if (user.role === 'STUDENT') {
+        const enrollments = await prisma.entityRelation.findMany({
+          where: {
+            fromEntityId: account.entity.id,
+            relationType: 'ENROLLED_IN',
+            isActive: true
+          },
+          select: { toEntityId: true }
+        });
+        enrolledCourseIds = enrollments.map(e => e.toEntityId);
+      }
+
+      if (user.role === 'STAFF') {
+        const teaches = await prisma.entityRelation.findMany({
+          where: {
+            fromEntityId: account.entity.id,
+            relationType: 'TEACHES',
+            isActive: true
+          },
+          select: { toEntityId: true }
+        });
+        staffCourseIds = teaches.map(t => t.toEntityId);
+      }
+    }
+
     const announcements = await prisma.entity.findMany({
       where: { type: 'ANNOUNCEMENT' },
       include: {
-        values: { include: { attribute: true } }
+        values: { include: { attribute: true } },
+        relationsFrom: {
+          where: { relationType: 'ANNOUNCEMENT_FOR', isActive: true },
+          include: {
+            toEntity: {
+              include: { values: { include: { attribute: true } } }
+            }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -41,17 +86,44 @@ router.get("/announcements", authenticateToken, async (req, res) => {
       ann.values.forEach(v => {
         attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
       });
+
+      const courseRel = ann.relationsFrom.find(r => r.relationType === 'ANNOUNCEMENT_FOR');
+      let course = null as null | { id: string; name: string; code?: string | number | boolean | Date | null };
+      if (courseRel) {
+        const courseAttrs: Record<string, any> = {};
+        courseRel.toEntity.values.forEach(v => {
+          courseAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+        course = {
+          id: courseRel.toEntity.id,
+          name: courseRel.toEntity.name,
+          code: courseAttrs.courseCode || courseAttrs.code
+        };
+      }
+
       return {
         id: ann.id,
         title: ann.name,
         content: ann.description,
         isActive: ann.isActive,
         createdAt: ann.createdAt,
+        course,
         ...attrs
       };
     });
 
-    res.json(formatted);
+    const filtered = formatted.filter(ann => {
+      if (!ann.course) return user.role !== 'STUDENT' && user.role !== 'STAFF';
+      if (user.role === 'STUDENT' && enrolledCourseIds.length > 0) {
+        return enrolledCourseIds.includes(ann.course.id);
+      }
+      if (user.role === 'STAFF' && staffCourseIds.length > 0) {
+        return staffCourseIds.includes(ann.course.id);
+      }
+      return true;
+    });
+
+    res.json(filtered);
   } catch (error) {
     console.error("Get announcements error:", error);
     res.status(500).json({ error: "Failed to fetch announcements" });
@@ -61,10 +133,14 @@ router.get("/announcements", authenticateToken, async (req, res) => {
 // CREATE announcement
 router.post("/announcements", authenticateToken, async (req, res) => {
   try {
-    const { title, content, priority, targetAudience } = req.body;
+    const { title, content, priority, targetAudience, courseId } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: "Title is required" });
+    }
+
+    if (!courseId) {
+      return res.status(400).json({ error: "Course is required" });
     }
 
     const announcement = await prisma.entity.create({
@@ -74,6 +150,25 @@ router.post("/announcements", authenticateToken, async (req, res) => {
         description: content || '',
       }
     });
+
+    // Link to course if provided
+    if (courseId) {
+      const course = await prisma.entity.findFirst({ where: { id: courseId, type: 'COURSE' } });
+      if (course) {
+        await prisma.entityRelation.create({
+          data: {
+            fromEntityId: announcement.id,
+            toEntityId: courseId,
+            relationType: 'ANNOUNCEMENT_FOR',
+            isActive: true
+          }
+        });
+      } else {
+        // Rollback: delete the announcement if course not found
+        await prisma.entity.delete({ where: { id: announcement.id } });
+        return res.status(400).json({ error: "Invalid course ID" });
+      }
+    }
 
     // Create attributes for priority and target
     if (priority) {
@@ -131,7 +226,7 @@ router.post("/announcements", authenticateToken, async (req, res) => {
 router.put("/announcements/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, content, priority, targetAudience, isActive } = req.body;
+    const { title, content, priority, targetAudience, isActive, courseId } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Announcement ID is required" });
@@ -168,6 +263,27 @@ router.put("/announcements/:id", authenticateToken, async (req, res) => {
           update: { valueString: targetAudience },
           create: { entityId: id, attributeId: attr.id, valueString: targetAudience }
         });
+      }
+    }
+
+    // Update course relation
+    if (courseId !== undefined) {
+      await prisma.entityRelation.deleteMany({
+        where: { fromEntityId: id, relationType: 'ANNOUNCEMENT_FOR' }
+      });
+
+      if (courseId) {
+        const course = await prisma.entity.findFirst({ where: { id: courseId, type: 'COURSE' } });
+        if (course) {
+          await prisma.entityRelation.create({
+            data: {
+              fromEntityId: id,
+              toEntityId: courseId,
+              relationType: 'ANNOUNCEMENT_FOR',
+              isActive: true
+            }
+          });
+        }
       }
     }
 
