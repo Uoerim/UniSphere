@@ -141,9 +141,12 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
       // Count enrolled students
       const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
 
+      // Extract course name with fallbacks (same as student.routes)
+      const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
       return {
         id: course.id,
-        name: course.name,
+        name: courseName,
         description: course.description,
         isActive: course.isActive,
         code: attrs.courseCode || attrs.code,
@@ -271,9 +274,12 @@ router.get("/student/:studentId/courses", authenticateToken, async (req, res) =>
       // Legacy support
       const instructor = instructors.length > 0 ? instructors[0] : null;
 
+      // Extract course name with fallbacks
+      const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
       return {
         id: course.id,
-        name: course.name,
+        name: courseName,
         description: course.description,
         isActive: course.isActive,
         code: attrs.courseCode || attrs.code,
@@ -369,16 +375,20 @@ router.get("/", authenticateToken, async (req, res) => {
           prereqCourse.values.forEach((v: any) => {
             prereqAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
           });
+          const prereqName = prereqCourse.name || prereqAttrs.courseName || prereqAttrs.title || 'Unnamed Course';
           return {
             id: prereqCourse.id,
-            name: prereqCourse.name,
+            name: prereqName,
             code: prereqAttrs.courseCode || prereqAttrs.code
           };
         });
 
+      // Extract course name with fallbacks
+      const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
       return {
         id: course.id,
-        name: course.name,
+        name: courseName,
         description: course.description,
         isActive: course.isActive,
         createdAt: course.createdAt,
@@ -478,9 +488,12 @@ router.get("/:id", authenticateToken, async (req, res) => {
         };
       });
 
+    // Extract course name with fallbacks
+    const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
     res.json({
       id: course.id,
-      name: course.name,
+      name: courseName,
       description: course.description,
       isActive: course.isActive,
       createdAt: course.createdAt,

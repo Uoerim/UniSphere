@@ -86,6 +86,9 @@ function normalizeEntity(entity: any) {
   return {
     id: entity.id,
     type: entity.type,
+    name: entity.name,
+    code: entity.code,
+    description: entity.description,
     isActive: entity.isActive,
     createdAt: entity.createdAt,
     ...Object.fromEntries(
@@ -95,6 +98,31 @@ function normalizeEntity(entity: any) {
       ])
     ),
   };
+}
+
+// Helper to extract course name from entity (try multiple field names)
+function extractCourseName(entity: any): string {
+  const normalized = normalizeEntity(entity);
+  return (
+    normalized.name ||
+    normalized.courseName ||
+    normalized.title ||
+    normalized.displayName ||
+    normalized.course_name ||
+    'Unnamed Course'
+  );
+}
+
+// Helper to extract course code from entity (try multiple field names)
+function extractCourseCode(entity: any): string {
+  const normalized = normalizeEntity(entity);
+  return (
+    normalized.code ||
+    normalized.courseCode ||
+    normalized.course_code ||
+    normalized.shortCode ||
+    'N/A'
+  );
 }
 
 /**
@@ -138,14 +166,12 @@ studentRouter.get("/", authenticateToken, requireAdmin, async (_req, res) => {
       const enrolledCourses = entity?.relationsFrom?.map((rel: any) => {
         const course = normalizeEntity(rel.toEntity);
         const metadata = rel.metadata ? JSON.parse(rel.metadata) : {};
-        const courseName = course.name || course.courseName || course.title;
-        const courseCode = course.courseCode || course.code || course.course_code;
         return {
           ...course,
-          name: courseName,
-          courseName,
-          code: courseCode,
-          courseCode,
+          name: extractCourseName(rel.toEntity),
+          courseName: extractCourseName(rel.toEntity),
+          code: extractCourseCode(rel.toEntity),
+          courseCode: extractCourseCode(rel.toEntity),
           enrollmentId: rel.id,
           grade: metadata.grade,
           attendance: metadata.attendance,
@@ -202,6 +228,118 @@ studentRouter.get("/", authenticateToken, requireAdmin, async (_req, res) => {
 });
 
 /**
+ * GET /api/students/me
+ * Return the current student's profile (self-access), including entity attributes such as gpa.
+ */
+studentRouter.get("/me", authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user || user.role !== "STUDENT") {
+      return res.status(403).json({ error: "Student access required" });
+    }
+
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: {
+        entity: {
+          include: {
+            values: { include: { attribute: true } },
+          },
+        },
+      },
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
+    const entity = account.entity;
+    const attrs: Record<string, any> = {};
+
+    if (entity) {
+      entity.values.forEach((v: any) => {
+        attrs[v.attribute.name] =
+          v.valueString ?? v.valueNumber ?? v.valueBool ?? v.valueDate ?? v.valueDateTime ?? v.valueText;
+      });
+    }
+
+    return res.json({
+      id: account.id,
+      email: account.email,
+      role: account.role,
+      entityId: entity?.id,
+      gpa: attrs.gpa ?? null,
+      program: attrs.program ?? null,
+      major: attrs.major ?? null,
+      year: attrs.year ?? null,
+    });
+  } catch (error) {
+    console.error("Failed to fetch student self profile:", error);
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
+/**
+ * GET /api/students/me/courses
+ * Return the current student's enrolled courses with grade/attendance/status (self-access)
+ */
+studentRouter.get("/me/courses", authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user || user.role !== "STUDENT") {
+      return res.status(403).json({ error: "Student access required" });
+    }
+
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: {
+        entity: {
+          include: {
+            relationsFrom: {
+              where: { relationType: "ENROLLED_IN" },
+              include: {
+                toEntity: {
+                  include: { values: { include: { attribute: true } } }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const entity = account?.entity;
+    if (!entity) {
+      return res.json([]);
+    }
+
+    const courses = entity.relationsFrom
+      ?.filter((rel: any) => rel.relationType === "ENROLLED_IN")
+      ?.map((rel: any) => {
+        const course = normalizeEntity(rel.toEntity);
+        const metadata = rel.metadata ? JSON.parse(rel.metadata) : {};
+        return {
+          ...course,
+          name: extractCourseName(rel.toEntity),
+          courseName: extractCourseName(rel.toEntity),
+          code: extractCourseCode(rel.toEntity),
+          courseCode: extractCourseCode(rel.toEntity),
+          enrollmentId: rel.id,
+          grade: metadata.grade ?? 'N/A',
+          attendance: metadata.attendance ?? 0,
+          enrolledAt: rel.startDate || rel.createdAt,
+          status: rel.isActive ? 'active' : 'dropped'
+        };
+      }) || [];
+
+    res.json(courses);
+  } catch (error) {
+    console.error("Get my courses error:", error);
+    res.status(500).json({ error: "Failed to fetch courses" });
+  }
+});
+
+/**
  * GET /api/students/:id
  * Get a single student with full details
  */
@@ -246,14 +384,12 @@ studentRouter.get("/:id", authenticateToken, requireAdmin, async (req, res) => {
       ?.map((rel: any) => {
         const course = normalizeEntity(rel.toEntity);
         const metadata = rel.metadata ? JSON.parse(rel.metadata) : {};
-        const courseName = course.name || course.courseName || course.title;
-        const courseCode = course.courseCode || course.code || course.course_code;
         return {
           ...course,
-          name: courseName,
-          courseName,
-          code: courseCode,
-          courseCode,
+          name: extractCourseName(rel.toEntity),
+          courseName: extractCourseName(rel.toEntity),
+          code: extractCourseCode(rel.toEntity),
+          courseCode: extractCourseCode(rel.toEntity),
           enrollmentId: rel.id,
           grade: metadata.grade,
           attendance: metadata.attendance,
