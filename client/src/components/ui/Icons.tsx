@@ -616,3 +616,18 @@ export const AwardIcon: React.FC<IconProps> = ({ size = 20, color = 'currentColo
     <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
   </svg>
 );
+
+// Trending Up
+export const TrendingUpIcon: React.FC<IconProps> = ({ size = 20, color = 'currentColor', className }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+    <polyline points="17 6 23 6 23 12"/>
+  </svg>
+);
+
+// Activity / Pulse
+export const ActivityIcon: React.FC<IconProps> = ({ size = 20, color = 'currentColor', className }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+);

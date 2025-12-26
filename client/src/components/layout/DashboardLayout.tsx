@@ -166,15 +166,6 @@ export default function DashboardLayout() {
               <BellIcon size={18} />
               <span className={styles.notificationBadge}></span>
             </div>
-            <div className={styles.userProfile}>
-              <div className={styles.userAvatar}>
-                {getInitials(user?.email || '')}
-              </div>
-              <div className={styles.userInfo}>
-                <span className={styles.userName}>{user?.email?.split('@')[0]}</span>
-                <span className={styles.userRole}>{user?.role}</span>
-              </div>
-            </div>
           </div>
         </header>
 
