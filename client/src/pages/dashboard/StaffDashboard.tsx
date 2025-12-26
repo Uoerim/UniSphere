@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import styles from './RoleDashboard.module.css';
 import {
   FileTextIcon,
@@ -50,6 +51,7 @@ interface Message {
 
 export default function StaffDashboard() {
   const { user, token } = useAuth();
+  const navigate = useNavigate();
   void token; // keep token available for future API calls without unused warnings
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -132,11 +134,11 @@ export default function StaffDashboard() {
   };
 
   useEffect(() => {
+<<<<<<< HEAD
     void loadCourses();
     // seed demo data for now
-    setTasks([
-      { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
-      { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
+    void loadCourses();
+    // seed demo data for nowpe: 'meeting', dueDate: '2025-12-24', priority: 'high' },
       { id: '3', title: 'Prepare Spring Syllabus', type: 'preparation', dueDate: '2025-12-30', priority: 'medium' },
       { id: '4', title: 'Submit Research Grant', type: 'admin', dueDate: '2026-01-05', priority: 'medium' },
       { id: '5', title: 'Review TA Applications', type: 'admin', dueDate: '2026-01-10', priority: 'low' },
@@ -148,10 +150,13 @@ export default function StaffDashboard() {
       { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
     ]);
   }, [token, user]);
+<<<<<<< HEAD
 
   useEffect(() => {
     void loadDashboardData();
   }, [user?.id, token]);
+=======
+>>>>>>> 8052cf6da4c590017b3996ee7766a9fbcb2c3546
 
   // Helpers
   const getPriorityColor = (priority: Task['priority']) => {
@@ -180,13 +185,10 @@ export default function StaffDashboard() {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.spinner}></div>
-        <p>Loading your courses...</p>
-      </div>
-    );
-  }
 
-  return (
-    <div className={styles.container}>
+  useEffect(() => {
+    void loadDashboardData();
+  }, [user?.id, token]);
       {/* Welcome Header */}
       <div className={`${styles.welcomeBanner} ${styles.staffBanner}`}>
         <div className={styles.welcomeContent}>
