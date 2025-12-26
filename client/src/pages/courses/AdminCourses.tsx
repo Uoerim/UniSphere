@@ -51,6 +51,7 @@ interface Course {
   code?: string;
   credits?: number;
   department?: string;
+  departmentId?: string;
   courseType?: string;
   capacity?: number;
   room?: string;
@@ -116,6 +117,7 @@ export default function AdminCourses() {
     code: '',
     credits: 3,
     department: '',
+    departmentId: '',
     courseType: '',
     capacity: 30,
     roomIds: [] as string[],
@@ -195,7 +197,7 @@ export default function AdminCourses() {
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/departments', {
+      const response = await fetch('http://localhost:4000/api/curriculum/departments/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -262,7 +264,7 @@ export default function AdminCourses() {
     }
 
     if (filterDepartment !== 'all') {
-      result = result.filter(c => c.department === filterDepartment);
+      result = result.filter(c => c.departmentId === filterDepartment);
     }
 
     if (filterStatus !== 'all') {
@@ -295,10 +297,14 @@ export default function AdminCourses() {
     return result;
   }, [courses, searchTerm, filterDepartment, filterStatus, filterCourseType, sortField, sortDirection]);
 
-  const departments = useMemo(() => {
-    const deps = new Set(courses.map(c => c.department).filter(Boolean));
-    return Array.from(deps) as string[];
-  }, [courses]);
+  // Create a mapping of department IDs to names for display
+  const departmentMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    departmentsList.forEach(dept => {
+      map[dept.id] = dept.name;
+    });
+    return map;
+  }, [departmentsList]);
 
   const courseTypes = useMemo(() => {
     const types = new Set(courses.map(c => c.courseType).filter(Boolean));
@@ -312,6 +318,7 @@ export default function AdminCourses() {
       code: '',
       credits: 3,
       department: '',
+      departmentId: '',
       courseType: '',
       capacity: 30,
       roomIds: [],
@@ -354,6 +361,7 @@ export default function AdminCourses() {
         body: JSON.stringify({
           ...formData,
           room: roomNames,
+          departmentId: formData.departmentId || undefined,
         }),
       });
 
@@ -399,6 +407,7 @@ export default function AdminCourses() {
         body: JSON.stringify({
           ...formData,
           room: roomNames,
+          departmentId: formData.departmentId || undefined,
         }),
       });
 
@@ -482,6 +491,7 @@ export default function AdminCourses() {
       code: course.code || '',
       credits: course.credits || 3,
       department: course.department || '',
+      departmentId: course.departmentId || '',
       courseType: course.courseType || '',
       capacity: course.capacity || 30,
       roomIds: matchedRoomIds,
@@ -683,8 +693,8 @@ export default function AdminCourses() {
           className={styles.filterSelect}
         >
           <option value="all">All Departments</option>
-          {departments.map(dep => (
-            <option key={dep} value={dep}>{dep}</option>
+          {departmentsList.map(dept => (
+            <option key={dept.id} value={dept.id}>{dept.name}</option>
           ))}
         </select>
         <select
@@ -752,8 +762,8 @@ export default function AdminCourses() {
                   <p className={styles.courseDescription}>{course.description}</p>
                 )}
                 <div className={styles.courseMeta}>
-                  {course.department && (
-                    <span className={styles.metaItem}><BuildingIcon size={14} /> {course.department}</span>
+                  {course.departmentId && (
+                    <span className={styles.metaItem}><BuildingIcon size={14} /> {departmentMap[course.departmentId] || 'Unknown'}</span>
                   )}
                   {course.credits && (
                     <span className={styles.metaItem}><ChartIcon size={14} /> {course.credits} Credits</span>
@@ -850,7 +860,7 @@ export default function AdminCourses() {
                       {course.courseType && <span className={styles.courseTypeTag}>{course.courseType}</span>}
                     </div>
                   </td>
-                  <td>{course.department || '-'}</td>
+                  <td>{course.departmentId ? departmentMap[course.departmentId] || 'Unknown' : '-'}</td>
                   <td className={styles.creditsCell}>{course.credits || '-'}</td>
                   <td>
                     {course.instructors && course.instructors.length > 0 
@@ -917,12 +927,12 @@ export default function AdminCourses() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    value={formData.departmentId}
+                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                   >
                     <option value="">Select Department</option>
                     {departmentsList.map(dept => (
-                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
                 </div>
@@ -1128,12 +1138,12 @@ export default function AdminCourses() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    value={formData.departmentId}
+                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                   >
                     <option value="">Select Department</option>
                     {departmentsList.map(dept => (
-                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
                 </div>
@@ -1367,7 +1377,7 @@ export default function AdminCourses() {
                   <div className={styles.detailsList}>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Department:</span>
-                      <span>{selectedCourse.department || 'Not specified'}</span>
+                      <span>{selectedCourse.departmentId ? departmentMap[selectedCourse.departmentId] || 'Unknown' : 'Not specified'}</span>
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Credits:</span>

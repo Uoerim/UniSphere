@@ -2,6 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import styles from './Departments.module.css';
 import { BuildingIcon, CheckCircleIcon, BookOpenIcon, StaffIcon, AlertTriangleIcon, SearchIcon, UserIcon, EditIcon, TrashIcon, LockIcon, UnlockIcon } from '../../components/ui/Icons';
 
+interface Course {
+  id: string;
+  name: string;
+  code?: string;
+  credits?: number;
+  isActive: boolean;
+}
+
 interface Department {
   id: string;
   name: string;
@@ -13,6 +21,7 @@ interface Department {
   createdAt: string;
   courseCount: number;
   staffCount: number;
+  courses?: Course[];
 }
 
 interface DepartmentStats {
@@ -34,6 +43,7 @@ export default function Departments() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [departmentCourses, setDepartmentCourses] = useState<Record<string, Course[]>>({});
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,6 +69,7 @@ export default function Departments() {
     fetchDepartments();
     fetchStats();
     fetchStaff();
+    fetchAllCourses();
   }, []);
 
   const fetchDepartments = async () => {
@@ -119,6 +130,39 @@ export default function Departments() {
       }
     } catch (err) {
       console.error('Failed to fetch staff:', err);
+    }
+  };
+
+  const fetchAllCourses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/curriculum', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const courses = await response.json();
+        // Group courses by departmentId
+        const grouped: Record<string, Course[]> = {};
+        courses.forEach((course: any) => {
+          // Courses with BELONGS_TO relation have departmentId
+          // If no departmentId, they'll be in an 'unassigned' group
+          const deptId = course.departmentId || 'unassigned';
+          if (!grouped[deptId]) {
+            grouped[deptId] = [];
+          }
+          grouped[deptId].push({
+            id: course.id,
+            name: course.name,
+            code: course.code,
+            credits: course.credits,
+            isActive: course.isActive
+          });
+        });
+        setDepartmentCourses(grouped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch courses:', err);
     }
   };
 

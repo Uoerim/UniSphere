@@ -141,9 +141,12 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
       // Count enrolled students
       const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
 
+      // Extract course name with fallbacks (same as student.routes)
+      const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
       return {
         id: course.id,
-        name: course.name,
+        name: courseName,
         description: course.description,
         isActive: course.isActive,
         code: attrs.courseCode || attrs.code,
@@ -271,9 +274,12 @@ router.get("/student/:studentId/courses", authenticateToken, async (req, res) =>
       // Legacy support
       const instructor = instructors.length > 0 ? instructors[0] : null;
 
+      // Extract course name with fallbacks
+      const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
       return {
         id: course.id,
-        name: course.name,
+        name: courseName,
         description: course.description,
         isActive: course.isActive,
         code: attrs.courseCode || attrs.code,
@@ -297,6 +303,35 @@ router.get("/student/:studentId/courses", authenticateToken, async (req, res) =>
 });
 
 // GET all courses with enrollment and instructor data
+// GET all active departments for course assignment
+router.get("/departments/all", authenticateToken, async (req, res) => {
+  try {
+    const departments = await prisma.entity.findMany({
+      where: { type: 'DEPARTMENT', isActive: true },
+      include: { values: { include: { attribute: true } } },
+      orderBy: { name: 'asc' }
+    });
+
+    const formatted = departments.map(dept => {
+      const attrs: Record<string, any> = {};
+      dept.values.forEach(v => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      return {
+        id: dept.id,
+        name: dept.name,
+        code: attrs.code || attrs.departmentCode,
+        description: dept.description
+      };
+    });
+
+    res.json(formatted);
+  } catch (error) {
+    console.error("Get departments error:", error);
+    res.status(500).json({ error: "Failed to fetch departments" });
+  }
+});
+
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const courses = await prisma.entity.findMany({
@@ -369,16 +404,20 @@ router.get("/", authenticateToken, async (req, res) => {
           prereqCourse.values.forEach((v: any) => {
             prereqAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
           });
+          const prereqName = prereqCourse.name || prereqAttrs.courseName || prereqAttrs.title || 'Unnamed Course';
           return {
             id: prereqCourse.id,
-            name: prereqCourse.name,
+            name: prereqName,
             code: prereqAttrs.courseCode || prereqAttrs.code
           };
         });
 
+      // Extract course name with fallbacks
+      const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
       return {
         id: course.id,
-        name: course.name,
+        name: courseName,
         description: course.description,
         isActive: course.isActive,
         createdAt: course.createdAt,
@@ -478,9 +517,12 @@ router.get("/:id", authenticateToken, async (req, res) => {
         };
       });
 
+    // Extract course name with fallbacks
+    const courseName = course.name || attrs.courseName || attrs.title || attrs.displayName || attrs.course_name || 'Unnamed Course';
+
     res.json({
       id: course.id,
-      name: course.name,
+      name: courseName,
       description: course.description,
       isActive: course.isActive,
       createdAt: course.createdAt,
@@ -551,7 +593,7 @@ router.get("/instructors/available", authenticateToken, requireAdminOrStaff, asy
 // CREATE course
 router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, scheduleDisplay, instructorId, instructorIds, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
+    const { name, description, code, credits, department, departmentId, semester, courseType, capacity, room, schedule, scheduleDisplay, instructorId, instructorIds, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
     
     // Support both single instructorId (legacy) and instructorIds array
     const finalInstructorIds: string[] = instructorIds && Array.isArray(instructorIds) 
@@ -637,6 +679,18 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       }
     }
 
+    // Link to department if departmentId provided
+    if (departmentId) {
+      await prisma.entityRelation.create({
+        data: {
+          fromEntityId: course.id,
+          toEntityId: departmentId,
+          relationType: 'BELONGS_TO',
+          startDate: new Date()
+        }
+      });
+    }
+
     // Create prerequisite relations
     if (prerequisiteIds && Array.isArray(prerequisiteIds) && prerequisiteIds.length > 0) {
       for (const prereqId of prerequisiteIds) {
@@ -666,7 +720,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
 router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
     const id = req.params.id as string;
-    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, scheduleDisplay, instructorId, instructorIds, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
+    const { name, description, isActive, code, credits, department, departmentId, semester, courseType, capacity, room, schedule, scheduleDisplay, instructorId, instructorIds, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
     
     // Support both single instructorId (legacy) and instructorIds array
     const finalInstructorIds: string[] | undefined = instructorIds !== undefined 
@@ -778,6 +832,29 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
             }
           });
         }
+      }
+    }
+
+    // Update department link if provided
+    if (departmentId !== undefined) {
+      // Delete existing department relation
+      await prisma.entityRelation.deleteMany({
+        where: {
+          fromEntityId: id,
+          relationType: 'BELONGS_TO'
+        }
+      });
+
+      // Create new department relation if departmentId is provided
+      if (departmentId) {
+        await prisma.entityRelation.create({
+          data: {
+            fromEntityId: id,
+            toEntityId: departmentId,
+            relationType: 'BELONGS_TO',
+            startDate: new Date()
+          }
+        });
       }
     }
 

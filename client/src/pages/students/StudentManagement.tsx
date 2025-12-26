@@ -54,13 +54,6 @@ interface Student {
   coursesCount: number;
 }
 
-interface AvailableCourse {
-  id: string;
-  name?: string;
-  code?: string;
-  department?: string;
-}
-
 type TabType = 'overview' | 'courses' | 'grades' | 'attendance';
 type SortField = 'email' | 'firstName' | 'program' | 'createdAt' | 'gpa';
 type SortDirection = 'asc' | 'desc';
@@ -74,9 +67,7 @@ export default function StudentManagement() {
   // Selected student
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-
-  // Available courses for enrollment
-  const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
+  const [courseStatusFilter, setCourseStatusFilter] = useState<'all' | 'active' | 'dropped'>('all');
 
   // Filters and sorting
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,7 +79,6 @@ export default function StudentManagement() {
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showGradeModal, setShowGradeModal] = useState(false);
 
   // Form state
@@ -125,13 +115,6 @@ export default function StudentManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdPassword, setCreatedPassword] = useState('');
 
-  // Enrollment form state
-  const [enrollmentData, setEnrollmentData] = useState({
-    courseId: '',
-    grade: 'N/A',
-    attendance: 100
-  });
-
   // Grade edit state
   const [gradeEditData, setGradeEditData] = useState({
     enrollmentId: '',
@@ -141,7 +124,6 @@ export default function StudentManagement() {
 
   useEffect(() => {
     fetchStudentList();
-    fetchAvailableCourses();
   }, []);
 
   useEffect(() => {
@@ -188,22 +170,6 @@ export default function StudentManagement() {
     }
   };
 
-  const fetchAvailableCourses = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch('http://localhost:4000/api/students/available/courses', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const courses = await response.json();
-        setAvailableCourses(courses);
-      }
-    } catch (err) {
-      console.error('Failed to fetch available courses:', err);
-    }
-  };
 
   // Filtered and sorted student list
   const filteredStudents = useMemo(() => {
@@ -248,6 +214,16 @@ export default function StudentManagement() {
 
     return result;
   }, [studentList, searchTerm, filterProgram, filterYear, sortField, sortDirection]);
+
+  const filteredEnrolledCourses = useMemo(() => {
+    if (!selectedStudent?.enrolledCourses) return [];
+    if (courseStatusFilter === 'all') return selectedStudent.enrolledCourses;
+    return selectedStudent.enrolledCourses.filter(course => course.status === courseStatusFilter);
+  }, [selectedStudent?.enrolledCourses, courseStatusFilter]);
+
+  const activeCourses = useMemo(() => {
+    return selectedStudent?.enrolledCourses?.filter(course => course.status === 'active') || [];
+  }, [selectedStudent?.enrolledCourses]);
 
   const programs = useMemo(() => {
     const progs = new Set(studentList.map(s => s.program).filter(Boolean));
@@ -460,47 +436,6 @@ export default function StudentManagement() {
       await fetchStudentList();
     } catch (err: any) {
       alert(err.message || 'Failed to reset password');
-    }
-  };
-
-  const handleEnrollStudent = async () => {
-    if (!selectedStudent || !enrollmentData.courseId) {
-      setFormError('Please select a course');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFormError('');
-
-    try {
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(`http://localhost:4000/api/students/${selectedStudent.id}/courses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          courseId: enrollmentData.courseId,
-          grade: enrollmentData.grade,
-          attendance: enrollmentData.attendance,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to enroll student');
-      }
-
-      await fetchStudentDetails(selectedStudent.id);
-      await fetchStudentList();
-      setShowEnrollModal(false);
-      setEnrollmentData({ courseId: '', grade: 'N/A', attendance: 100 });
-    } catch (err: any) {
-      setFormError(err.message);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -1064,8 +999,8 @@ export default function StudentManagement() {
 
                     <div className={styles.quickStats}>
                       <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>{selectedStudent.enrolledCourses?.length || 0}</div>
-                        <div className={styles.quickStatLabel}>Enrolled Courses</div>
+                        <div className={styles.quickStatValue}>{activeCourses.length}</div>
+                        <div className={styles.quickStatLabel}>Active Courses</div>
                       </div>
                       <div className={styles.quickStatCard}>
                         <div className={styles.quickStatValue}>{selectedStudent.gpa || 'N/A'}</div>
@@ -1077,8 +1012,8 @@ export default function StudentManagement() {
                       </div>
                       <div className={styles.quickStatCard}>
                         <div className={styles.quickStatValue}>
-                          {selectedStudent.enrolledCourses?.length 
-                            ? Math.round(selectedStudent.enrolledCourses.reduce((acc, c) => acc + c.attendance, 0) / selectedStudent.enrolledCourses.length)
+                          {activeCourses.length 
+                            ? Math.round(activeCourses.reduce((acc, c) => acc + c.attendance, 0) / activeCourses.length)
                             : 0}%
                         </div>
                         <div className={styles.quickStatLabel}>Avg Attendance</div>
@@ -1091,17 +1026,26 @@ export default function StudentManagement() {
                   <div className={styles.coursesTab}>
                     <div className={styles.tabHeader}>
                       <h3>Enrolled Courses</h3>
-                      <button className={styles.enrollBtn} onClick={() => setShowEnrollModal(true)}>
-                        + Enroll in Course
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Status</span>
+                        <select
+                          value={courseStatusFilter}
+                          onChange={e => setCourseStatusFilter(e.target.value as 'all' | 'active' | 'dropped')}
+                          style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fff' }}
+                        >
+                          <option value="all">All</option>
+                          <option value="active">Active</option>
+                          <option value="dropped">Dropped</option>
+                        </select>
+                      </div>
                     </div>
-                    {selectedStudent.enrolledCourses?.length > 0 ? (
+                    {filteredEnrolledCourses.length > 0 ? (
                       <div className={styles.coursesList}>
-                        {selectedStudent.enrolledCourses.map(course => (
+                        {filteredEnrolledCourses.map(course => (
                           <div key={course.enrollmentId} className={styles.courseCard}>
                             <div className={styles.courseInfo}>
-                              <div className={styles.courseCode}>{course.code || 'N/A'}</div>
-                              <div className={styles.courseName}>{course.name || 'Unnamed Course'}</div>
+                              <div className={styles.courseCode}>{course.code || course.courseCode || 'N/A'}</div>
+                              <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed Course'}</div>
                               <div className={styles.courseMeta}>
                                 <span><BookOpenIcon size={14} /> {course.department || 'N/A'}</span>
                                 <span><CalendarIcon size={14} /> Enrolled: {formatDate(course.enrolledAt)}</span>
@@ -1133,9 +1077,6 @@ export default function StudentManagement() {
                       <div className={styles.emptyCourses}>
                         <span><BookOpenIcon size={48} /></span>
                         <p>No courses enrolled</p>
-                        <button className={styles.enrollBtn} onClick={() => setShowEnrollModal(true)}>
-                          Enroll in Course
-                        </button>
                       </div>
                     )}
                   </div>
@@ -1146,7 +1087,7 @@ export default function StudentManagement() {
                     <div className={styles.tabHeader}>
                       <h3>Grade Report</h3>
                     </div>
-                    {selectedStudent.enrolledCourses?.length > 0 ? (
+                    {activeCourses.length > 0 ? (
                       <table className={styles.gradesTable}>
                         <thead>
                           <tr>
@@ -1159,10 +1100,10 @@ export default function StudentManagement() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedStudent.enrolledCourses.map(course => (
+                          {activeCourses.map(course => (
                             <tr key={course.enrollmentId}>
-                              <td><span className={styles.codeBadge}>{course.code || 'N/A'}</span></td>
-                              <td>{course.name || 'Unnamed Course'}</td>
+                              <td><span className={styles.codeBadge}>{course.code || course.courseCode || 'N/A'}</span></td>
+                              <td>{course.name || course.courseName || 'Unnamed Course'}</td>
                               <td>{course.department || 'N/A'}</td>
                               <td>
                                 <span className={`${styles.gradeBadge} ${getGradeColor(course.grade)}`}>
@@ -1195,14 +1136,14 @@ export default function StudentManagement() {
                     <div className={styles.tabHeader}>
                       <h3>Attendance Report</h3>
                     </div>
-                    {selectedStudent.enrolledCourses?.length > 0 ? (
+                    {activeCourses.length > 0 ? (
                       <div className={styles.attendanceList}>
-                        {selectedStudent.enrolledCourses.map(course => (
+                        {activeCourses.map(course => (
                           <div key={course.enrollmentId} className={styles.attendanceCard}>
                             <div className={styles.attendanceInfo}>
                               <div className={styles.attendanceCourse}>
-                                <span className={styles.codeBadge}>{course.code || 'N/A'}</span>
-                                {course.name || 'Unnamed Course'}
+                                <span className={styles.codeBadge}>{course.code || course.courseCode || 'N/A'}</span>
+                                {course.name || course.courseName || 'Unnamed Course'}
                               </div>
                             </div>
                             <div className={styles.attendanceBar}>
@@ -1964,87 +1905,6 @@ export default function StudentManagement() {
               <button className={styles.cancelBtn} onClick={() => setShowEditModal(false)}>Cancel</button>
               <button className={styles.submitBtn} onClick={handleUpdateStudent} disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Enroll in Course Modal */}
-      {showEnrollModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowEnrollModal(false)}>
-          <div className={styles.modalSmall} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>Enroll in Course</h2>
-              <button className={styles.closeBtn} onClick={() => setShowEnrollModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              {formError && <div className={styles.formError}><AlertTriangleIcon size={16} /> {formError}</div>}
-              
-              <div className={styles.formGroup}>
-                <label>Select Course *</label>
-                <select
-                  value={enrollmentData.courseId}
-                  onChange={(e) => setEnrollmentData(prev => ({ ...prev, courseId: e.target.value }))}
-                >
-                  <option value="">Choose a course...</option>
-                  {availableCourses.map(course => (
-                    <option key={course.id} value={course.id}>
-                      {course.code} - {course.name || 'Unnamed Course'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Initial Grade</label>
-                  <select
-                    value={enrollmentData.grade}
-                    onChange={(e) => setEnrollmentData(prev => ({ ...prev, grade: e.target.value }))}
-                  >
-                    <option value="N/A">N/A</option>
-                    <option value="A+">A+</option>
-                    <option value="A">A</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B">B</option>
-                    <option value="B-">B-</option>
-                    <option value="C+">C+</option>
-                    <option value="C">C</option>
-                    <option value="C-">C-</option>
-                    <option value="D+">D+</option>
-                    <option value="D">D</option>
-                    <option value="D-">D-</option>
-                    <option value="F">F</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Attendance %</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={enrollmentData.attendance}
-                    onChange={(e) => setEnrollmentData(prev => ({ ...prev, attendance: parseInt(e.target.value) || 0 }))}
-                  />
-                </div>
-              </div>
-
-              {availableCourses.length === 0 && (
-                <p className={styles.formNote}>
-                  <AlertTriangleIcon size={14} /> No courses available. Please create courses first.
-                </p>
-              )}
-            </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.cancelBtn} onClick={() => setShowEnrollModal(false)}>Cancel</button>
-              <button 
-                className={styles.submitBtn} 
-                onClick={handleEnrollStudent} 
-                disabled={isSubmitting || !enrollmentData.courseId}
-              >
-                {isSubmitting ? 'Enrolling...' : 'Enroll Student'}
               </button>
             </div>
           </div>

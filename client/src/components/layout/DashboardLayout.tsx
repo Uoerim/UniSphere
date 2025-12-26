@@ -81,6 +81,7 @@ export default function DashboardLayout() {
             { name: 'My Courses', path: '/courses', icon: <BookOpenIcon /> },
             { name: 'My Assignments', path: '/assignments', icon: <ClipboardIcon /> },
             { name: 'My Assessments', path: '/assessments', icon: <FileTextIcon /> },
+            { name: 'My Grades', path: '/grades', icon: <ChartIcon /> },
           ]},
           { title: 'Community', items: communityNav },
         ];

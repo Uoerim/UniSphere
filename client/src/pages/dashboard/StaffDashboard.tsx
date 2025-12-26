@@ -60,19 +60,39 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const dayName = (abbr: string) => {
+    const map: Record<string, string> = {
+      Su: 'Sunday', Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday'
+    };
+    return map[abbr] || abbr;
+  };
+
   const formatSchedule = (schedule?: string) => {
     if (!schedule) return 'Schedule TBD';
-    try {
-      const parsed = JSON.parse(schedule);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item: any) => {
-          const days = Array.isArray(item.days) ? item.days.join(', ') : '';
-          return `${days}${item.startTime && item.endTime ? `, ${item.startTime}–${item.endTime}` : ''}`;
-        }).join(' | ');
+
+    const stringify = (value: unknown) => {
+      if (Array.isArray(value)) {
+        return value
+          .map((item: any) => {
+            if (!item) return '';
+            const days = Array.isArray(item.days) ? item.days.map(dayName).join(', ') : '';
+            const time = item.startTime && item.endTime ? `${item.startTime}–${item.endTime}` : '';
+            return [days, time].filter(Boolean).join(' ');
+          })
+          .filter(Boolean)
+          .join(' | ');
       }
+      return '';
+    };
+
+    try {
+      const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+      const formatted = stringify(parsed);
+      if (formatted) return formatted;
     } catch {
       // fall back to raw schedule string
     }
+
     return schedule;
   };
 

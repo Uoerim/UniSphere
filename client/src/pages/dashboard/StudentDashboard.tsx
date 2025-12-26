@@ -15,6 +15,14 @@ interface Course {
   [key: string]: any;
 }
 
+interface CourseGrade extends Course {
+  enrollmentId?: string;
+  grade?: string;
+  attendance?: number;
+  status?: 'active' | 'dropped';
+  enrolledAt?: string;
+}
+
 interface Assignment {
   id: string;
   title: string;
@@ -31,39 +39,90 @@ interface Announcement {
   date: string;
   type: 'general' | 'course' | 'urgent';
 }
+
+// Format schedule objects/JSON into readable text (e.g., Mon, Wed 10:30-12:00)
+const formatSchedule = (schedule: any): string => {
+  if (!schedule) return 'N/A';
+
+  const dayMap: Record<string, string> = {
+    Mo: 'Mon', Tu: 'Tue', We: 'Wed', Th: 'Thu', Fr: 'Fri', Sa: 'Sat', Su: 'Sun',
+    Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun',
+  };
+
+  const formatSlot = (slot: any) => {
+    const days = Array.isArray(slot?.days) ? slot.days.map((d: string) => dayMap[d] || d).join(', ') : '';
+    const time = slot?.startTime && slot?.endTime ? `${slot.startTime}-${slot.endTime}` : '';
+    return [days, time].filter(Boolean).join(' ');
+  };
+
+  try {
+    const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+    if (Array.isArray(parsed)) {
+      const slots = parsed.map(formatSlot).filter(Boolean);
+      return slots.length ? slots.join(' | ') : 'N/A';
+    }
+    if (parsed && typeof parsed === 'object') {
+      const slot = formatSlot(parsed);
+      return slot || 'N/A';
+    }
+  } catch (_) {
+    // fall back to raw string if parsing fails
+  }
+
+  return typeof schedule === 'string' ? schedule : 'N/A';
+};
 export default function StudentDashboard() {
   const { user, token } = useAuth();
-  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const apiBase = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:4000/api');
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
+  const [courseGrades, setCourseGrades] = useState<CourseGrade[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [gpa, setGpa] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
-      setLoading(true);
-      setError(null);
       try {
-        // Fetch all courses
-        const resAll = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum`, {
+        const resEnrolled = await fetch(`${apiBase}/curriculum/my-courses`, {
           headers: { 'Authorization': token ? `Bearer ${token}` : '' },
         });
-        const all = await resAll.json();
-        // Fetch enrolled courses
-        const resEnrolled = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
-          headers: { 'Authorization': token ? `Bearer ${token}` : '' },
-        });
+        if (!resEnrolled.ok) throw new Error(`Failed to fetch enrolled courses: ${resEnrolled.status}`);
         const enrolled = await resEnrolled.json();
-        setAllCourses(all);
-        setEnrolledCourses(enrolled);
+        setEnrolledCourses(enrolled || []);
       } catch (err: any) {
-        setError('Failed to load courses');
-      } finally {
-        setLoading(false);
+        console.error('Course fetch error:', err);
       }
     };
-    if (token) fetchCourses();
+    const fetchProfile = async () => {
+      try {
+        const resProfile = await fetch(`${apiBase}/students/me`, {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+        });
+        if (resProfile.ok) {
+          const profile = await resProfile.json();
+          setGpa(profile?.gpa ?? null);
+        }
+      } catch (err) {
+        console.error('Profile fetch error:', err);
+      }
+    };
+       if (token) {
+         fetchCourses();
+         fetchProfile();
+         const fetchGrades = async () => {
+           try {
+             const resGrades = await fetch(`${apiBase}/students/me/courses`, {
+               headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+             });
+             if (!resGrades.ok) throw new Error(`Failed to fetch course grades: ${resGrades.status}`);
+             const grades = await resGrades.json();
+             setCourseGrades(grades || []);
+           } catch (err: any) {
+             console.error('Grades fetch error:', err);
+           }
+         };
+         fetchGrades();
+       }
     // Keep assignments and announcements as mock/demo for now
     setAssignments([
       { id: '1', title: 'Programming Project 3', course: 'CS101', dueDate: '2025-12-26', status: 'pending' },
@@ -77,38 +136,6 @@ export default function StudentDashboard() {
       { id: '3', title: 'Library Extended Hours', content: 'Library open 24/7 during finals week', date: '2025-12-21', type: 'general' },
     ]);
   }, [token]);
-
-  // Helper to check if student is enrolled in a course
-  const isEnrolled = (courseId: string) => enrolledCourses.some(c => c.id === courseId);
-
-  // Register for a course
-  const handleRegister = async (courseId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      // Get student entityId (from enrolledCourses or user)
-      // Backend uses current user if not provided, so just call API
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/${courseId}/enroll`, {
-        method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ studentId: null }) // null lets backend use current user
-      });
-      if (!res.ok) throw new Error('Failed to enroll');
-      // Refresh enrolled courses
-      const resEnrolled = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' },
-      });
-      const enrolled = await resEnrolled.json();
-      setEnrolledCourses(enrolled);
-    } catch (err: any) {
-      setError('Failed to enroll in course');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -141,7 +168,7 @@ export default function StudentDashboard() {
             <span className={styles.statLabel}>Active Courses</span>
           </div>
           <div className={styles.welcomeStat}>
-            <span className={styles.statNumber}>3.7</span>
+            <span className={styles.statNumber}>{gpa ?? '—'}</span>
             <span className={styles.statLabel}>Current GPA</span>
           </div>
           <div className={styles.welcomeStat}>
@@ -197,55 +224,15 @@ export default function StudentDashboard() {
               enrolledCourses.map(course => (
                 <div key={course.id} className={styles.courseItem}>
                   <div className={styles.courseInfo}>
-                    <div className={styles.courseCode}>{course.code}</div>
-                    <div className={styles.courseName}>{course.name}</div>
+                    <div className={styles.courseCode}>{course.code || 'N/A'}</div>
+                    <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed Course'}</div>
                     <div className={styles.courseDetails}>
                       <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
-                      <span><CalendarIcon size={14} /> {course.schedule || 'N/A'}</span>
+                      <span><CalendarIcon size={14} /> {formatSchedule(course.schedule)}</span>
                     </div>
                   </div>
                 </div>
               ))
-            )}
-          </div>
-        </div>
-
-        {/* All Courses (available for registration) */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2><FileTextIcon size={20} /> Register for Courses</h2>
-          </div>
-          <div className={styles.courseList}>
-            {loading ? (
-              <div>Loading courses...</div>
-            ) : error ? (
-              <div style={{ color: 'red' }}>{error}</div>
-            ) : (
-              allCourses.length === 0 ? (
-                <div>No courses available.</div>
-              ) : (
-                allCourses.map(course => (
-                  <div key={course.id} className={styles.courseItem}>
-                    <div className={styles.courseInfo}>
-                      <div className={styles.courseCode}>{course.code}</div>
-                      <div className={styles.courseName}>{course.name}</div>
-                      <div className={styles.courseDetails}>
-                        <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
-                        <span><CalendarIcon size={14} /> {course.schedule || 'N/A'}</span>
-                      </div>
-                    </div>
-                    <div>
-                      {isEnrolled(course.id) ? (
-                        <span style={{ color: 'green' }}>Enrolled</span>
-                      ) : (
-                        <button onClick={() => handleRegister(course.id)} style={{ marginLeft: 8 }}>
-                          Register
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )
             )}
           </div>
         </div>
@@ -291,7 +278,7 @@ export default function StudentDashboard() {
                   const conflicts = arr.filter((c, i) => i !== idx && c.schedule === course.schedule);
                   return (
                     <div key={course.id} className={styles.scheduleItem}>
-                      <div className={styles.scheduleTime}>{course.schedule || 'TBD'}</div>
+                      <div className={styles.scheduleTime}>{formatSchedule(course.schedule) || 'TBD'}</div>
                       <div className={styles.scheduleContent}>
                         <div className={styles.scheduleTitle}>{course.name}</div>
                         <div className={styles.scheduleLocation}><PinIcon size={14} /> {course.room || 'TBD'}</div>
