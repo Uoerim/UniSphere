@@ -83,6 +83,10 @@ io.on("connection", (socket) => {
   });
 });
 
+const app = express();
+// Increase body size limits to support large data URLs (e.g., PDF uploads)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.json());
 app.use(cors());
 
