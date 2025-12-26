@@ -43,6 +43,281 @@ const generateTempPassword = () => {
   return password;
 };
 
+// ============================================
+// PARENT SELF-SERVICE ENDPOINTS (No admin required)
+// ============================================
+
+// GET current parent's profile
+router.get("/me", authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+
+    if (user.role !== 'PARENT') {
+      return res.status(403).json({ error: "Access denied. Parent role required." });
+    }
+
+    const parent = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: {
+        entity: {
+          include: {
+            values: { include: { attribute: true } },
+            relationsFrom: {
+              where: { relationType: 'PARENT_OF', isActive: true },
+              include: {
+                toEntity: {
+                  include: {
+                    values: { include: { attribute: true } },
+                    account: { select: { email: true, id: true } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!parent) {
+      return res.status(404).json({ error: "Parent not found" });
+    }
+
+    const attrs: Record<string, any> = {};
+    if (parent.entity) {
+      parent.entity.values.forEach(v => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+    }
+
+    // Get children summary
+    const children = parent.entity?.relationsFrom
+      .filter(r => r.relationType === 'PARENT_OF')
+      .map(r => {
+        const childAttrs: Record<string, any> = {};
+        r.toEntity.values.forEach(v => {
+          childAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+        return {
+          id: r.toEntity.account?.id || r.toEntity.id,
+          entityId: r.toEntity.id,
+          name: childAttrs.firstName && childAttrs.lastName
+            ? `${childAttrs.firstName} ${childAttrs.lastName}`
+            : r.toEntity.account?.email || 'Unknown',
+          email: r.toEntity.account?.email,
+          grade: childAttrs.grade || childAttrs.gradeLevel,
+          avatar: childAttrs.firstName ? childAttrs.firstName.charAt(0).toUpperCase() : 'S'
+        };
+      }) || [];
+
+    res.json({
+      id: parent.id,
+      email: parent.email,
+      firstName: attrs.firstName,
+      lastName: attrs.lastName,
+      phone: attrs.phone,
+      relationship: attrs.relationship,
+      children,
+      childCount: children.length
+    });
+  } catch (error) {
+    console.error("Get parent profile error:", error);
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
+// GET parent's children with detailed info
+router.get("/me/children", authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+
+    if (user.role !== 'PARENT') {
+      return res.status(403).json({ error: "Access denied. Parent role required." });
+    }
+
+    const parent = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: {
+        entity: {
+          include: {
+            relationsFrom: {
+              where: { relationType: 'PARENT_OF', isActive: true },
+              include: {
+                toEntity: {
+                  include: {
+                    values: { include: { attribute: true } },
+                    account: { select: { email: true, id: true } },
+                    relationsFrom: {
+                      where: { relationType: 'ENROLLED_IN', isActive: true },
+                      include: {
+                        toEntity: {
+                          include: { values: { include: { attribute: true } } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!parent?.entity) {
+      return res.status(404).json({ error: "Parent profile not found" });
+    }
+
+    const children = parent.entity.relationsFrom
+      .filter(r => r.relationType === 'PARENT_OF')
+      .map(r => {
+        const childAttrs: Record<string, any> = {};
+        r.toEntity.values.forEach(v => {
+          childAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+
+        // Get enrolled courses
+        const courses = r.toEntity.relationsFrom
+          .filter(cr => cr.relationType === 'ENROLLED_IN')
+          .map(cr => {
+            const courseAttrs: Record<string, any> = {};
+            cr.toEntity.values.forEach(v => {
+              courseAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+            });
+            return {
+              id: cr.toEntity.id,
+              name: cr.toEntity.name || courseAttrs.courseName,
+              code: courseAttrs.courseCode || courseAttrs.code
+            };
+          });
+
+        return {
+          id: r.toEntity.account?.id || r.toEntity.id,
+          entityId: r.toEntity.id,
+          accountId: r.toEntity.account?.id,
+          firstName: childAttrs.firstName,
+          lastName: childAttrs.lastName,
+          name: childAttrs.firstName && childAttrs.lastName
+            ? `${childAttrs.firstName} ${childAttrs.lastName}`
+            : r.toEntity.account?.email || 'Unknown',
+          email: r.toEntity.account?.email,
+          grade: childAttrs.grade || childAttrs.gradeLevel,
+          dateOfBirth: childAttrs.dateOfBirth,
+          avatar: childAttrs.firstName ? childAttrs.firstName.charAt(0).toUpperCase() : 'S',
+          courses,
+          courseCount: courses.length
+        };
+      });
+
+    res.json(children);
+  } catch (error) {
+    console.error("Get parent's children error:", error);
+    res.status(500).json({ error: "Failed to fetch children" });
+  }
+});
+
+// GET specific child's details (for parent)
+router.get("/me/children/:childId", authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const { childId } = req.params;
+
+    if (user.role !== 'PARENT') {
+      return res.status(403).json({ error: "Access denied. Parent role required." });
+    }
+
+    // Verify parent has access to this child
+    const parent = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: {
+        entity: {
+          include: {
+            relationsFrom: {
+              where: { relationType: 'PARENT_OF', isActive: true },
+              include: {
+                toEntity: {
+                  include: {
+                    values: { include: { attribute: true } },
+                    account: { select: { email: true, id: true } },
+                    relationsFrom: {
+                      where: { isActive: true },
+                      include: {
+                        toEntity: {
+                          include: { values: { include: { attribute: true } } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!parent?.entity) {
+      return res.status(404).json({ error: "Parent profile not found" });
+    }
+
+    // Find the specific child
+    const childRelation = parent.entity.relationsFrom.find(r =>
+      r.toEntity.account?.id === childId || r.toEntity.id === childId
+    );
+
+    if (!childRelation) {
+      return res.status(403).json({ error: "You don't have access to this child's information" });
+    }
+
+    const child = childRelation.toEntity;
+    const childAttrs: Record<string, any> = {};
+    child.values.forEach(v => {
+      childAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+    });
+
+    // Get enrolled courses
+    const courses = child.relationsFrom
+      .filter(cr => cr.relationType === 'ENROLLED_IN')
+      .map(cr => {
+        const courseAttrs: Record<string, any> = {};
+        cr.toEntity.values.forEach(v => {
+          courseAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+        return {
+          id: cr.toEntity.id,
+          name: cr.toEntity.name || courseAttrs.courseName,
+          code: courseAttrs.courseCode || courseAttrs.code,
+          schedule: courseAttrs.schedule,
+          instructor: courseAttrs.instructor
+        };
+      });
+
+    res.json({
+      id: child.account?.id || child.id,
+      entityId: child.id,
+      firstName: childAttrs.firstName,
+      lastName: childAttrs.lastName,
+      name: childAttrs.firstName && childAttrs.lastName
+        ? `${childAttrs.firstName} ${childAttrs.lastName}`
+        : child.account?.email || 'Unknown',
+      email: child.account?.email,
+      grade: childAttrs.grade || childAttrs.gradeLevel,
+      dateOfBirth: childAttrs.dateOfBirth,
+      phone: childAttrs.phone,
+      address: childAttrs.address,
+      avatar: childAttrs.firstName ? childAttrs.firstName.charAt(0).toUpperCase() : 'S',
+      courses,
+      courseCount: courses.length
+    });
+  } catch (error) {
+    console.error("Get child details error:", error);
+    res.status(500).json({ error: "Failed to fetch child details" });
+  }
+});
+
+// ============================================
+// ADMIN ENDPOINTS
+// ============================================
+
 // GET all parents
 router.get("/", authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -89,8 +364,8 @@ router.get("/", authenticateToken, requireAdmin, async (req, res) => {
             id: r.toEntity.account?.id || r.toEntity.id, // Use account ID for consistency
             entityId: r.toEntity.id,
             accountId: r.toEntity.account?.id,
-            name: childAttrs.firstName && childAttrs.lastName 
-              ? `${childAttrs.firstName} ${childAttrs.lastName}` 
+            name: childAttrs.firstName && childAttrs.lastName
+              ? `${childAttrs.firstName} ${childAttrs.lastName}`
               : r.toEntity.account?.email || 'Unknown',
             studentId: childAttrs.studentId || r.toEntity.account?.email || 'N/A',
             email: r.toEntity.account?.email,
@@ -200,8 +475,8 @@ router.get("/:id", authenticateToken, async (req, res) => {
         return {
           id: r.toEntity.id,
           accountId: r.toEntity.account?.id,
-          name: childAttrs.firstName && childAttrs.lastName 
-            ? `${childAttrs.firstName} ${childAttrs.lastName}` 
+          name: childAttrs.firstName && childAttrs.lastName
+            ? `${childAttrs.firstName} ${childAttrs.lastName}`
             : r.toEntity.account?.email || 'Unknown',
           email: r.toEntity.account?.email,
           grade: childAttrs.grade || childAttrs.gradeLevel,
@@ -231,7 +506,7 @@ router.get("/stats/overview", authenticateToken, requireAdmin, async (req, res) 
   try {
     const totalParents = await prisma.account.count({ where: { role: 'PARENT' } });
     const activeParents = await prisma.account.count({ where: { role: 'PARENT', isActive: true } });
-    
+
     // Count parent-child relationships
     const parentEntities = await prisma.entity.findMany({
       where: { type: 'PARENT' },
@@ -281,8 +556,8 @@ router.get("/available/students", authenticateToken, requireAdmin, async (req, r
         id: student.id,
         entityId: student.entity?.id,
         email: student.email,
-        name: attrs.firstName && attrs.lastName 
-          ? `${attrs.firstName} ${attrs.lastName}` 
+        name: attrs.firstName && attrs.lastName
+          ? `${attrs.firstName} ${attrs.lastName}`
           : student.email,
         grade: attrs.grade || attrs.gradeLevel
       };
@@ -298,9 +573,9 @@ router.get("/available/students", authenticateToken, requireAdmin, async (req, r
 // CREATE parent
 router.post("/", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { 
-      email, firstName, lastName, phone, phoneCountryCode, 
-      address, occupation, relationship, childIds 
+    const {
+      email, firstName, lastName, phone, phoneCountryCode,
+      address, occupation, relationship, childIds
     } = req.body;
 
     if (!email) {
@@ -395,11 +670,11 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
       }
     }
 
-    res.status(201).json({ 
-      id: parent.id, 
+    res.status(201).json({
+      id: parent.id,
       email: parent.email,
       tempPassword,
-      message: "Parent created successfully" 
+      message: "Parent created successfully"
     });
   } catch (error) {
     console.error("Create parent error:", error);
@@ -411,7 +686,7 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
 router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
+    const {
       email, isActive, firstName, lastName, phone, phoneCountryCode,
       address, occupation, relationship, password
     } = req.body;
@@ -490,9 +765,9 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
 router.patch("/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
+    const {
       email, isActive, firstName, lastName, phone, phoneCountryCode,
-      address, occupation, relationship 
+      address, occupation, relationship
     } = req.body;
 
     // Update account

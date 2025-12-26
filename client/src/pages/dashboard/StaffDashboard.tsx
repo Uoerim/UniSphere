@@ -59,58 +59,98 @@ export default function StaffDashboard() {
   const [error, setError] = useState<string | null>(null);
   void error; // suppress unused warning
 
+  // Format schedule for readability
+  const formatSchedule = (schedule?: any): string => {
+    if (!schedule) return 'Schedule TBD';
+    try {
+      const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((s: any) => {
+            const days = Array.isArray(s?.days) ? s.days.join(', ') : (s?.day || '');
+            const time = s?.startTime && s?.endTime ? `${s.startTime}-${s.endTime}` : '';
+            return [days, time].filter(Boolean).join(' ');
+          })
+          .filter(Boolean)
+          .join(' | ');
+      }
+    } catch {
+      // fall back to raw string
+    }
+    return typeof schedule === 'string' ? schedule : 'Schedule TBD';
+  };
 
+  const loadCourses = async () => {
+    if (!token || !user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load courses');
+      const allCourses = await res.json();
+      const normalized: Course[] = allCourses.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        code: c.code,
+        schedule: formatSchedule(c.schedule),
+        room: c.room || 'TBD',
+        capacity: c.capacity,
+        students: c.enrolledStudents ?? 0,
+      }));
+      setCourses(normalized);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load courses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDashboardData = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      const [tasksRes, submissionsRes, messagesRes] = await Promise.all([
+        fetch(`${base}/api/staff-dashboard/tasks/${user.id}`, { headers }),
+        fetch(`${base}/api/staff-dashboard/submissions/${user.id}`, { headers }),
+        fetch(`${base}/api/staff-dashboard/messages/${user.id}`, { headers }),
+      ]);
+
+      if (tasksRes.ok) setTasks(await tasksRes.json());
+      if (submissionsRes.ok) setRecentStudents(await submissionsRes.json());
+      if (messagesRes.ok) setMessages(await messagesRes.json());
+    } catch (err: any) {
+      setError(err.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadDashboardData = async () => {
-      if (!user?.id) return;
-      
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch courses
-        const coursesRes = await fetch(`http://localhost:4000/api/staff-dashboard/courses/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (coursesRes.ok) {
-          const coursesData = await coursesRes.json();
-          setCourses(coursesData);
-        }
+    void loadCourses();
+    // seed demo data for now
+    setTasks([
+      { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
+      { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
+      { id: '3', title: 'Prepare Spring Syllabus', type: 'preparation', dueDate: '2025-12-30', priority: 'medium' },
+      { id: '4', title: 'Submit Research Grant', type: 'admin', dueDate: '2026-01-05', priority: 'medium' },
+      { id: '5', title: 'Review TA Applications', type: 'admin', dueDate: '2026-01-10', priority: 'low' },
+    ]);
+    setRecentStudents([]);
+    setMessages([
+      { id: '1', from: 'Dean Wilson', subject: 'Spring Planning', preview: 'Please review the attached...', time: '2h ago', unread: true },
+      { id: '2', from: 'John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
+      { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
+    ]);
+  }, [token, user]);
 
-        // Fetch tasks
-        const tasksRes = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (tasksRes.ok) {
-          const tasksData = await tasksRes.json();
-          setTasks(tasksData);
-        }
-
-        // Fetch submissions (recent student grades)
-        const submissionsRes = await fetch(`http://localhost:4000/api/staff-dashboard/submissions/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (submissionsRes.ok) {
-          const submissionsData = await submissionsRes.json();
-          setRecentStudents(submissionsData);
-        }
-
-        // Fetch messages
-        const messagesRes = await fetch(`http://localhost:4000/api/staff-dashboard/messages/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (messagesRes.ok) {
-          const messagesData = await messagesRes.json();
-          setMessages(messagesData);
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDashboardData();
+  useEffect(() => {
+    void loadDashboardData();
   }, [user?.id, token]);
 
   // Helpers
@@ -252,7 +292,6 @@ export default function StaffDashboard() {
             ))}
           </div>
         </div>
-
         {/* Tasks */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>

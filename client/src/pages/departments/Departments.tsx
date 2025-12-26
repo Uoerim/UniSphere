@@ -388,13 +388,6 @@ export default function Departments() {
               <div className={styles.statLabel}>Total Courses</div>
             </div>
           </div>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.warning}`}><StaffIcon size={24} /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.totalStaff}</div>
-              <div className={styles.statLabel}>Staff Members</div>
-            </div>
-          </div>
         </div>
       )}
 
