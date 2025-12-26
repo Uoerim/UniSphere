@@ -55,13 +55,33 @@ export default function StaffDashboard() {
       setLoading(true);
       setError(null);
       try {
-        // Fetch courses
-        const coursesRes = await fetch(`http://localhost:4000/api/staff-dashboard/courses/${user.id}`, {
+        // Fetch courses using the same method as StaffCourses page
+        console.log('Fetching courses for user:', user.id);
+        const coursesRes = await fetch('http://localhost:4000/api/curriculum', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        console.log('Courses response status:', coursesRes.status);
         if (coursesRes.ok) {
-          const coursesData = await coursesRes.json();
-          setCourses(coursesData);
+          const allCourses = await coursesRes.json();
+          // Filter courses where this staff member is the instructor
+          const myCourses = allCourses.filter((course: any) => 
+            course.instructor?.accountId === user?.id || 
+            course.instructor?.email === user?.email
+          );
+          console.log('My courses filtered:', myCourses);
+          // Transform to match dashboard format
+          const formattedCourses = myCourses.map((course: any) => ({
+            id: course.id,
+            name: course.name,
+            code: course.code,
+            students: course.enrolledStudents || 0,
+            schedule: course.schedule,
+            room: course.room,
+            capacity: course.capacity
+          }));
+          setCourses(formattedCourses);
+        } else {
+          console.error('Failed to fetch courses:', await coursesRes.text());
         }
 
         // Fetch tasks
@@ -122,6 +142,9 @@ export default function StaffDashboard() {
   const totalStudents = courses.reduce((sum: number, c: Course) => sum + (c.students || 0), 0);
   const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Pending').length;
   const unreadMessages = messages.filter((m: Message) => m.unread).length;
+
+  console.log('Dashboard render - courses state:', courses);
+  console.log('Dashboard render - courses.length:', courses.length);
 
   if (loading) {
     return (
