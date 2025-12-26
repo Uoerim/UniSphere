@@ -1100,8 +1100,8 @@ export default function StudentManagement() {
                         {selectedStudent.enrolledCourses.map(course => (
                           <div key={course.enrollmentId} className={styles.courseCard}>
                             <div className={styles.courseInfo}>
-                              <div className={styles.courseCode}>{course.code || 'N/A'}</div>
-                              <div className={styles.courseName}>{course.name || 'Unnamed Course'}</div>
+                              <div className={styles.courseCode}>{course.code || course.courseCode || 'N/A'}</div>
+                              <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed Course'}</div>
                               <div className={styles.courseMeta}>
                                 <span><BookOpenIcon size={14} /> {course.department || 'N/A'}</span>
                                 <span><CalendarIcon size={14} /> Enrolled: {formatDate(course.enrolledAt)}</span>
@@ -1161,8 +1161,8 @@ export default function StudentManagement() {
                         <tbody>
                           {selectedStudent.enrolledCourses.map(course => (
                             <tr key={course.enrollmentId}>
-                              <td><span className={styles.codeBadge}>{course.code || 'N/A'}</span></td>
-                              <td>{course.name || 'Unnamed Course'}</td>
+                              <td><span className={styles.codeBadge}>{course.code || course.courseCode || 'N/A'}</span></td>
+                              <td>{course.name || course.courseName || 'Unnamed Course'}</td>
                               <td>{course.department || 'N/A'}</td>
                               <td>
                                 <span className={`${styles.gradeBadge} ${getGradeColor(course.grade)}`}>
@@ -1201,8 +1201,8 @@ export default function StudentManagement() {
                           <div key={course.enrollmentId} className={styles.attendanceCard}>
                             <div className={styles.attendanceInfo}>
                               <div className={styles.attendanceCourse}>
-                                <span className={styles.codeBadge}>{course.code || 'N/A'}</span>
-                                {course.name || 'Unnamed Course'}
+                                <span className={styles.codeBadge}>{course.code || course.courseCode || 'N/A'}</span>
+                                {course.name || course.courseName || 'Unnamed Course'}
                               </div>
                             </div>
                             <div className={styles.attendanceBar}>
