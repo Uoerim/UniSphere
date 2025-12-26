@@ -238,14 +238,14 @@ router.get("/stats/overview", authenticateToken, requireAdmin, async (req, res) 
       }
     });
 
-    const totalConnections = parentEntities.reduce((sum, p) => sum + p.relationsFrom.length, 0);
-    const parentsWithChildren = parentEntities.filter(p => p.relationsFrom.length > 0).length;
+    const totalChildren = parentEntities.reduce((sum, p) => sum + p.relationsFrom.length, 0);
+    const averageChildren = totalParents > 0 ? totalChildren / totalParents : 0;
 
     res.json({
       totalParents,
       activeParents,
-      totalConnections,
-      parentsWithChildren
+      totalChildren,
+      averageChildren
     });
   } catch (error) {
     console.error("Get parent stats error:", error);
@@ -402,6 +402,85 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Create parent error:", error);
     res.status(500).json({ error: "Failed to create parent" });
+  }
+});
+
+// UPDATE parent (supports both PUT and PATCH)
+router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      email, isActive, firstName, lastName, phone, phoneCountryCode,
+      address, occupation, relationship, password
+    } = req.body;
+
+    // Update account
+    const updateData: any = {};
+    if (email !== undefined) updateData.email = email;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const parent = await prisma.account.update({
+      where: { id },
+      data: updateData,
+      include: { entity: true }
+    });
+
+    // Update entity name if names provided
+    if ((firstName || lastName) && parent.entity) {
+      await prisma.entity.update({
+        where: { id: parent.entity.id },
+        data: { name: `${firstName || ''} ${lastName || ''}`.trim() || parent.email }
+      });
+    }
+
+    // Update attribute values
+    if (parent.entity) {
+      const attributeUpdates = [
+        { name: 'firstName', value: firstName },
+        { name: 'lastName', value: lastName },
+        { name: 'phone', value: phone },
+        { name: 'phoneCountryCode', value: phoneCountryCode },
+        { name: 'address', value: address },
+        { name: 'occupation', value: occupation },
+        { name: 'relationship', value: relationship }
+      ];
+
+      for (const update of attributeUpdates) {
+        if (update.value !== undefined) {
+          let attr = await prisma.attribute.findFirst({ where: { name: update.name } });
+          if (!attr) {
+            attr = await prisma.attribute.create({
+              data: {
+                name: update.name,
+                displayName: update.name.charAt(0).toUpperCase() + update.name.slice(1),
+                entityTypes: JSON.stringify(['PARENT', 'STUDENT', 'STAFF']),
+                dataType: 'STRING',
+                category: 'PERSONAL'
+              }
+            });
+          }
+          await prisma.value.upsert({
+            where: {
+              entityId_attributeId: { entityId: parent.entity.id, attributeId: attr.id }
+            },
+            update: { valueString: String(update.value) },
+            create: {
+              entityId: parent.entity.id,
+              attributeId: attr.id,
+              valueString: String(update.value)
+            }
+          });
+        }
+      }
+    }
+
+    res.json({ id: parent.id, message: "Parent updated successfully" });
+  } catch (error) {
+    console.error("Update parent error:", error);
+    res.status(500).json({ error: "Failed to update parent" });
   }
 });
 

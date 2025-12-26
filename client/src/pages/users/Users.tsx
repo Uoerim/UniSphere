@@ -11,6 +11,7 @@ import {
   TrashIcon,
   CopyIcon,
   CheckIcon,
+  CheckCircleIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   SortIcon,
@@ -240,7 +241,12 @@ export default function Users() {
     }
   };
 
-  const handleDeleteAccount = async (accountId: string) => {
+  const handleDeleteAccount = async (accountId: string, role: string) => {
+    if (role === 'ADMIN') {
+      alert('Admin accounts cannot be deleted.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this account? This action cannot be undone.')) {
       return;
     }
@@ -553,8 +559,10 @@ export default function Users() {
                       </button>
                       <button
                         className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                        onClick={() => handleDeleteAccount(account.id)}
-                        title="Delete user"
+                        onClick={() => handleDeleteAccount(account.id, account.role)}
+                        title={account.role === 'ADMIN' ? 'Admin accounts cannot be deleted' : 'Delete user'}
+                        disabled={account.role === 'ADMIN'}
+                        style={account.role === 'ADMIN' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         <TrashIcon size={14} />
                       </button>
@@ -599,7 +607,6 @@ export default function Users() {
                   <option value="STUDENT">Student</option>
                   <option value="STAFF">Staff</option>
                   <option value="PARENT">Parent</option>
-                  <option value="ADMIN">Administrator</option>
                 </select>
               </div>
 

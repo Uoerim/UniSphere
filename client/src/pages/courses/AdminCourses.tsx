@@ -13,7 +13,8 @@ import {
   TrashIcon,
   LockIcon,
   UnlockIcon,
-  SearchIcon
+  SearchIcon,
+  ClockIcon
 } from '../../components/ui/Icons';
 
 // Types
@@ -461,6 +462,82 @@ export default function AdminCourses() {
     });
   };
 
+  // Parse and render schedule nicely
+  const renderSchedule = (scheduleDisplay?: string, scheduleJson?: string) => {
+    // If we have a formatted display string, use it
+    if (scheduleDisplay && !scheduleDisplay.startsWith('[')) {
+      const slots = scheduleDisplay.split(';').map(s => s.trim()).filter(Boolean);
+      
+      return (
+        <div className={styles.scheduleContainer}>
+          {slots.map((slot, index) => {
+            const match = slot.match(/^([A-Za-z]+)\s+(.+)$/);
+            if (match) {
+              const days = match[1];
+              const time = match[2];
+              return (
+                <div key={index} className={styles.scheduleSlot}>
+                  <div className={styles.scheduleDays}>
+                    {days.split('').map((day, i) => (
+                      <span key={i} className={styles.scheduleDay}>{day}</span>
+                    ))}
+                  </div>
+                  <div className={styles.scheduleDivider}></div>
+                  <div className={styles.scheduleTime}>
+                    <ClockIcon size={12} />
+                    {time}
+                  </div>
+                </div>
+              );
+            }
+            return <span key={index} className={styles.scheduleText}>{slot}</span>;
+          })}
+        </div>
+      );
+    }
+
+    // Try to parse JSON schedule
+    const jsonStr = scheduleJson || scheduleDisplay;
+    if (!jsonStr) return <span className={styles.noData}>Not set</span>;
+
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const formatTime = (time: string) => {
+          if (!time) return '';
+          const [hours, minutes] = time.split(':');
+          const h = parseInt(hours);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h % 12 || 12;
+          return `${h12}:${minutes} ${ampm}`;
+        };
+
+        return (
+          <div className={styles.scheduleContainer}>
+            {parsed.map((slot: { id: string; days: string[]; startTime: string; endTime: string }, index: number) => (
+              <div key={slot.id || index} className={styles.scheduleSlot}>
+                <div className={styles.scheduleDays}>
+                  {slot.days.map((day, i) => (
+                    <span key={i} className={styles.scheduleDay}>{day}</span>
+                  ))}
+                </div>
+                <div className={styles.scheduleDivider}></div>
+                <div className={styles.scheduleTime}>
+                  <ClockIcon size={12} />
+                  {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+    } catch {
+      // Not valid JSON, display as text
+    }
+
+    return <span className={styles.scheduleText}>{jsonStr}</span>;
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -643,14 +720,12 @@ export default function AdminCourses() {
                       {course.enrolledStudents}/{course.capacity || 30}
                     </span>
                   </div>
-                  {(course.scheduleDisplay || course.schedule) && (
-                    <div className={styles.detailRow}>
-                      <span className={styles.detailLabel}>Schedule:</span>
-                      <span className={styles.detailValue}>
-                        {course.scheduleDisplay || course.schedule}
-                      </span>
-                    </div>
-                  )}
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Schedule:</span>
+                    <span className={styles.detailValue}>
+                      {renderSchedule(course.scheduleDisplay, course.schedule)}
+                    </span>
+                  </div>
                   {course.prerequisites && course.prerequisites.length > 0 && (
                     <div className={styles.detailRow}>
                       <span className={styles.detailLabel}>Prerequisites:</span>
@@ -1189,7 +1264,7 @@ export default function AdminCourses() {
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Schedule:</span>
-                      <span>{selectedCourse.scheduleDisplay || selectedCourse.schedule || 'Not set'}</span>
+                      {renderSchedule(selectedCourse.scheduleDisplay, selectedCourse.schedule)}
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Capacity:</span>

@@ -17,23 +17,14 @@ import {
   PlusIcon
 } from '../../components/ui/Icons';
 
-interface Department {
-  id: number;
-  name: string;
-  code: string;
-}
-
 interface Facility {
   id: number;
   name: string;
   roomNumber: string;
   type: string;
-  building: string;
   floor: number;
   capacity: number;
   status: string;
-  departmentId?: number;
-  department?: Department;
   features: string[];
   notes?: string;
 }
@@ -42,11 +33,9 @@ interface FormData {
   name: string;
   roomNumber: string;
   type: string;
-  building: string;
   floor: string;
   capacity: string;
   status: string;
-  departmentId: string;
   features: string[];
   notes: string;
 }
@@ -68,11 +57,10 @@ const STATUS_OPTIONS = [
   { value: 'RESERVED', label: 'Reserved' },
 ];
 
-const BUILDINGS = ['Main Building', 'Science Block', 'Engineering Block', 'Arts Building', 'Library', 'Admin Block'];
+
 
 export default function Facilities() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
@@ -81,19 +69,15 @@ export default function Facilities() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [filterBuilding, setFilterBuilding] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterDepartment, setFilterDepartment] = useState('');
 
   const initialFormData: FormData = {
     name: '',
     roomNumber: '',
     type: 'CLASSROOM',
-    building: '',
     floor: '1',
     capacity: '',
     status: 'AVAILABLE',
-    departmentId: '',
     features: [],
     notes: '',
   };
@@ -102,7 +86,6 @@ export default function Facilities() {
 
   useEffect(() => {
     fetchFacilities();
-    fetchDepartments();
   }, []);
 
   const fetchFacilities = async () => {
@@ -114,15 +97,6 @@ export default function Facilities() {
       console.error('Error fetching facilities:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const response = await api.get<Department[]>('/departments');
-      setDepartments(response.data);
-    } catch (error) {
-      console.error('Error fetching departments:', error);
     }
   };
 
@@ -157,11 +131,9 @@ export default function Facilities() {
       name: facility.name,
       roomNumber: facility.roomNumber,
       type: facility.type,
-      building: facility.building,
       floor: facility.floor.toString(),
       capacity: facility.capacity.toString(),
       status: facility.status,
-      departmentId: facility.departmentId?.toString() || '',
       features: facility.features || [],
       notes: facility.notes || '',
     });
@@ -175,7 +147,6 @@ export default function Facilities() {
         ...formData,
         floor: parseInt(formData.floor),
         capacity: parseInt(formData.capacity),
-        departmentId: formData.departmentId ? parseInt(formData.departmentId) : null,
       };
 
       if (editingFacility) {
@@ -210,10 +181,8 @@ export default function Facilities() {
       facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       facility.roomNumber.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = !filterType || facility.type === filterType;
-    const matchesBuilding = !filterBuilding || facility.building === filterBuilding;
     const matchesStatus = !filterStatus || facility.status === filterStatus;
-    const matchesDepartment = !filterDepartment || facility.departmentId?.toString() === filterDepartment;
-    return matchesSearch && matchesType && matchesBuilding && matchesStatus && matchesDepartment;
+    return matchesSearch && matchesType && matchesStatus;
   });
 
   // Stats
@@ -307,29 +276,11 @@ export default function Facilities() {
             </select>
           </div>
           <div className={styles.filterGroup}>
-            <label>Building</label>
-            <select value={filterBuilding} onChange={(e) => setFilterBuilding(e.target.value)}>
-              <option value="">All Buildings</option>
-              {BUILDINGS.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.filterGroup}>
             <label>Status</label>
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
               <option value="">All Statuses</option>
               {STATUS_OPTIONS.map(s => (
                 <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.filterGroup}>
-            <label>Department</label>
-            <select value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}>
-              <option value="">All Departments</option>
-              {departments.map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
           </div>
@@ -370,10 +321,6 @@ export default function Facilities() {
 
                 <div className={styles.facilityDetails}>
                   <div className={styles.detailItem}>
-                    <BuildingIcon size={16} />
-                    <span>{facility.building}</span>
-                  </div>
-                  <div className={styles.detailItem}>
                     <span>#</span>
                     <span>Floor {facility.floor}</span>
                   </div>
@@ -382,13 +329,6 @@ export default function Facilities() {
                     <span>Capacity: {facility.capacity}</span>
                   </div>
                 </div>
-
-                {facility.department && (
-                  <div className={styles.facilityDepartment}>
-                    <SchoolIcon size={16} />
-                    <span>{facility.department.name} ({facility.department.code})</span>
-                  </div>
-                )}
 
                 {facility.features && facility.features.length > 0 && (
                   <div className={styles.facilityFeatures}>
@@ -450,17 +390,8 @@ export default function Facilities() {
                     <select name="type" value={formData.type} onChange={handleInputChange} required>
                       {FACILITY_TYPES.map(type => (
                         <option key={type.value} value={type.value}>
-                          {type.icon} {type.label}
+                          {type.label}
                         </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Building *</label>
-                    <select name="building" value={formData.building} onChange={handleInputChange} required>
-                      <option value="">Select Building</option>
-                      {BUILDINGS.map(b => (
-                        <option key={b} value={b}>{b}</option>
                       ))}
                     </select>
                   </div>
@@ -492,15 +423,6 @@ export default function Facilities() {
                     <select name="status" value={formData.status} onChange={handleInputChange}>
                       {STATUS_OPTIONS.map(s => (
                         <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Department</label>
-                    <select name="departmentId" value={formData.departmentId} onChange={handleInputChange}>
-                      <option value="">No Department</option>
-                      {departments.map(d => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </div>

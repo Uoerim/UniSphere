@@ -8,9 +8,6 @@ interface Department {
   description?: string;
   code?: string;
   head?: string;
-  building?: string;
-  floor?: string;
-  phone?: string;
   email?: string;
   isActive: boolean;
   createdAt: string;
@@ -31,16 +28,10 @@ interface StaffMember {
   email?: string;
 }
 
-interface Building {
-  id: string;
-  name: string;
-}
-
 export default function Departments() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [stats, setStats] = useState<DepartmentStats | null>(null);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
-  const [buildingsList, setBuildingsList] = useState<Building[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -60,9 +51,6 @@ export default function Departments() {
     description: '',
     code: '',
     head: '',
-    building: '',
-    floor: '',
-    phone: '',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +59,6 @@ export default function Departments() {
     fetchDepartments();
     fetchStats();
     fetchStaff();
-    fetchBuildings();
   }, []);
 
   const fetchDepartments = async () => {
@@ -113,32 +100,25 @@ export default function Departments() {
   const fetchStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/staff', {
+      // Fetch staff accounts (users with STAFF role)
+      const response = await fetch('http://localhost:4000/api/users?role=STAFF', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setStaffList(data);
+        // Map accounts to staff list format
+        const staffAccounts = data
+          .filter((acc: any) => acc.role === 'STAFF' && acc.isActive)
+          .map((acc: any) => ({
+            id: acc.id,
+            name: acc.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            email: acc.email
+          }));
+        setStaffList(staffAccounts);
       }
     } catch (err) {
       console.error('Failed to fetch staff:', err);
-    }
-  };
-
-  const fetchBuildings = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/facilities/buildings', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBuildingsList(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch buildings:', err);
     }
   };
 
@@ -150,8 +130,7 @@ export default function Departments() {
       result = result.filter(d =>
         d.name.toLowerCase().includes(term) ||
         d.code?.toLowerCase().includes(term) ||
-        d.head?.toLowerCase().includes(term) ||
-        d.building?.toLowerCase().includes(term)
+        d.head?.toLowerCase().includes(term)
       );
     }
 
@@ -168,9 +147,6 @@ export default function Departments() {
       description: '',
       code: '',
       head: '',
-      building: '',
-      floor: '',
-      phone: '',
     });
     setFormError('');
   };
@@ -304,10 +280,6 @@ export default function Departments() {
       description: dept.description || '',
       code: dept.code || '',
       head: dept.head || '',
-      building: dept.building || '',
-      floor: dept.floor || '',
-      phone: dept.phone || '',
-
     });
     setFormError('');
     setShowEditModal(true);
@@ -440,9 +412,6 @@ export default function Departments() {
                   {dept.head && (
                     <span className={styles.metaItem}><UserIcon size={14} /> {dept.head}</span>
                   )}
-                  {dept.building && (
-                    <span className={styles.metaItem}><BuildingIcon size={14} /> {dept.building}{dept.floor ? `, Floor ${dept.floor}` : ''}</span>
-                  )}
                 </div>
               </div>
               <div className={styles.cardActions}>
@@ -496,38 +465,7 @@ export default function Departments() {
                     <option value="">Select Department Head</option>
                     {staffList.map(staff => (
                       <option key={staff.id} value={staff.name}>{staff.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Building</label>
-                  <select
-                    value={formData.building}
-                    onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                  >
-                    <option value="">Select Building</option>
-                    {buildingsList.map(building => (
-                      <option key={building.id} value={building.name}>{building.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Floor</label>
-                  <input
-                    type="text"
-                    value={formData.floor}
-                    onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                    placeholder="e.g., 3rd Floor"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Phone</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="e.g., +1 234 567 8900"
-                  />
+                    ))}n                  </select>
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Description</label>
@@ -595,34 +533,6 @@ export default function Departments() {
                       <option key={staff.id} value={staff.name}>{staff.name}</option>
                     ))}
                   </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Building</label>
-                  <select
-                    value={formData.building}
-                    onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                  >
-                    <option value="">Select Building</option>
-                    {buildingsList.map(building => (
-                      <option key={building.id} value={building.name}>{building.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Floor</label>
-                  <input
-                    type="text"
-                    value={formData.floor}
-                    onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Phone</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <label>Description</label>

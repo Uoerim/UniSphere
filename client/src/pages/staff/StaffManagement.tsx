@@ -34,6 +34,14 @@ interface Department {
   code: string;
 }
 
+interface Facility {
+  id: number;
+  name: string;
+  roomNumber: string;
+  type: string;
+  building: string;
+}
+
 interface StaffMember {
   id: string;
   email: string;
@@ -80,6 +88,7 @@ export default function StaffManagement() {
   // Staff list state
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [departmentsList, setDepartmentsList] = useState<Department[]>([]);
+  const [facilitiesList, setFacilitiesList] = useState<Facility[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [, setError] = useState('');
 
@@ -120,14 +129,38 @@ export default function StaffManagement() {
   useEffect(() => {
     fetchStaffList();
     fetchDepartments();
+    fetchFacilities();
   }, []);
 
   const fetchDepartments = async () => {
     try {
-      const res = await api.get('/departments');
-      setDepartmentsList(res.data as Department[]);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/departments', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to fetch departments, status:', response.status);
+        return;
+      }
+      
+      const data = await response.json();
+      // Only show active departments
+      const activeDepts = data.filter((d: any) => d.isActive !== false);
+      setDepartmentsList(activeDepts);
     } catch (err) {
       console.error('Failed to fetch departments:', err);
+    }
+  };
+
+  const fetchFacilities = async () => {
+    try {
+      const res = await api.get('/facilities');
+      // Filter to only show offices
+      const facilities = (res.data as Facility[]).filter(f => f.type === 'OFFICE');
+      setFacilitiesList(facilities);
+    } catch (err) {
+      console.error('Failed to fetch facilities:', err);
     }
   };
 
@@ -277,10 +310,10 @@ export default function StaffManagement() {
     return result;
   }, [staffList, searchTerm, filterDepartment, sortField, sortDirection]);
 
+  // Use departmentsList for the filter dropdown
   const departments = useMemo(() => {
-    const deps = new Set(staffList.map(s => s.department).filter(Boolean));
-    return Array.from(deps);
-  }, [staffList]);
+    return departmentsList.map(d => d.name);
+  }, [departmentsList]);
 
   const handleAddStaff = async () => {
     if (!formData.email || !formData.firstName || !formData.lastName) {
@@ -716,25 +749,6 @@ export default function StaffManagement() {
                         </div>
                       </div>
                     </div>
-
-                    <div className={styles.quickStats}>
-                      <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>{staffCourses.length}</div>
-                        <div className={styles.quickStatLabel}>Active Courses</div>
-                      </div>
-                      <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>{staffStudents.length}</div>
-                        <div className={styles.quickStatLabel}>Total Students</div>
-                      </div>
-                      <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>4.8</div>
-                        <div className={styles.quickStatLabel}>Avg. Rating</div>
-                      </div>
-                      <div className={styles.quickStatCard}>
-                        <div className={styles.quickStatValue}>95%</div>
-                        <div className={styles.quickStatLabel}>Attendance</div>
-                      </div>
-                    </div>
                   </div>
                 )}
 
@@ -1007,12 +1021,17 @@ export default function StaffManagement() {
 
               <div className={styles.formGroup}>
                 <label>Office</label>
-                <input
-                  type="text"
+                <select
                   value={formData.office}
                   onChange={(e) => setFormData(prev => ({ ...prev, office: e.target.value }))}
-                  placeholder="Building A, Room 301"
-                />
+                >
+                  <option value="">Select Office</option>
+                  {facilitiesList.map(facility => (
+                    <option key={facility.id} value={`${facility.building} - ${facility.roomNumber}`}>
+                      {facility.building} - {facility.roomNumber} ({facility.name})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <p className={styles.formNote}>
@@ -1126,12 +1145,17 @@ export default function StaffManagement() {
 
               <div className={styles.formGroup}>
                 <label>Office</label>
-                <input
-                  type="text"
+                <select
                   value={formData.office}
                   onChange={(e) => setFormData(prev => ({ ...prev, office: e.target.value }))}
-                  placeholder="Building A, Room 301"
-                />
+                >
+                  <option value="">Select Office</option>
+                  {facilitiesList.map(facility => (
+                    <option key={facility.id} value={`${facility.building} - ${facility.roomNumber}`}>
+                      {facility.building} - {facility.roomNumber} ({facility.name})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className={styles.modalFooter}>
