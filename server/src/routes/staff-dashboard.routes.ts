@@ -22,6 +22,44 @@ const formatTime = (date: Date): string => {
   return date.toLocaleDateString();
 };
 
+// Helper function to get staff by accountId
+const getStaffByAccountId = async (accountId: string) => {
+  try {
+    let staff = await prisma.staff.findUnique({
+      where: { accountId }
+    });
+
+    // If staff record doesn't exist, create one
+    if (!staff) {
+      console.log(`Staff record not found for account ${accountId}. Creating new staff record...`);
+      
+      const account = await prisma.account.findUnique({
+        where: { id: accountId }
+      });
+
+      if (!account) {
+        throw new Error("Account not found");
+      }
+
+      // Create default staff record
+      staff = await prisma.staff.create({
+        data: {
+          accountId,
+          firstName: account.email.split('@')[0] || 'Staff',
+          lastName: 'User',
+          email: account.email,
+        }
+      });
+      
+      console.log(`✅ Created staff record: ${staff.id}`);
+    }
+
+    return staff;
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to find or create staff record");
+  }
+};
+
 // Middleware to verify JWT token
 const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -59,8 +97,12 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
 staffDashboardRouter.get("/courses/:staffId", authenticateToken, async (req, res) => {
   try {
     const { staffId } = req.params;
+    
+    // Get staff by accountId
+    const staff = await getStaffByAccountId(staffId);
+
     const courses = await prisma.course.findMany({
-      where: { staffId },
+      where: { staffId: staff.id },
       include: {
         students: {
           include: { student: true },
@@ -85,9 +127,9 @@ staffDashboardRouter.get("/courses/:staffId", authenticateToken, async (req, res
     }));
 
     res.json(formattedCourses);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching courses:", error);
-    res.status(500).json({ error: "Failed to fetch courses" });
+    res.status(500).json({ error: error.message || "Failed to fetch courses" });
   }
 });
 
@@ -95,8 +137,12 @@ staffDashboardRouter.get("/courses/:staffId", authenticateToken, async (req, res
 staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) => {
   try {
     const { staffId } = req.params;
+    
+    // Get staff by accountId
+    const staff = await getStaffByAccountId(staffId);
+
     const tasks = await prisma.staffTask.findMany({
-      where: { staffId },
+      where: { staffId: staff.id },
       orderBy: { dueDate: "asc" },
     });
 
@@ -109,9 +155,9 @@ staffDashboardRouter.get("/tasks/:staffId", authenticateToken, async (req, res) 
     }));
 
     res.json(formattedTasks);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching tasks:", error);
-    res.status(500).json({ error: "Failed to fetch tasks" });
+    res.status(500).json({ error: error.message || "Failed to fetch tasks" });
   }
 });
 
@@ -121,13 +167,24 @@ staffDashboardRouter.post("/tasks/:staffId", authenticateToken, async (req, res)
     const { staffId } = req.params;
     const { title, dueDate, priority, type } = req.body;
 
+    // Validate required fields
+    if (!title || !dueDate || !priority) {
+      return res.status(400).json({ error: "Missing required fields: title, dueDate, priority" });
+    }
+
+    // Get staff by accountId
+    const staff = await getStaffByAccountId(staffId);
+
+    console.log('Creating task for staff:', { accountId: staffId, staffId: staff.id, title, dueDate, priority, type });
+
     const task = await prisma.staffTask.create({
       data: {
-        staffId,
-        title,
+        staffId: staff.id,  // Use the actual Staff.id, not the Account.id
+        title: title.trim(),
         dueDate: new Date(dueDate),
         priority: priority.toUpperCase(),
-        type: type.toUpperCase(),
+        type: (type || 'ADMIN').toUpperCase(),
+        description: null,
       },
     });
 
@@ -138,9 +195,9 @@ staffDashboardRouter.post("/tasks/:staffId", authenticateToken, async (req, res)
       dueDate: task.dueDate.toISOString().split("T")[0],
       priority: task.priority.toLowerCase(),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating task:", error);
-    res.status(500).json({ error: "Failed to create task" });
+    res.status(500).json({ error: `Failed to create task: ${error.message}` });
   }
 });
 
@@ -274,8 +331,11 @@ staffDashboardRouter.get("/messages/:staffId", authenticateToken, async (req, re
   try {
     const { staffId } = req.params;
 
+    // Get staff by accountId
+    const staff = await getStaffByAccountId(staffId);
+
     const messages = await prisma.message.findMany({
-      where: { staffId },
+      where: { staffId: staff.id },
       orderBy: { sentAt: "desc" },
     });
 
@@ -289,9 +349,9 @@ staffDashboardRouter.get("/messages/:staffId", authenticateToken, async (req, re
     }));
 
     res.json(formattedMessages);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching messages:", error);
-    res.status(500).json({ error: "Failed to fetch messages" });
+    res.status(500).json({ error: error.message || "Failed to fetch messages" });
   }
 });
 
@@ -300,9 +360,12 @@ staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req,
   try {
     const { staffId } = req.params;
 
+    // Get staff by accountId
+    const staff = await getStaffByAccountId(staffId);
+
     // Get all submissions from courses taught by this staff
     const courses = await prisma.course.findMany({
-      where: { staffId },
+      where: { staffId: staff.id },
       include: {
         assignments: {
           include: {
@@ -332,9 +395,9 @@ staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req,
     });
 
     res.json(submissions.slice(0, 50)); // Limit to 50 recent
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching submissions:", error);
-    res.status(500).json({ error: "Failed to fetch submissions" });
+    res.status(500).json({ error: error.message || "Failed to fetch submissions" });
   }
 });
 

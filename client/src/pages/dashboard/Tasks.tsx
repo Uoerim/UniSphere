@@ -81,24 +81,51 @@ export default function Tasks() {
   };
 
   const handleAddTask = async () => {
-    if (!newTask.title.trim() || !user?.id) return;
+    console.log('Add task clicked:', newTask, 'User ID:', user?.id);
+    
+    if (!newTask.title.trim()) {
+      alert('Please enter a task title');
+      return;
+    }
+    
+    if (!user?.id || !token) {
+      alert('User not authenticated');
+      return;
+    }
+
     try {
+      console.log(`Posting to: http://localhost:4000/api/staff-dashboard/tasks/${user.id}`);
       const res = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${user.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newTask)
+        body: JSON.stringify({
+          title: newTask.title,
+          dueDate: newTask.dueDate || new Date().toISOString().split('T')[0],
+          priority: newTask.priority,
+          type: 'admin'
+        })
       });
-      if (res.ok) {
-        const task = await res.json();
-        setTasks([...tasks, task]);
-        setNewTask({ title: '', dueDate: '', priority: 'medium' });
-        setIsAdding(false);
+      
+      console.log('Response status:', res.status);
+      
+      if (!res.ok) {
+        const errorData = await res.text();
+        console.error('Error response:', errorData);
+        alert(`Failed to add task: ${res.statusText}`);
+        return;
       }
-    } catch (err) {
+      
+      const task = await res.json();
+      console.log('Task created:', task);
+      setTasks([...tasks, task]);
+      setNewTask({ title: '', dueDate: '', priority: 'medium' });
+      setIsAdding(false);
+    } catch (err: any) {
       console.error('Failed to create task:', err);
+      alert(`Error: ${err.message}`);
     }
   };
 
