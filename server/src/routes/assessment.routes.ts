@@ -63,7 +63,7 @@ router.get("/", authenticateToken, async (req, res) => {
 
     const assessments = await prisma.entity.findMany({
       where: { 
-        type: 'GRADE', // Using GRADE entity type for assessments
+        type: 'ASSESSMENT',
         ...courseFilter
       },
       include: {
@@ -183,7 +183,7 @@ router.get("/course/:courseId", authenticateToken, async (req, res) => {
 router.get("/stats/overview", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
     const assessments = await prisma.entity.findMany({
-      where: { type: 'GRADE' },
+      where: { type: 'ASSESSMENT' },
       include: {
         values: { include: { attribute: true } }
       }
@@ -299,7 +299,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
     // Create assessment entity
     const assessment = await prisma.entity.create({
       data: {
-        type: 'GRADE', // Using GRADE type for assessments
+        type: 'ASSESSMENT', // Use correct EntityType
         name,
         description
       }
@@ -366,9 +366,10 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       name: assessment.name,
       message: "Assessment created successfully"
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create assessment error:", error);
-    res.status(500).json({ error: "Failed to create assessment" });
+    console.error("Error details:", error.message, error.stack);
+    res.status(500).json({ error: "Failed to create assessment", details: error.message });
   }
 });
 

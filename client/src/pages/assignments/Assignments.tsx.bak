@@ -1,0 +1,1094 @@
+import { useState, useEffect, useMemo } from "react";
+import styles from "./Assignments.module.css";
+import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+
+type AssignmentStatus = "DRAFT" | "PUBLISHED" | "CLOSED" | "GRADED";
+
+interface Course {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface Assignment {
+  id: string;
+  title: string;
+  description?: string;
+  status: AssignmentStatus;
+  courseId: string;
+  course: Course;
+  dueDate: string;
+  publishDate?: string;
+  totalPoints: number;
+  weight: number;
+  allowLateSubmission: boolean;
+  latePenalty?: number;
+  instructions?: string;
+  submissionCount: number;
+  totalStudents: number;
+  createdAt: string;
+}
+
+interface Submission {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentNumber: string;
+  submittedAt: string;
+  isLate: boolean;
+  grade?: number;
+  feedback?: string;
+}
+
+interface Stats {
+  total: number;
+  draft: number;
+  published: number;
+  closed: number;
+  graded: number;
+  dueSoon: number;
+}
+
+const ASSIGNMENT_STATUSES: AssignmentStatus[] = ["DRAFT", "PUBLISHED", "CLOSED", "GRADED"];
+
+export default function Assignments() {
+  const { user } = useAuth();
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [stats, setStats] = useState<Stats>({
+    total: 0,
+    draft: 0,
+    published: 0,
+    closed: 0,
+    graded: 0,
+    dueSoon: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCourse, setFilterCourse] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [sortField, setSortField] = useState<string>("dueDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Modals
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+
+  // Form data
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    status: "DRAFT" as AssignmentStatus,
+    courseId: "",
+    dueDate: "",
+    dueTime: "",
+    publishDate: "",
+    totalPoints: 100,
+    weight: 10,
+    allowLateSubmission: false,
+    latePenalty: 10,
+    instructions: "",
+  });
+  const [gradesData, setGradesData] = useState<Record<string, { grade: number; feedback: string }>>({});
+  const [formLoading, setFormLoading] = useState(false);
+
+  useEffect(() => {
+    fetchAssignments();
+    fetchCourses();
+  }, []);
+
+  useEffect(() => {
+    calculateStats();
+  }, [assignments]);
+
+  const fetchAssignments = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/assignments', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAssignments(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch assignments:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCourses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/curriculum', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const allCourses = await response.json();
+        // Filter courses where this staff member is the instructor
+        const myCourses = allCourses.filter((course: any) => 
+          course.instructor?.accountId === user?.id || 
+          course.instructor?.email === user?.email
+        );
+        setCourses(myCourses);
+      }
+    } catch (err) {
+      console.error("Failed to fetch courses:", err);
+    }
+  };
+
+  const calculateStats = () => {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const newStats = assignments.reduce(
+      (acc, assignment) => {
+        acc.total++;
+        acc[assignment.status.toLowerCase() as keyof Pick<Stats, "draft" | "published" | "closed" | "graded">]++;
+
+        const dueDate = new Date(assignment.dueDate);
+        if (dueDate >= now && dueDate <= threeDaysFromNow && assignment.status === "PUBLISHED") {
+          acc.dueSoon++;
+        }
+
+        return acc;
+      },
+      { total: 0, draft: 0, published: 0, closed: 0, graded: 0, dueSoon: 0 }
+    );
+
+    setStats(newStats);
+  };
+
+  const filteredAssignments = useMemo(() => {
+    let filtered = assignments.filter((assignment) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        assignment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        assignment.course.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        assignment.course.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCourse = filterCourse === "all" || assignment.courseId === filterCourse;
+      const matchesStatus = filterStatus === "all" || assignment.status === filterStatus;
+
+      return matchesSearch && matchesCourse && matchesStatus;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "dueDate":
+          comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          break;
+        case "title":
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case "course":
+          comparison = a.course.code.localeCompare(b.course.code);
+          break;
+        case "submissions":
+          comparison = a.submissionCount - b.submissionCount;
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [assignments, searchQuery, filterCourse, filterStatus, sortField, sortDirection]);
+
+  const getCardClass = (assignment: Assignment) => {
+    const now = new Date();
+    const dueDate = new Date(assignment.dueDate);
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    if (dueDate < now && assignment.status === "PUBLISHED") {
+      return styles.overdue;
+    } else if (dueDate <= threeDaysFromNow && assignment.status === "PUBLISHED") {
+      return styles.dueSoon;
+    }
+    return styles.upcoming;
+  };
+
+  const getDueDateClass = (assignment: Assignment) => {
+    const now = new Date();
+    const dueDate = new Date(assignment.dueDate);
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    if (dueDate < now) return "danger";
+    if (dueDate <= threeDaysFromNow) return "warning";
+    return "success";
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      description: "",
+      status: "DRAFT",
+      courseId: courses[0]?.id || "",
+      dueDate: "",
+      dueTime: "23:59",
+      publishDate: "",
+      totalPoints: 100,
+      weight: 10,
+      allowLateSubmission: false,
+      latePenalty: 10,
+      instructions: "",
+    });
+  };
+
+  const handleAdd = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+
+  const handleEdit = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    const dueDateTime = new Date(assignment.dueDate);
+    setFormData({
+      title: assignment.title,
+      description: assignment.description || "",
+      status: assignment.status,
+      courseId: assignment.courseId,
+      dueDate: assignment.dueDate.split("T")[0],
+      dueTime: dueDateTime.toTimeString().slice(0, 5),
+      publishDate: assignment.publishDate?.split("T")[0] || "",
+      totalPoints: assignment.totalPoints,
+      weight: assignment.weight,
+      allowLateSubmission: assignment.allowLateSubmission,
+      latePenalty: assignment.latePenalty || 10,
+      instructions: assignment.instructions || "",
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDelete = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setShowDeleteModal(true);
+  };
+
+  const handleViewSubmissions = async (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    try {
+      const res = await api.get<Submission[]>(`/assignments/${assignment.id}/submissions`);
+      setSubmissions(res.data);
+      // Initialize grades data
+      const grades: Record<string, { grade: number; feedback: string }> = {};
+      res.data.forEach((sub: Submission) => {
+        grades[sub.id] = {
+          grade: sub.grade || 0,
+          feedback: sub.feedback || "",
+        };
+      });
+      setGradesData(grades);
+      setShowSubmissionsModal(true);
+    } catch (err) {
+      console.error("Failed to fetch submissions:", err);
+      alert("Failed to load submissions");
+    }
+  };
+
+  const handleSubmitAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      // Map frontend field names to backend expected names
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        courseId: formData.courseId,
+        instructions: formData.instructions,
+        dueDate: formData.dueDate,  // Keep as separate field
+        dueTime: formData.dueTime,  // Keep as separate field
+        totalPoints: formData.totalPoints,
+        status: formData.status,
+        allowLateSubmission: formData.allowLateSubmission,
+        latePenaltyPercent: formData.latePenalty,  // API expects 'latePenaltyPercent' not 'latePenalty'
+        submissionType: 'File',  // Default submission type
+        attachments: null
+      };
+      console.log('Creating assignment with payload:', payload);
+      const response = await fetch('http://localhost:4000/api/assignments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      console.log('Response status:', response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(errorText || 'Failed to create assignment');
+      }
+      const result = await response.json();
+      console.log('Assignment created:', result);
+      setShowAddModal(false);
+      fetchAssignments();
+    } catch (err: any) {
+      console.error("Failed to create assignment:", err);
+      alert(`Failed to create assignment: ${err.message}`);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleSubmitEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAssignment) return;
+    setFormLoading(true);
+    try {
+      const payload = {
+        ...formData,
+        dueDate: `${formData.dueDate}T${formData.dueTime}:00`,
+      };
+      await api.put(`/assignments/${selectedAssignment.id}`, payload);
+      setShowEditModal(false);
+      fetchAssignments();
+    } catch (err) {
+      console.error("Failed to update assignment:", err);
+      alert("Failed to update assignment");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleSubmitDelete = async () => {
+    if (!selectedAssignment) return;
+    setFormLoading(true);
+    try {
+      await api.delete(`/assignments/${selectedAssignment.id}`);
+      setShowDeleteModal(false);
+      fetchAssignments();
+    } catch (err) {
+      console.error("Failed to delete assignment:", err);
+      alert("Failed to delete assignment");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleSaveGrades = async () => {
+    if (!selectedAssignment) return;
+    setFormLoading(true);
+    try {
+      const grades = Object.entries(gradesData).map(([submissionId, data]) => ({
+        submissionId,
+        grade: data.grade,
+        feedback: data.feedback,
+      }));
+      await api.post(`/assignments/${selectedAssignment.id}/grade`, { grades });
+      setShowSubmissionsModal(false);
+      fetchAssignments();
+      alert("Grades saved successfully");
+    } catch (err) {
+      console.error("Failed to save grades:", err);
+      alert("Failed to save grades");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterCourse("all");
+    setFilterStatus("all");
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return `${date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })} at ${date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    })}`;
+  };
+
+  if (loading) {
+    return <div className={styles.loading}>Loading assignments...</div>;
+  }
+
+  return (
+    <div className={styles.container}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.titleSection}>
+          <h1>📚 Assignments</h1>
+          <p>Create and manage course assignments</p>
+        </div>
+        <div className={styles.headerActions}>
+          <button className={styles.addBtn} onClick={handleAdd}>
+            <span>+</span> Add Assignment
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className={styles.statsGrid}>
+        <div className={`${styles.statCard} ${styles.primary}`}>
+          <h3>Total Assignments</h3>
+          <div className={styles.value}>{stats.total}</div>
+        </div>
+        <div className={`${styles.statCard} ${styles.info}`}>
+          <h3>Draft</h3>
+          <div className={styles.value}>{stats.draft}</div>
+        </div>
+        <div className={`${styles.statCard} ${styles.success}`}>
+          <h3>Published</h3>
+          <div className={styles.value}>{stats.published}</div>
+        </div>
+        <div className={`${styles.statCard} ${styles.warning}`}>
+          <h3>Due Soon</h3>
+          <div className={styles.value}>{stats.dueSoon}</div>
+        </div>
+        <div className={`${styles.statCard} ${styles.danger}`}>
+          <h3>Closed</h3>
+          <div className={styles.value}>{stats.closed}</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className={styles.filtersSection}>
+        <div className={styles.filtersRow}>
+          <div className={styles.filterGroup}>
+            <label>Search</label>
+            <input
+              type="text"
+              placeholder="Search by title or course..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <label>Course</label>
+            <select value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
+              <option value="all">All Courses</option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.code} - {course.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.filterGroup}>
+            <label>Status</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+              <option value="all">All Statuses</option>
+              {ASSIGNMENT_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status.charAt(0) + status.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.filterGroup}>
+            <label>Sort By</label>
+            <select
+              value={`${sortField}-${sortDirection}`}
+              onChange={(e) => {
+                const [field, dir] = e.target.value.split("-");
+                setSortField(field);
+                setSortDirection(dir as "asc" | "desc");
+              }}
+            >
+              <option value="dueDate-asc">Due Date (Earliest)</option>
+              <option value="dueDate-desc">Due Date (Latest)</option>
+              <option value="title-asc">Title (A-Z)</option>
+              <option value="title-desc">Title (Z-A)</option>
+              <option value="submissions-desc">Most Submissions</option>
+              <option value="submissions-asc">Least Submissions</option>
+            </select>
+          </div>
+          <button className={styles.clearFilters} onClick={clearFilters}>
+            Clear
+          </button>
+        </div>
+      </div>
+
+      {/* Assignments Grid */}
+      {filteredAssignments.length === 0 ? (
+        <div className={styles.emptyState}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <h3>No Assignments Found</h3>
+          <p>
+            {searchQuery || filterCourse !== "all" || filterStatus !== "all"
+              ? "Try adjusting your filters"
+              : "Click 'Add Assignment' to create your first assignment"}
+          </p>
+        </div>
+      ) : (
+        <div className={styles.assignmentsGrid}>
+          {filteredAssignments.map((assignment) => (
+            <div
+              key={assignment.id}
+              className={`${styles.assignmentCard} ${getCardClass(assignment)}`}
+            >
+              <div className={styles.cardHeader}>
+                <div className={styles.topRow}>
+                  <h3>{assignment.title}</h3>
+                  <span className={`${styles.statusBadge} ${styles[assignment.status.toLowerCase()]}`}>
+                    {assignment.status}
+                  </span>
+                </div>
+                <span className={styles.courseTag}>
+                  📖 {assignment.course.code} - {assignment.course.name}
+                </span>
+              </div>
+              <div className={styles.cardBody}>
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoItem}>
+                    <span className={styles.label}>Due Date</span>
+                    <span className={`${styles.value} ${styles[getDueDateClass(assignment)]}`}>
+                      {formatDateTime(assignment.dueDate)}
+                    </span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.label}>Points</span>
+                    <span className={styles.value}>
+                      {assignment.totalPoints} pts ({assignment.weight}%)
+                    </span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.label}>Late Submission</span>
+                    <span className={styles.value}>
+                      {assignment.allowLateSubmission
+                        ? `Allowed (-${assignment.latePenalty}%)`
+                        : "Not Allowed"}
+                    </span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.label}>Submissions</span>
+                    <span className={styles.value}>
+                      {assignment.submissionCount} / {assignment.totalStudents}
+                    </span>
+                  </div>
+                </div>
+
+                {assignment.description && (
+                  <div className={styles.description}>
+                    <span className={styles.label}>Description</span>
+                    <p>{assignment.description}</p>
+                  </div>
+                )}
+
+                {assignment.totalStudents > 0 && (
+                  <div className={styles.submissionsProgress}>
+                    <div className={styles.label}>
+                      <span>Submission Progress</span>
+                      <span>
+                        {Math.round((assignment.submissionCount / assignment.totalStudents) * 100)}%
+                      </span>
+                    </div>
+                    <div className={styles.progressBar}>
+                      <div
+                        className={styles.fill}
+                        style={{
+                          width: `${(assignment.submissionCount / assignment.totalStudents) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className={styles.cardFooter}>
+                <button className={styles.editBtn} onClick={() => handleEdit(assignment)}>
+                  ✏️ Edit
+                </button>
+                <button className={styles.viewBtn} onClick={() => handleViewSubmissions(assignment)}>
+                  📊 Submissions
+                </button>
+                <button className={styles.deleteBtn} onClick={() => handleDelete(assignment)}>
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <div className={styles.modal}>
+          <div className={`${styles.modalContent} ${styles.wide}`}>
+            <div className={styles.modalHeader}>
+              <h2>Add New Assignment</h2>
+              <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSubmitAdd}>
+              <div className={styles.modalBody}>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Title *</label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
+                      placeholder="e.g., Homework 1, Project Report"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Course *</label>
+                    <select
+                      value={formData.courseId}
+                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+                      required
+                    >
+                      <option value="">Select a course</option>
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.code} - {course.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.formRow3}>
+                  <div className={styles.formGroup}>
+                    <label>Due Date *</label>
+                    <input
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Due Time *</label>
+                    <input
+                      type="time"
+                      value={formData.dueTime}
+                      onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({ ...formData, status: e.target.value as AssignmentStatus })
+                      }
+                    >
+                      {ASSIGNMENT_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status.charAt(0) + status.slice(1).toLowerCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.formRow3}>
+                  <div className={styles.formGroup}>
+                    <label>Total Points *</label>
+                    <input
+                      type="number"
+                      value={formData.totalPoints}
+                      onChange={(e) =>
+                        setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })
+                      }
+                      required
+                      min="1"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Weight (%)</label>
+                    <input
+                      type="number"
+                      value={formData.weight}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weight: parseInt(e.target.value) || 0 })
+                      }
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Publish Date</label>
+                    <input
+                      type="date"
+                      value={formData.publishDate}
+                      onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={formData.allowLateSubmission}
+                        onChange={(e) =>
+                          setFormData({ ...formData, allowLateSubmission: e.target.checked })
+                        }
+                        style={{ marginRight: "0.5rem" }}
+                      />
+                      Allow Late Submissions
+                    </label>
+                  </div>
+                  {formData.allowLateSubmission && (
+                    <div className={styles.formGroup}>
+                      <label>Late Penalty (%)</label>
+                      <input
+                        type="number"
+                        value={formData.latePenalty}
+                        onChange={(e) =>
+                          setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })
+                        }
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={2}
+                    placeholder="Brief description of the assignment"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Instructions</label>
+                  <textarea
+                    value={formData.instructions}
+                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                    rows={3}
+                    placeholder="Detailed instructions for students"
+                  />
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={styles.submitBtn} disabled={formLoading}>
+                  {formLoading ? "Creating..." : "Create Assignment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && selectedAssignment && (
+        <div className={styles.modal}>
+          <div className={`${styles.modalContent} ${styles.wide}`}>
+            <div className={styles.modalHeader}>
+              <h2>Edit Assignment</h2>
+              <button className={styles.closeBtn} onClick={() => setShowEditModal(false)}>
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSubmitEdit}>
+              <div className={styles.modalBody}>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Title *</label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Course *</label>
+                    <select
+                      value={formData.courseId}
+                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+                      required
+                    >
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.code} - {course.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.formRow3}>
+                  <div className={styles.formGroup}>
+                    <label>Due Date *</label>
+                    <input
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Due Time *</label>
+                    <input
+                      type="time"
+                      value={formData.dueTime}
+                      onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({ ...formData, status: e.target.value as AssignmentStatus })
+                      }
+                    >
+                      {ASSIGNMENT_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status.charAt(0) + status.slice(1).toLowerCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.formRow3}>
+                  <div className={styles.formGroup}>
+                    <label>Total Points *</label>
+                    <input
+                      type="number"
+                      value={formData.totalPoints}
+                      onChange={(e) =>
+                        setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })
+                      }
+                      required
+                      min="1"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Weight (%)</label>
+                    <input
+                      type="number"
+                      value={formData.weight}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weight: parseInt(e.target.value) || 0 })
+                      }
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Publish Date</label>
+                    <input
+                      type="date"
+                      value={formData.publishDate}
+                      onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={formData.allowLateSubmission}
+                        onChange={(e) =>
+                          setFormData({ ...formData, allowLateSubmission: e.target.checked })
+                        }
+                        style={{ marginRight: "0.5rem" }}
+                      />
+                      Allow Late Submissions
+                    </label>
+                  </div>
+                  {formData.allowLateSubmission && (
+                    <div className={styles.formGroup}>
+                      <label>Late Penalty (%)</label>
+                      <input
+                        type="number"
+                        value={formData.latePenalty}
+                        onChange={(e) =>
+                          setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })
+                        }
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Instructions</label>
+                  <textarea
+                    value={formData.instructions}
+                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => setShowEditModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={styles.submitBtn} disabled={formLoading}>
+                  {formLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedAssignment && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2>Delete Assignment</h2>
+              <button className={styles.closeBtn} onClick={() => setShowDeleteModal(false)}>
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p>
+                Are you sure you want to delete <strong>{selectedAssignment.title}</strong>?
+              </p>
+              {selectedAssignment.submissionCount > 0 && (
+                <p style={{ color: "var(--warning)", marginTop: "0.5rem" }}>
+                  ⚠️ This assignment has {selectedAssignment.submissionCount} submission(s). They will
+                  also be deleted.
+                </p>
+              )}
+              <p style={{ color: "var(--danger)", marginTop: "0.5rem" }}>
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`${styles.submitBtn} ${styles.dangerBtn}`}
+                onClick={handleSubmitDelete}
+                disabled={formLoading}
+              >
+                {formLoading ? "Deleting..." : "Delete Assignment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submissions Modal */}
+      {showSubmissionsModal && selectedAssignment && (
+        <div className={styles.modal}>
+          <div className={`${styles.modalContent} ${styles.wide}`}>
+            <div className={styles.modalHeader}>
+              <h2>
+                Submissions for {selectedAssignment.title} ({selectedAssignment.totalPoints} pts)
+              </h2>
+              <button className={styles.closeBtn} onClick={() => setShowSubmissionsModal(false)}>
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {submissions.length === 0 ? (
+                <div className={styles.noSubmissions}>No submissions yet</div>
+              ) : (
+                <div className={styles.submissionsList}>
+                  {submissions.map((submission) => (
+                    <div key={submission.id} className={styles.submissionRow}>
+                      <div className={styles.studentInfo}>
+                        <div className={styles.studentName}>
+                          {submission.studentName}
+                          {submission.isLate && <span className={styles.lateBadge}>LATE</span>}
+                        </div>
+                        <div className={styles.submittedAt}>
+                          Submitted: {formatDateTime(submission.submittedAt)}
+                        </div>
+                      </div>
+                      <div className={styles.grade}>
+                        <input
+                          type="number"
+                          value={gradesData[submission.id]?.grade ?? ""}
+                          onChange={(e) =>
+                            setGradesData({
+                              ...gradesData,
+                              [submission.id]: {
+                                ...gradesData[submission.id],
+                                grade: parseFloat(e.target.value) || 0,
+                              },
+                            })
+                          }
+                          placeholder="Grade"
+                          min="0"
+                          max={selectedAssignment.totalPoints}
+                        />
+                        <span>/ {selectedAssignment.totalPoints}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => setShowSubmissionsModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.submitBtn}
+                onClick={handleSaveGrades}
+                disabled={formLoading || submissions.length === 0}
+              >
+                {formLoading ? "Saving..." : "Save Grades"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

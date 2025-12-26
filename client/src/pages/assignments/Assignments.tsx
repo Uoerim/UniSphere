@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./Assignments.module.css";
-import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
-type AssignmentStatus = "DRAFT" | "PUBLISHED" | "CLOSED" | "GRADED";
+type AssignmentStatus = "Draft" | "Published" | "Closed" | "Archived";
 
 interface Course {
   id: string;
@@ -12,32 +12,19 @@ interface Course {
 
 interface Assignment {
   id: string;
-  title: string;
+  name?: string;
+  title?: string;
   description?: string;
-  status: AssignmentStatus;
-  courseId: string;
-  course: Course;
-  dueDate: string;
-  publishDate?: string;
-  totalPoints: number;
-  weight: number;
-  allowLateSubmission: boolean;
-  latePenalty?: number;
+  status?: AssignmentStatus;
+  course?: Course;
+  dueDate?: string;
+  dueTime?: string;
+  totalPoints?: number;
+  allowLateSubmission?: boolean;
+  latePenaltyPercent?: number;
   instructions?: string;
-  submissionCount: number;
-  totalStudents: number;
   createdAt: string;
-}
-
-interface Submission {
-  id: string;
-  studentId: string;
-  studentName: string;
-  studentNumber: string;
-  submittedAt: string;
-  isLate: boolean;
-  grade?: number;
-  feedback?: string;
+  isActive?: boolean;
 }
 
 interface Stats {
@@ -45,13 +32,13 @@ interface Stats {
   draft: number;
   published: number;
   closed: number;
-  graded: number;
-  dueSoon: number;
+  archived: number;
 }
 
-const ASSIGNMENT_STATUSES: AssignmentStatus[] = ["DRAFT", "PUBLISHED", "CLOSED", "GRADED"];
+const ASSIGNMENT_STATUSES: AssignmentStatus[] = ["Draft", "Published", "Closed", "Archived"];
 
 export default function Assignments() {
+  const { user } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -59,8 +46,7 @@ export default function Assignments() {
     draft: 0,
     published: 0,
     closed: 0,
-    graded: 0,
-    dueSoon: 0,
+    archived: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -75,27 +61,24 @@ export default function Assignments() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
 
   // Form data
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    status: "DRAFT" as AssignmentStatus,
+    status: "Draft" as AssignmentStatus,
     courseId: "",
     dueDate: "",
     dueTime: "",
-    publishDate: "",
     totalPoints: 100,
     weight: 10,
     allowLateSubmission: false,
     latePenalty: 10,
     instructions: "",
   });
-  const [gradesData, setGradesData] = useState<Record<string, { grade: number; feedback: string }>>({});
   const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAssignments();
@@ -108,8 +91,14 @@ export default function Assignments() {
 
   const fetchAssignments = async () => {
     try {
-      const res = await api.get<Assignment[]>("/assignments");
-      setAssignments(res.data);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/assignments', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAssignments(data || []);
+      }
     } catch (err) {
       console.error("Failed to fetch assignments:", err);
     } finally {
@@ -119,31 +108,40 @@ export default function Assignments() {
 
   const fetchCourses = async () => {
     try {
-      const res = await api.get<Course[]>("/staff-courses");
-      setCourses(res.data);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/curriculum', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const allCourses = await response.json();
+        console.log('All courses fetched:', allCourses);
+        console.log('User info:', user);
+        // Filter courses where this staff member is the instructor
+        const myCourses = allCourses.filter((course: any) => 
+          course.instructor?.accountId === user?.id || 
+          course.instructor?.email === user?.email
+        );
+        console.log('Filtered courses:', myCourses);
+        setCourses(myCourses.length > 0 ? myCourses : allCourses);
+      }
     } catch (err) {
       console.error("Failed to fetch courses:", err);
     }
   };
 
   const calculateStats = () => {
-    const now = new Date();
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    if (!assignments.length) {
+      setStats({ total: 0, draft: 0, published: 0, closed: 0, archived: 0 });
+      return;
+    }
 
-    const newStats = assignments.reduce(
-      (acc, assignment) => {
-        acc.total++;
-        acc[assignment.status.toLowerCase() as keyof Pick<Stats, "draft" | "published" | "closed" | "graded">]++;
-
-        const dueDate = new Date(assignment.dueDate);
-        if (dueDate >= now && dueDate <= threeDaysFromNow && assignment.status === "PUBLISHED") {
-          acc.dueSoon++;
-        }
-
-        return acc;
-      },
-      { total: 0, draft: 0, published: 0, closed: 0, graded: 0, dueSoon: 0 }
-    );
+    const newStats = {
+      total: assignments.length,
+      draft: assignments.filter(a => a.status === 'Draft').length,
+      published: assignments.filter(a => a.status === 'Published').length,
+      closed: assignments.filter(a => a.status === 'Closed').length,
+      archived: assignments.filter(a => a.status === 'Archived').length,
+    };
 
     setStats(newStats);
   };
@@ -152,10 +150,12 @@ export default function Assignments() {
     let filtered = assignments.filter((assignment) => {
       const matchesSearch =
         searchQuery === "" ||
-        assignment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        assignment.course.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        assignment.course.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCourse = filterCourse === "all" || assignment.courseId === filterCourse;
+        (assignment.name && assignment.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (assignment.title && assignment.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (assignment.course?.code && assignment.course.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (assignment.course?.name && assignment.course.name.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesCourse = filterCourse === "all" || assignment.course?.id === filterCourse;
       const matchesStatus = filterStatus === "all" || assignment.status === filterStatus;
 
       return matchesSearch && matchesCourse && matchesStatus;
@@ -166,16 +166,18 @@ export default function Assignments() {
       let comparison = 0;
       switch (sortField) {
         case "dueDate":
-          comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          comparison = new Date(a.dueDate || '').getTime() - new Date(b.dueDate || '').getTime();
           break;
         case "title":
-          comparison = a.title.localeCompare(b.title);
+          const titleA = a.name || a.title || '';
+          const titleB = b.name || b.title || '';
+          comparison = titleA.localeCompare(titleB);
           break;
         case "course":
-          comparison = a.course.code.localeCompare(b.course.code);
+          comparison = (a.course?.code || '').localeCompare(b.course?.code || '');
           break;
-        case "submissions":
-          comparison = a.submissionCount - b.submissionCount;
+        case "points":
+          comparison = (a.totalPoints || 0) - (b.totalPoints || 0);
           break;
         default:
           comparison = 0;
@@ -186,44 +188,30 @@ export default function Assignments() {
     return filtered;
   }, [assignments, searchQuery, filterCourse, filterStatus, sortField, sortDirection]);
 
-  const getCardClass = (assignment: Assignment) => {
-    const now = new Date();
-    const dueDate = new Date(assignment.dueDate);
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-    if (dueDate < now && assignment.status === "PUBLISHED") {
-      return styles.overdue;
-    } else if (dueDate <= threeDaysFromNow && assignment.status === "PUBLISHED") {
-      return styles.dueSoon;
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
     }
-    return styles.upcoming;
-  };
-
-  const getDueDateClass = (assignment: Assignment) => {
-    const now = new Date();
-    const dueDate = new Date(assignment.dueDate);
-    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-    if (dueDate < now) return "danger";
-    if (dueDate <= threeDaysFromNow) return "warning";
-    return "success";
   };
 
   const resetForm = () => {
     setFormData({
       title: "",
       description: "",
-      status: "DRAFT",
+      status: "Draft",
       courseId: courses[0]?.id || "",
       dueDate: "",
-      dueTime: "23:59",
-      publishDate: "",
+      dueTime: "",
       totalPoints: 100,
       weight: 10,
       allowLateSubmission: false,
       latePenalty: 10,
       instructions: "",
     });
+    setFormError(null);
   };
 
   const handleAdd = () => {
@@ -233,19 +221,17 @@ export default function Assignments() {
 
   const handleEdit = (assignment: Assignment) => {
     setSelectedAssignment(assignment);
-    const dueDateTime = new Date(assignment.dueDate);
     setFormData({
-      title: assignment.title,
+      title: assignment.name || assignment.title || "",
       description: assignment.description || "",
-      status: assignment.status,
-      courseId: assignment.courseId,
-      dueDate: assignment.dueDate.split("T")[0],
-      dueTime: dueDateTime.toTimeString().slice(0, 5),
-      publishDate: assignment.publishDate?.split("T")[0] || "",
-      totalPoints: assignment.totalPoints,
-      weight: assignment.weight,
-      allowLateSubmission: assignment.allowLateSubmission,
-      latePenalty: assignment.latePenalty || 10,
+      status: (assignment.status as AssignmentStatus) || "Draft",
+      courseId: assignment.course?.id || "",
+      dueDate: assignment.dueDate ? assignment.dueDate.split("T")[0] : "",
+      dueTime: assignment.dueTime || "",
+      totalPoints: assignment.totalPoints || 100,
+      weight: 10,
+      allowLateSubmission: assignment.allowLateSubmission || false,
+      latePenalty: assignment.latePenaltyPercent || 10,
       instructions: assignment.instructions || "",
     });
     setShowEditModal(true);
@@ -256,41 +242,62 @@ export default function Assignments() {
     setShowDeleteModal(true);
   };
 
-  const handleViewSubmissions = async (assignment: Assignment) => {
-    setSelectedAssignment(assignment);
-    try {
-      const res = await api.get<Submission[]>(`/assignments/${assignment.id}/submissions`);
-      setSubmissions(res.data);
-      // Initialize grades data
-      const grades: Record<string, { grade: number; feedback: string }> = {};
-      res.data.forEach((sub: Submission) => {
-        grades[sub.id] = {
-          grade: sub.grade || 0,
-          feedback: sub.feedback || "",
-        };
-      });
-      setGradesData(grades);
-      setShowSubmissionsModal(true);
-    } catch (err) {
-      console.error("Failed to fetch submissions:", err);
-      alert("Failed to load submissions");
-    }
-  };
-
   const handleSubmitAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormLoading(true);
+    setFormError(null);
+
     try {
+      if (!formData.title.trim()) {
+        setFormError("Title is required");
+        return;
+      }
+      if (!formData.courseId) {
+        setFormError("Please select a course");
+        return;
+      }
+      if (!formData.dueDate) {
+        setFormError("Due date is required");
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+
       const payload = {
-        ...formData,
-        dueDate: `${formData.dueDate}T${formData.dueTime}:00`,
+        title: formData.title,
+        description: formData.description,
+        courseId: formData.courseId,
+        status: formData.status,
+        dueDate: formData.dueDate,
+        dueTime: formData.dueTime,
+        totalPoints: formData.totalPoints,
+        allowLateSubmission: formData.allowLateSubmission,
+        latePenaltyPercent: formData.latePenalty,
+        instructions: formData.instructions,
+        submissionType: 'File'
       };
-      await api.post("/assignments", payload);
+
+      const response = await fetch('http://localhost:4000/api/assignments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Failed to create assignment');
+      }
+
+      const result = await response.json();
       setShowAddModal(false);
-      fetchAssignments();
-    } catch (err) {
+      resetForm();
+      await fetchAssignments();
+    } catch (err: any) {
       console.error("Failed to create assignment:", err);
-      alert("Failed to create assignment");
+      setFormError(err.message || "Failed to create assignment");
     } finally {
       setFormLoading(false);
     }
@@ -300,17 +307,41 @@ export default function Assignments() {
     e.preventDefault();
     if (!selectedAssignment) return;
     setFormLoading(true);
+    setFormError(null);
+
     try {
+      const token = localStorage.getItem('token');
+
       const payload = {
-        ...formData,
-        dueDate: `${formData.dueDate}T${formData.dueTime}:00`,
+        title: formData.title,
+        description: formData.description,
+        courseId: formData.courseId,
+        status: formData.status,
+        dueDate: formData.dueDate,
+        dueTime: formData.dueTime,
+        totalPoints: formData.totalPoints,
+        allowLateSubmission: formData.allowLateSubmission,
+        latePenaltyPercent: formData.latePenalty,
+        instructions: formData.instructions,
       };
-      await api.put(`/assignments/${selectedAssignment.id}`, payload);
+
+      const response = await fetch(`http://localhost:4000/api/assignments/${selectedAssignment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update assignment');
+      }
+
       setShowEditModal(false);
-      fetchAssignments();
-    } catch (err) {
-      console.error("Failed to update assignment:", err);
-      alert("Failed to update assignment");
+      await fetchAssignments();
+    } catch (err: any) {
+      setFormError(err.message || "Failed to update assignment");
     } finally {
       setFormLoading(false);
     }
@@ -319,280 +350,162 @@ export default function Assignments() {
   const handleSubmitDelete = async () => {
     if (!selectedAssignment) return;
     setFormLoading(true);
+
     try {
-      await api.delete(`/assignments/${selectedAssignment.id}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:4000/api/assignments/${selectedAssignment.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete assignment');
+      }
+
       setShowDeleteModal(false);
-      fetchAssignments();
+      await fetchAssignments();
     } catch (err) {
-      console.error("Failed to delete assignment:", err);
       alert("Failed to delete assignment");
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleSaveGrades = async () => {
-    if (!selectedAssignment) return;
-    setFormLoading(true);
-    try {
-      const grades = Object.entries(gradesData).map(([submissionId, data]) => ({
-        submissionId,
-        grade: data.grade,
-        feedback: data.feedback,
-      }));
-      await api.post(`/assignments/${selectedAssignment.id}/grade`, { grades });
-      setShowSubmissionsModal(false);
-      fetchAssignments();
-      alert("Grades saved successfully");
-    } catch (err) {
-      console.error("Failed to save grades:", err);
-      alert("Failed to save grades");
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  const clearFilters = () => {
-    setSearchQuery("");
-    setFilterCourse("all");
-    setFilterStatus("all");
-  };
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    })} at ${date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    })}`;
-  };
-
   if (loading) {
-    return <div className={styles.loading}>Loading assignments...</div>;
+    return <div className={styles.container}><p>Loading assignments...</p></div>;
   }
 
   return (
     <div className={styles.container}>
       {/* Header */}
       <div className={styles.header}>
-        <div className={styles.titleSection}>
-          <h1>📚 Assignments</h1>
-          <p>Create and manage course assignments</p>
+        <div>
+          <h1>Assignments</h1>
+          <p>Create and manage assignments for your courses</p>
         </div>
-        <div className={styles.headerActions}>
-          <button className={styles.addBtn} onClick={handleAdd}>
-            <span>+</span> Add Assignment
-          </button>
-        </div>
+        <button className={styles.primaryBtn} onClick={handleAdd}>
+          + Add Assignment
+        </button>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className={styles.statsGrid}>
-        <div className={`${styles.statCard} ${styles.primary}`}>
-          <h3>Total Assignments</h3>
-          <div className={styles.value}>{stats.total}</div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{stats.total}</div>
+          <div className={styles.statLabel}>Total Assignments</div>
         </div>
-        <div className={`${styles.statCard} ${styles.info}`}>
-          <h3>Draft</h3>
-          <div className={styles.value}>{stats.draft}</div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{stats.draft}</div>
+          <div className={styles.statLabel}>Drafts</div>
         </div>
-        <div className={`${styles.statCard} ${styles.success}`}>
-          <h3>Published</h3>
-          <div className={styles.value}>{stats.published}</div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{stats.published}</div>
+          <div className={styles.statLabel}>Published</div>
         </div>
-        <div className={`${styles.statCard} ${styles.warning}`}>
-          <h3>Due Soon</h3>
-          <div className={styles.value}>{stats.dueSoon}</div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{stats.closed}</div>
+          <div className={styles.statLabel}>Closed</div>
         </div>
-        <div className={`${styles.statCard} ${styles.danger}`}>
-          <h3>Closed</h3>
-          <div className={styles.value}>{stats.closed}</div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{stats.archived}</div>
+          <div className={styles.statLabel}>Archived</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className={styles.filtersSection}>
-        <div className={styles.filtersRow}>
-          <div className={styles.filterGroup}>
-            <label>Search</label>
-            <input
-              type="text"
-              placeholder="Search by title or course..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className={styles.filterGroup}>
-            <label>Course</label>
-            <select value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
-              <option value="all">All Courses</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.code} - {course.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.filterGroup}>
-            <label>Status</label>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-              <option value="all">All Statuses</option>
-              {ASSIGNMENT_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status.charAt(0) + status.slice(1).toLowerCase()}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.filterGroup}>
-            <label>Sort By</label>
-            <select
-              value={`${sortField}-${sortDirection}`}
-              onChange={(e) => {
-                const [field, dir] = e.target.value.split("-");
-                setSortField(field);
-                setSortDirection(dir as "asc" | "desc");
-              }}
-            >
-              <option value="dueDate-asc">Due Date (Earliest)</option>
-              <option value="dueDate-desc">Due Date (Latest)</option>
-              <option value="title-asc">Title (A-Z)</option>
-              <option value="title-desc">Title (Z-A)</option>
-              <option value="submissions-desc">Most Submissions</option>
-              <option value="submissions-asc">Least Submissions</option>
-            </select>
-          </div>
-          <button className={styles.clearFilters} onClick={clearFilters}>
-            Clear
-          </button>
+      <div className={styles.filters}>
+        <div className={styles.filterGroup}>
+          <label>Status:</label>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="all">All Statuses</option>
+            <option value="Draft">Draft</option>
+            <option value="Published">Published</option>
+            <option value="Closed">Closed</option>
+            <option value="Archived">Archived</option>
+          </select>
         </div>
+        <div className={styles.filterGroup}>
+          <label>Course:</label>
+          <select value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)}>
+            <option value="all">All Courses</option>
+            {courses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.code} - {course.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <input
+          type="text"
+          placeholder="Search assignments..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className={styles.searchInput}
+        />
       </div>
 
-      {/* Assignments Grid */}
-      {filteredAssignments.length === 0 ? (
-        <div className={styles.emptyState}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <h3>No Assignments Found</h3>
-          <p>
-            {searchQuery || filterCourse !== "all" || filterStatus !== "all"
-              ? "Try adjusting your filters"
-              : "Click 'Add Assignment' to create your first assignment"}
-          </p>
-        </div>
-      ) : (
-        <div className={styles.assignmentsGrid}>
-          {filteredAssignments.map((assignment) => (
-            <div
-              key={assignment.id}
-              className={`${styles.assignmentCard} ${getCardClass(assignment)}`}
-            >
-              <div className={styles.cardHeader}>
-                <div className={styles.topRow}>
-                  <h3>{assignment.title}</h3>
-                  <span className={`${styles.statusBadge} ${styles[assignment.status.toLowerCase()]}`}>
-                    {assignment.status}
-                  </span>
-                </div>
-                <span className={styles.courseTag}>
-                  📖 {assignment.course.code} - {assignment.course.name}
-                </span>
-              </div>
-              <div className={styles.cardBody}>
-                <div className={styles.infoGrid}>
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Due Date</span>
-                    <span className={`${styles.value} ${styles[getDueDateClass(assignment)]}`}>
-                      {formatDateTime(assignment.dueDate)}
-                    </span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Points</span>
-                    <span className={styles.value}>
-                      {assignment.totalPoints} pts ({assignment.weight}%)
-                    </span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Late Submission</span>
-                    <span className={styles.value}>
-                      {assignment.allowLateSubmission
-                        ? `Allowed (-${assignment.latePenalty}%)`
-                        : "Not Allowed"}
-                    </span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Submissions</span>
-                    <span className={styles.value}>
-                      {assignment.submissionCount} / {assignment.totalStudents}
-                    </span>
-                  </div>
-                </div>
-
-                {assignment.description && (
-                  <div className={styles.description}>
-                    <span className={styles.label}>Description</span>
-                    <p>{assignment.description}</p>
-                  </div>
-                )}
-
-                {assignment.totalStudents > 0 && (
-                  <div className={styles.submissionsProgress}>
-                    <div className={styles.label}>
-                      <span>Submission Progress</span>
-                      <span>
-                        {Math.round((assignment.submissionCount / assignment.totalStudents) * 100)}%
-                      </span>
-                    </div>
-                    <div className={styles.progressBar}>
-                      <div
-                        className={styles.fill}
-                        style={{
-                          width: `${(assignment.submissionCount / assignment.totalStudents) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className={styles.cardFooter}>
-                <button className={styles.editBtn} onClick={() => handleEdit(assignment)}>
-                  ✏️ Edit
-                </button>
-                <button className={styles.viewBtn} onClick={() => handleViewSubmissions(assignment)}>
-                  📊 Submissions
-                </button>
-                <button className={styles.deleteBtn} onClick={() => handleDelete(assignment)}>
-                  🗑️
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Table */}
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th onClick={() => handleSort("title")}>
+                Title {sortField === "title" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th onClick={() => handleSort("course")}>
+                Course {sortField === "course" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th onClick={() => handleSort("dueDate")}>
+                Due Date {sortField === "dueDate" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th>Status</th>
+              <th onClick={() => handleSort("points")}>
+                Points {sortField === "points" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAssignments.length === 0 ? (
+              <tr>
+                <td colSpan={6} className={styles.emptyMessage}>
+                  No assignments found
+                </td>
+              </tr>
+            ) : (
+              filteredAssignments.map((assignment) => (
+                <tr key={assignment.id}>
+                  <td><strong>{assignment.name || assignment.title}</strong></td>
+                  <td>{assignment.course?.code || 'N/A'}</td>
+                  <td>{assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'N/A'}</td>
+                  <td>{assignment.status || 'N/A'}</td>
+                  <td>{assignment.totalPoints || 'N/A'}</td>
+                  <td>
+                    <button className={styles.iconBtn} onClick={() => handleEdit(assignment)} title="Edit">
+                      ✎
+                    </button>
+                    <button className={styles.iconBtn} onClick={() => handleDelete(assignment)} title="Delete">
+                      🗑
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Add Modal */}
       {showAddModal && (
         <div className={styles.modal}>
           <div className={`${styles.modalContent} ${styles.wide}`}>
             <div className={styles.modalHeader}>
-              <h2>Add New Assignment</h2>
+              <h2>Add Assignment</h2>
               <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>
                 ✕
               </button>
             </div>
+            {formError && <div className={styles.errorMsg}>{formError}</div>}
             <form onSubmit={handleSubmitAdd}>
               <div className={styles.modalBody}>
                 <div className={styles.formRow}>
@@ -603,9 +516,24 @@ export default function Assignments() {
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       required
-                      placeholder="e.g., Homework 1, Project Report"
+                      placeholder="Assignment title"
                     />
                   </div>
+                  <div className={styles.formGroup}>
+                    <label>Status *</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as AssignmentStatus })}
+                      required
+                    >
+                      <option value="Draft">Draft</option>
+                      <option value="Published">Published</option>
+                      <option value="Closed">Closed</option>
+                      <option value="Archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
                   <div className={styles.formGroup}>
                     <label>Course *</label>
                     <select
@@ -621,8 +549,6 @@ export default function Assignments() {
                       ))}
                     </select>
                   </div>
-                </div>
-                <div className={styles.formRow3}>
                   <div className={styles.formGroup}>
                     <label>Due Date *</label>
                     <input
@@ -632,62 +558,24 @@ export default function Assignments() {
                       required
                     />
                   </div>
+                </div>
+                <div className={styles.formRow}>
                   <div className={styles.formGroup}>
-                    <label>Due Time *</label>
+                    <label>Due Time</label>
                     <input
                       type="time"
                       value={formData.dueTime}
                       onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
-                      required
                     />
                   </div>
-                  <div className={styles.formGroup}>
-                    <label>Status</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) =>
-                        setFormData({ ...formData, status: e.target.value as AssignmentStatus })
-                      }
-                    >
-                      {ASSIGNMENT_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0) + status.slice(1).toLowerCase()}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className={styles.formRow3}>
                   <div className={styles.formGroup}>
                     <label>Total Points *</label>
                     <input
                       type="number"
                       value={formData.totalPoints}
-                      onChange={(e) =>
-                        setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })
-                      }
+                      onChange={(e) => setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })}
                       required
                       min="1"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Weight (%)</label>
-                    <input
-                      type="number"
-                      value={formData.weight}
-                      onChange={(e) =>
-                        setFormData({ ...formData, weight: parseInt(e.target.value) || 0 })
-                      }
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Publish Date</label>
-                    <input
-                      type="date"
-                      value={formData.publishDate}
-                      onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
                     />
                   </div>
                 </div>
@@ -697,12 +585,9 @@ export default function Assignments() {
                       <input
                         type="checkbox"
                         checked={formData.allowLateSubmission}
-                        onChange={(e) =>
-                          setFormData({ ...formData, allowLateSubmission: e.target.checked })
-                        }
-                        style={{ marginRight: "0.5rem" }}
+                        onChange={(e) => setFormData({ ...formData, allowLateSubmission: e.target.checked })}
                       />
-                      Allow Late Submissions
+                      Allow Late Submission
                     </label>
                   </div>
                   {formData.allowLateSubmission && (
@@ -711,9 +596,7 @@ export default function Assignments() {
                       <input
                         type="number"
                         value={formData.latePenalty}
-                        onChange={(e) =>
-                          setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })
-                        }
+                        onChange={(e) => setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })}
                         min="0"
                         max="100"
                       />
@@ -726,7 +609,7 @@ export default function Assignments() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={2}
-                    placeholder="Brief description of the assignment"
+                    placeholder="Brief description"
                   />
                 </div>
                 <div className={styles.formGroup}>
@@ -735,16 +618,12 @@ export default function Assignments() {
                     value={formData.instructions}
                     onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                     rows={3}
-                    placeholder="Detailed instructions for students"
+                    placeholder="Assignment instructions for students"
                   />
                 </div>
               </div>
               <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setShowAddModal(false)}
-                >
+                <button type="button" className={styles.cancelBtn} onClick={() => setShowAddModal(false)}>
                   Cancel
                 </button>
                 <button type="submit" className={styles.submitBtn} disabled={formLoading}>
@@ -766,6 +645,7 @@ export default function Assignments() {
                 ✕
               </button>
             </div>
+            {formError && <div className={styles.errorMsg}>{formError}</div>}
             <form onSubmit={handleSubmitEdit}>
               <div className={styles.modalBody}>
                 <div className={styles.formRow}>
@@ -778,6 +658,21 @@ export default function Assignments() {
                       required
                     />
                   </div>
+                  <div className={styles.formGroup}>
+                    <label>Status *</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as AssignmentStatus })}
+                      required
+                    >
+                      <option value="Draft">Draft</option>
+                      <option value="Published">Published</option>
+                      <option value="Closed">Closed</option>
+                      <option value="Archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
                   <div className={styles.formGroup}>
                     <label>Course *</label>
                     <select
@@ -792,8 +687,6 @@ export default function Assignments() {
                       ))}
                     </select>
                   </div>
-                </div>
-                <div className={styles.formRow3}>
                   <div className={styles.formGroup}>
                     <label>Due Date *</label>
                     <input
@@ -803,62 +696,24 @@ export default function Assignments() {
                       required
                     />
                   </div>
+                </div>
+                <div className={styles.formRow}>
                   <div className={styles.formGroup}>
-                    <label>Due Time *</label>
+                    <label>Due Time</label>
                     <input
                       type="time"
                       value={formData.dueTime}
                       onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
-                      required
                     />
                   </div>
-                  <div className={styles.formGroup}>
-                    <label>Status</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) =>
-                        setFormData({ ...formData, status: e.target.value as AssignmentStatus })
-                      }
-                    >
-                      {ASSIGNMENT_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0) + status.slice(1).toLowerCase()}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className={styles.formRow3}>
                   <div className={styles.formGroup}>
                     <label>Total Points *</label>
                     <input
                       type="number"
                       value={formData.totalPoints}
-                      onChange={(e) =>
-                        setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })
-                      }
+                      onChange={(e) => setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })}
                       required
                       min="1"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Weight (%)</label>
-                    <input
-                      type="number"
-                      value={formData.weight}
-                      onChange={(e) =>
-                        setFormData({ ...formData, weight: parseInt(e.target.value) || 0 })
-                      }
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Publish Date</label>
-                    <input
-                      type="date"
-                      value={formData.publishDate}
-                      onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
                     />
                   </div>
                 </div>
@@ -868,12 +723,9 @@ export default function Assignments() {
                       <input
                         type="checkbox"
                         checked={formData.allowLateSubmission}
-                        onChange={(e) =>
-                          setFormData({ ...formData, allowLateSubmission: e.target.checked })
-                        }
-                        style={{ marginRight: "0.5rem" }}
+                        onChange={(e) => setFormData({ ...formData, allowLateSubmission: e.target.checked })}
                       />
-                      Allow Late Submissions
+                      Allow Late Submission
                     </label>
                   </div>
                   {formData.allowLateSubmission && (
@@ -882,9 +734,7 @@ export default function Assignments() {
                       <input
                         type="number"
                         value={formData.latePenalty}
-                        onChange={(e) =>
-                          setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })
-                        }
+                        onChange={(e) => setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })}
                         min="0"
                         max="100"
                       />
@@ -909,11 +759,7 @@ export default function Assignments() {
                 </div>
               </div>
               <div className={styles.modalFooter}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setShowEditModal(false)}
-                >
+                <button type="button" className={styles.cancelBtn} onClick={() => setShowEditModal(false)}>
                   Cancel
                 </button>
                 <button type="submit" className={styles.submitBtn} disabled={formLoading}>
@@ -925,7 +771,7 @@ export default function Assignments() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {showDeleteModal && selectedAssignment && (
         <div className={styles.modal}>
           <div className={styles.modalContent}>
@@ -937,24 +783,14 @@ export default function Assignments() {
             </div>
             <div className={styles.modalBody}>
               <p>
-                Are you sure you want to delete <strong>{selectedAssignment.title}</strong>?
+                Are you sure you want to delete <strong>{selectedAssignment.name || selectedAssignment.title}</strong>?
               </p>
-              {selectedAssignment.submissionCount > 0 && (
-                <p style={{ color: "var(--warning)", marginTop: "0.5rem" }}>
-                  ⚠️ This assignment has {selectedAssignment.submissionCount} submission(s). They will
-                  also be deleted.
-                </p>
-              )}
               <p style={{ color: "var(--danger)", marginTop: "0.5rem" }}>
                 This action cannot be undone.
               </p>
             </div>
             <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={() => setShowDeleteModal(false)}
-              >
+              <button type="button" className={styles.cancelBtn} onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </button>
               <button
@@ -964,79 +800,6 @@ export default function Assignments() {
                 disabled={formLoading}
               >
                 {formLoading ? "Deleting..." : "Delete Assignment"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Submissions Modal */}
-      {showSubmissionsModal && selectedAssignment && (
-        <div className={styles.modal}>
-          <div className={`${styles.modalContent} ${styles.wide}`}>
-            <div className={styles.modalHeader}>
-              <h2>
-                Submissions for {selectedAssignment.title} ({selectedAssignment.totalPoints} pts)
-              </h2>
-              <button className={styles.closeBtn} onClick={() => setShowSubmissionsModal(false)}>
-                ✕
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              {submissions.length === 0 ? (
-                <div className={styles.noSubmissions}>No submissions yet</div>
-              ) : (
-                <div className={styles.submissionsList}>
-                  {submissions.map((submission) => (
-                    <div key={submission.id} className={styles.submissionRow}>
-                      <div className={styles.studentInfo}>
-                        <div className={styles.studentName}>
-                          {submission.studentName}
-                          {submission.isLate && <span className={styles.lateBadge}>LATE</span>}
-                        </div>
-                        <div className={styles.submittedAt}>
-                          Submitted: {formatDateTime(submission.submittedAt)}
-                        </div>
-                      </div>
-                      <div className={styles.grade}>
-                        <input
-                          type="number"
-                          value={gradesData[submission.id]?.grade ?? ""}
-                          onChange={(e) =>
-                            setGradesData({
-                              ...gradesData,
-                              [submission.id]: {
-                                ...gradesData[submission.id],
-                                grade: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                          placeholder="Grade"
-                          min="0"
-                          max={selectedAssignment.totalPoints}
-                        />
-                        <span>/ {selectedAssignment.totalPoints}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={() => setShowSubmissionsModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.submitBtn}
-                onClick={handleSaveGrades}
-                disabled={formLoading || submissions.length === 0}
-              >
-                {formLoading ? "Saving..." : "Save Grades"}
               </button>
             </div>
           </div>
