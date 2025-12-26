@@ -1,0 +1,146 @@
+import { useState, useEffect } from "react";
+import { Grade, calculateGPA, gradeStats } from "../../utils/gradeUtils";
+
+interface Course {
+  id: string;
+  name: string;
+}
+
+const mockCourses: Course[] = [
+  { id: "c1", name: "Mathematics 101" },
+  { id: "c2", name: "Physics 101" },
+];
+
+export default function GradingPage() {
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [view, setView] = useState<"dashboard" | "enter" | "calculate">("dashboard");
+
+  useEffect(() => {
+    if (selectedCourse) {
+      // Fetch grades for selected course from API or use mock
+      setGrades([
+        { studentId: "s1", studentName: "Alice", grade: 90 },
+        { studentId: "s2", studentName: "Bob", grade: 80 },
+      ]);
+    }
+  }, [selectedCourse]);
+
+  // Add student row
+  const handleAddStudent = () => {
+    setGrades([...grades, { studentId: "", studentName: "", grade: 0 }]);
+  };
+
+  // Calculate GPA
+  const gpa = calculateGPA(grades);
+  const stats = gradeStats(grades);
+
+  // Render dashboard
+  if (view === "dashboard") {
+    return (
+      <div style={{ padding: 20 }}>
+        <h1>Grading Dashboard</h1>
+        <ul>
+          {mockCourses.map((c) => (
+            <li key={c.id}>
+              {c.name}{" "}
+              <button
+                onClick={() => {
+                  setSelectedCourse(c);
+                  setView("enter");
+                }}
+              >
+                Enter Grades
+              </button>{" "}
+              <button
+                onClick={() => {
+                  setSelectedCourse(c);
+                  setView("calculate");
+                }}
+              >
+                Calculate GPA
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  // Render enter grades
+  if (view === "enter") {
+    return (
+      <div style={{ padding: 20 }}>
+        <h1>Enter Grades for {selectedCourse?.name}</h1>
+        {grades.map((g, i) => (
+          <div key={i} style={{ marginBottom: 10 }}>
+            <input
+              placeholder="Student ID"
+              value={g.studentId}
+              onChange={(e) => {
+                const newGrades = [...grades];
+                newGrades[i].studentId = e.target.value;
+                setGrades(newGrades);
+              }}
+            />
+            <input
+              placeholder="Student Name"
+              value={g.studentName}
+              onChange={(e) => {
+                const newGrades = [...grades];
+                newGrades[i].studentName = e.target.value;
+                setGrades(newGrades);
+              }}
+            />
+            <input
+              type="number"
+              placeholder="Grade"
+              value={g.grade}
+              onChange={(e) => {
+                const newGrades = [...grades];
+                newGrades[i].grade = parseFloat(e.target.value);
+                setGrades(newGrades);
+              }}
+            />
+          </div>
+        ))}
+        <button onClick={handleAddStudent}>Add Student</button>
+        <button
+          onClick={() => {
+            alert("Grades saved (mock)");
+            setView("dashboard");
+          }}
+          style={{ marginLeft: 10 }}
+        >
+          Submit
+        </button>
+      </div>
+    );
+  }
+
+  // Render calculate GPA
+  if (view === "calculate") {
+    return (
+      <div style={{ padding: 20 }}>
+        <h1>GPA for {selectedCourse?.name}</h1>
+        <p>Total Students: {grades.length}</p>
+        <p>GPA: {gpa}</p>
+        <p>Highest Grade: {stats.highest}</p>
+        <p>Lowest Grade: {stats.lowest}</p>
+
+        <h2>Grades</h2>
+        <ul>
+          {grades.map((g) => (
+            <li key={g.studentId}>
+              {g.studentName} ({g.studentId}): {g.grade}
+            </li>
+          ))}
+        </ul>
+
+        <button onClick={() => setView("dashboard")}>Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  return null;
+}
