@@ -104,6 +104,38 @@ export default function StaffCourses() {
     });
   };
 
+  const formatSchedule = (schedule: string | undefined) => {
+    if (!schedule) return 'TBD';
+    
+    try {
+      const data = JSON.parse(schedule);
+      if (Array.isArray(data) && data.length > 0) {
+        const item = data[0];
+        const dayMap: { [key: string]: string } = {
+          'M': 'Monday', 'Tu': 'Tuesday', 'W': 'Wednesday', 
+          'Th': 'Thursday', 'F': 'Friday', 'Sa': 'Saturday', 'Su': 'Sunday'
+        };
+        
+        const formatTime = (time: string) => {
+          const [hours, minutes] = time.split(':');
+          const hour = parseInt(hours);
+          const ampm = hour >= 12 ? 'pm' : 'am';
+          const displayHour = hour % 12 || 12;
+          return `${displayHour}:${minutes} ${ampm}`;
+        };
+        
+        const days = item.days?.map((d: string) => dayMap[d] || d).join(', ') || 'TBD';
+        const startTime = item.startTime ? formatTime(item.startTime) : '';
+        const endTime = item.endTime ? formatTime(item.endTime) : '';
+        
+        return `${days} ${startTime}${endTime ? ` - ${endTime}` : ''}`;
+      }
+    } catch (e) {
+      return schedule;
+    }
+    return 'TBD';
+  };
+
   if (isLoading) {
     return (
       <div className={styles.loadingContainer}>
@@ -197,7 +229,7 @@ export default function StaffCourses() {
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Schedule:</span>
-                  <span className={styles.detailValue}>{course.schedule || 'TBD'}</span>
+                  <span className={styles.detailValue}>{formatSchedule(course.schedule)}</span>
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Enrolled:</span>
