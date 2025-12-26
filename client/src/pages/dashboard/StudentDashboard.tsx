@@ -84,58 +84,29 @@ export default function StudentDashboard() {
   // Register for a course
   const handleRegister = async (courseId: string) => {
     try {
+      setLoading(true);
       setError(null);
-      console.log('[StudentDashboard] Enrolling in course:', courseId);
-      
-      // Step 1: Call enroll endpoint
-      const enrollRes = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/${courseId}/enroll`, {
+      // Get student entityId (from enrolledCourses or user)
+      // Backend uses current user if not provided, so just call API
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/${courseId}/enroll`, {
         method: 'POST',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ studentId: null })
+        body: JSON.stringify({ studentId: null }) // null lets backend use current user
       });
-
-      if (!enrollRes.ok) {
-        const errorData = await enrollRes.json();
-        throw new Error(errorData.error || `Enrollment failed with status ${enrollRes.status}`);
-      }
-
-      const enrollData = await enrollRes.json();
-      console.log('[StudentDashboard] Enrollment response:', enrollData);
-
-      // Step 2: Fetch updated enrolled courses
-      console.log('[StudentDashboard] Fetching updated enrolled courses...');
-      const myCoursesRes = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+      if (!res.ok) throw new Error('Failed to enroll');
+      // Refresh enrolled courses
+      const resEnrolled = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
         headers: { 'Authorization': token ? `Bearer ${token}` : '' },
       });
-
-      if (!myCoursesRes.ok) {
-        throw new Error('Failed to fetch enrolled courses');
-      }
-
-      const enrolledCourses = await myCoursesRes.json();
-      console.log('[StudentDashboard] Updated enrolled courses:', enrolledCourses);
-      setEnrolledCourses(enrolledCourses);
-
-      // Step 3: Also refresh available courses to update the "Enrolled" status
-      console.log('[StudentDashboard] Fetching updated available courses...');
-      const allCoursesRes = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' },
-      });
-
-      if (allCoursesRes.ok) {
-        const allCourses = await allCoursesRes.json();
-        console.log('[StudentDashboard] Updated all courses:', allCourses);
-        setAllCourses(allCourses);
-      }
-
-      console.log('[StudentDashboard] Enrollment completed successfully');
+      const enrolled = await resEnrolled.json();
+      setEnrolledCourses(enrolled);
     } catch (err: any) {
-      const errorMsg = err.message || 'Failed to enroll in course';
-      console.error('[StudentDashboard] Enrollment error:', errorMsg, err);
-      setError(errorMsg);
+      setError('Failed to enroll in course');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -226,11 +197,11 @@ export default function StudentDashboard() {
               enrolledCourses.map(course => (
                 <div key={course.id} className={styles.courseItem}>
                   <div className={styles.courseInfo}>
-                    <div className={styles.courseCode}>{course.code || 'N/A'}</div>
-                    <div className={styles.courseName}>{course.name || 'Unnamed Course'}</div>
+                    <div className={styles.courseCode}>{course.code}</div>
+                    <div className={styles.courseName}>{course.name}</div>
                     <div className={styles.courseDetails}>
                       <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
-                      <span><CalendarIcon size={14} /> {course.schedule || 'TBD'}</span>
+                      <span><CalendarIcon size={14} /> {course.schedule || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -256,11 +227,11 @@ export default function StudentDashboard() {
                 allCourses.map(course => (
                   <div key={course.id} className={styles.courseItem}>
                     <div className={styles.courseInfo}>
-                      <div className={styles.courseCode}>{course.code || 'N/A'}</div>
-                      <div className={styles.courseName}>{course.name || 'Unnamed Course'}</div>
+                      <div className={styles.courseCode}>{course.code}</div>
+                      <div className={styles.courseName}>{course.name}</div>
                       <div className={styles.courseDetails}>
                         <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
-                        <span><CalendarIcon size={14} /> {course.schedule || 'TBD'}</span>
+                        <span><CalendarIcon size={14} /> {course.schedule || 'N/A'}</span>
                       </div>
                     </div>
                     <div>

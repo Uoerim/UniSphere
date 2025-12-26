@@ -7,6 +7,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Students from './pages/students/Students';
 import StudentManagement from './pages/students/StudentManagement';
+import CourseRegistration from './pages/students/CourseRegistration';
 import CoursesRouter from './pages/courses/CoursesRouter';
 import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="users" element={<Users />} />
         <Route path="students" element={<StudentsPage />} />
+        <Route path="course-registration" element={<CourseRegistration />} />
         <Route path="staff" element={<StaffManagement />} />
         <Route path="staff-old" element={<Staff />} />
         <Route path="courses" element={<CoursesRouter />} />

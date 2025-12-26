@@ -79,6 +79,7 @@ export default function DashboardLayout() {
           { title: 'Main', items: mainNav },
           { title: 'Academic', items: [
             { name: 'My Courses', path: '/courses', icon: <BookOpenIcon /> },
+            { name: 'Course Registration', path: '/course-registration', icon: <BookOpenIcon /> },
             { name: 'My Assignments', path: '/assignments', icon: <ClipboardIcon /> },
             { name: 'My Assessments', path: '/assessments', icon: <FileTextIcon /> },
           ]},
