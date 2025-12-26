@@ -98,16 +98,18 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     const loadCourses = async () => {
-      if (!token) return;
+      if (!token || !user) return;
       setLoading(true);
       setError(null);
       try {
+        // Fetch user's courses directly
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Failed to load courses');
-        const data = await res.json();
-        const normalized: Course[] = data.map((c: any) => ({
+        const allCourses = await res.json();
+        
+        const normalized: Course[] = allCourses.map((c: any) => ({
           id: c.id,
           name: c.name,
           code: c.code,
@@ -140,7 +142,7 @@ export default function StaffDashboard() {
       { id: '2', from: 'John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
       { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
     ]);
-  }, [token]);
+  }, [token, user]);
 
   // Helpers
   const getPriorityColor = (priority: Task['priority']) => {
@@ -247,41 +249,6 @@ export default function StaffDashboard() {
       </div>
 
       <div className={styles.mainGrid}>
-        {/* My Courses */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2>My Courses</h2>
-            <button className={styles.viewAllBtn} onClick={() => navigate('/courses')}>Manage Courses</button>
-          </div>
-          <div className={styles.courseList}>
-            {courses.length === 0 && (
-              <div className={styles.emptyState}>
-                <span>📚</span>
-                <h3>No assigned courses yet</h3>
-                <p>Assign an instructor to a course in Admin → Courses to see it here.</p>
-              </div>
-            )}
-            {courses.map((course: Course) => (
-              <div key={course.id} className={styles.staffCourseItem}>
-                <div className={styles.courseHeader}>
-                  <span className={styles.courseCode}>{course.code || '—'}</span>
-                  <span className={styles.studentCount}>{course.students} students</span>
-                </div>
-                <div className={styles.courseName}>{course.name}</div>
-                <div className={styles.courseDetails}>
-                  <span><ClockIcon size={14} /> {course.schedule || 'Schedule TBD'}</span>
-                  <span><MapPinIcon size={14} /> {course.room || 'Room TBD'}</span>
-                </div>
-                <div className={styles.courseActions}>
-                  <button className={styles.smallBtn} onClick={() => navigate(`/class/${course.id}`)}>View Class</button>
-                  <button className={styles.smallBtn} onClick={() => navigate(`/course-grades/${course.id}`)}>Grades</button>
-                  <button className={styles.smallBtn} onClick={() => navigate(`/materials/${course.id}`)}>Materials</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Tasks */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>

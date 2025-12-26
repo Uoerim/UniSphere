@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./Assignments.module.css";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import { BookOpenIcon, EditIcon, ChartIcon, TrashIcon, XIcon, AlertTriangleIcon, BookIcon } from "../../components/ui/Icons";
 
 type AssignmentStatus = "DRAFT" | "PUBLISHED" | "CLOSED" | "GRADED";
@@ -53,6 +54,8 @@ interface Stats {
 const ASSIGNMENT_STATUSES: AssignmentStatus[] = ["DRAFT", "PUBLISHED", "CLOSED", "GRADED"];
 
 export default function Assignments() {
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -388,14 +391,16 @@ export default function Assignments() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.titleSection}>
-          <h1><BookOpenIcon /> Assignments</h1>
-          <p>Create and manage course assignments</p>
+          <h1><BookOpenIcon /> {isStudent ? 'My Assignments' : 'Assignments'}</h1>
+          <p>{isStudent ? 'View your assignments and submissions' : 'Create and manage course assignments'}</p>
         </div>
-        <div className={styles.headerActions}>
-          <button className={styles.addBtn} onClick={handleAdd}>
-            <span>+</span> Add Assignment
-          </button>
-        </div>
+        {!isStudent && (
+          <div className={styles.headerActions}>
+            <button className={styles.addBtn} onClick={handleAdd}>
+              <span>+</span> Add Assignment
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -500,7 +505,7 @@ export default function Assignments() {
           <p>
             {searchQuery || filterCourse !== "all" || filterStatus !== "all"
               ? "Try adjusting your filters"
-              : "Click 'Add Assignment' to create your first assignment"}
+              : ""}
           </p>
         </div>
       ) : (
@@ -577,17 +582,19 @@ export default function Assignments() {
                   </div>
                 )}
               </div>
-              <div className={styles.cardFooter}>
-                <button className={styles.editBtn} onClick={() => handleEdit(assignment)}>
-                  <EditIcon /> Edit
-                </button>
-                <button className={styles.viewBtn} onClick={() => handleViewSubmissions(assignment)}>
-                  <ChartIcon /> Submissions
-                </button>
-                <button className={styles.deleteBtn} onClick={() => handleDelete(assignment)}>
-                  <TrashIcon />
-                </button>
-              </div>
+              {!isStudent && (
+                <div className={styles.cardFooter}>
+                  <button className={styles.editBtn} onClick={() => handleEdit(assignment)}>
+                    <EditIcon /> Edit
+                  </button>
+                  <button className={styles.viewBtn} onClick={() => handleViewSubmissions(assignment)}>
+                    <ChartIcon /> Submissions
+                  </button>
+                  <button className={styles.deleteBtn} onClick={() => handleDelete(assignment)}>
+                    <TrashIcon />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

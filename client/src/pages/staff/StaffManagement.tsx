@@ -950,7 +950,6 @@ export default function StaffManagement() {
                           <th>Course</th>
                           <th>Grade</th>
                           <th>Attendance</th>
-                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -972,10 +971,6 @@ export default function StaffManagement() {
                                 <div className={styles.attendanceFill} style={{ width: `${student.attendance}%` }}></div>
                                 <span>{student.attendance}%</span>
                               </div>
-                            </td>
-                            <td>
-                              <button className={styles.iconBtn}><EyeIcon /></button>
-                              <button className={styles.iconBtn}><MailIcon /></button>
                             </td>
                           </tr>
                         ))}

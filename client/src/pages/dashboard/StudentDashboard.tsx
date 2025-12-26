@@ -122,19 +122,60 @@ export default function StudentDashboard() {
            }
          };
          fetchGrades();
+         
+         // Fetch real assignments
+         const fetchAssignments = async () => {
+           try {
+             const resAssignments = await fetch(`${apiBase}/assignments`, {
+               headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+             });
+             if (!resAssignments.ok) throw new Error(`Failed to fetch assignments: ${resAssignments.status}`);
+             const assignmentsData = await resAssignments.json();
+             
+             // Transform backend data to match the Assignment interface
+             const transformedAssignments = assignmentsData.map((a: any) => ({
+               id: a.id,
+               title: a.title || a.name || 'Untitled Assignment',
+               course: a.course?.code || a.course?.name || 'N/A',
+               dueDate: a.dueDate || a.deadline || '',
+               status: a.status?.toLowerCase() === 'published' ? 'pending' : 
+                       a.status?.toLowerCase() === 'closed' ? 'submitted' : 'pending',
+               grade: a.grade
+             }));
+             setAssignments(transformedAssignments);
+           } catch (err: any) {
+             console.error('Assignments fetch error:', err);
+             // Keep empty array on error
+             setAssignments([]);
+           }
+         };
+         fetchAssignments();
+         
+         // Fetch real announcements
+         const fetchAnnouncements = async () => {
+           try {
+             const resAnnouncements = await fetch(`${apiBase}/community/announcements`, {
+               headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+             });
+             if (!resAnnouncements.ok) throw new Error(`Failed to fetch announcements: ${resAnnouncements.status}`);
+             const announcementsData = await resAnnouncements.json();
+             
+             // Transform backend data to match the Announcement interface
+             const transformedAnnouncements = announcementsData.map((a: any) => ({
+               id: a.id,
+               title: a.title || 'Untitled Announcement',
+               content: a.content || a.message || '',
+               date: a.createdAt || a.date || new Date().toISOString(),
+               type: a.type?.toLowerCase() || 'general'
+             }));
+             setAnnouncements(transformedAnnouncements.slice(0, 3)); // Show only 3 most recent
+           } catch (err: any) {
+             console.error('Announcements fetch error:', err);
+             setAnnouncements([]);
+           }
+         };
+         fetchAnnouncements();
        }
-    // Keep assignments and announcements as mock/demo for now
-    setAssignments([
-      { id: '1', title: 'Programming Project 3', course: 'CS101', dueDate: '2025-12-26', status: 'pending' },
-      { id: '2', title: 'Calculus Problem Set 5', course: 'MATH201', dueDate: '2025-12-25', status: 'pending' },
-      { id: '3', title: 'Lab Report 4', course: 'PHY101', dueDate: '2025-12-24', status: 'submitted' },
-      { id: '4', title: 'Essay Draft', course: 'ENG101', dueDate: '2025-12-20', status: 'graded', grade: 'A-' },
-    ]);
-    setAnnouncements([
-      { id: '1', title: 'Winter Break Schedule', content: 'Campus will be closed from Dec 25 to Jan 2', date: '2025-12-23', type: 'general' },
-      { id: '2', title: 'CS101 Final Exam', content: 'Final exam will be held on Jan 5, Room 302', date: '2025-12-22', type: 'course' },
-      { id: '3', title: 'Library Extended Hours', content: 'Library open 24/7 during finals week', date: '2025-12-21', type: 'general' },
-    ]);
   }, [token]);
 
   const getStatusColor = (status: string) => {
@@ -154,6 +195,27 @@ export default function StudentDashboard() {
     return `${diff} days left`;
   };
 
+  // Calculate average progress from course grades
+  const calculateAvgProgress = () => {
+    if (courseGrades.length === 0) return '—';
+    
+    const gradesWithScores = courseGrades.filter(c => c.grade);
+    if (gradesWithScores.length === 0) return '—';
+    
+    // Convert letter grades to percentages (approximate)
+    const gradeToPercent = (grade: string): number => {
+      const g = grade.replace(/[+-]/g, '').toUpperCase();
+      const map: Record<string, number> = {
+        'A': 95, 'B': 85, 'C': 75, 'D': 65, 'F': 50
+      };
+      return map[g] || 0;
+    };
+    
+    const total = gradesWithScores.reduce((sum, c) => sum + gradeToPercent(c.grade || ''), 0);
+    const avg = Math.round(total / gradesWithScores.length);
+    return `${avg}%`;
+  };
+
   return (
     <div className={styles.container}>
       {/* Welcome Header */}
@@ -164,7 +226,7 @@ export default function StudentDashboard() {
         </div>
         <div className={styles.welcomeStats}>
           <div className={styles.welcomeStat}>
-            <span className={styles.statNumber}>4</span>
+            <span className={styles.statNumber}>{enrolledCourses.length}</span>
             <span className={styles.statLabel}>Active Courses</span>
           </div>
           <div className={styles.welcomeStat}>
@@ -172,7 +234,7 @@ export default function StudentDashboard() {
             <span className={styles.statLabel}>Current GPA</span>
           </div>
           <div className={styles.welcomeStat}>
-            <span className={styles.statNumber}>2</span>
+            <span className={styles.statNumber}>{assignments.filter(a => a.status === 'pending').length}</span>
             <span className={styles.statLabel}>Pending Tasks</span>
           </div>
         </div>
@@ -204,7 +266,7 @@ export default function StudentDashboard() {
         <div className={styles.statCard}>
           <div className={`${styles.statIcon} ${styles.info}`}><TargetIcon size={20} /></div>
           <div className={styles.statInfo}>
-            <div className={styles.statValue}>68%</div>
+            <div className={styles.statValue}>{calculateAvgProgress()}</div>
             <div className={styles.statTitle}>Avg. Progress</div>
           </div>
         </div>
@@ -226,6 +288,11 @@ export default function StudentDashboard() {
                   <div className={styles.courseInfo}>
                     <div className={styles.courseCode}>{course.code || 'N/A'}</div>
                     <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed Course'}</div>
+                    {course.department && (
+                      <div className={styles.courseDepartment} style={{fontSize: '0.85rem', color: '#666', marginTop: '2px'}}>
+                        📚 {course.department}
+                      </div>
+                    )}
                     <div className={styles.courseDetails}>
                       <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
                       <span><CalendarIcon size={14} /> {formatSchedule(course.schedule)}</span>
@@ -241,7 +308,7 @@ export default function StudentDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2><FileTextIcon size={20} /> Assignments</h2>
-            <button className={styles.viewAllBtn}>View All</button>
+            <button className={styles.viewAllBtn} onClick={() => window.location.href = '/assignments'}>View All</button>
           </div>
           <div className={styles.assignmentList}>
             {assignments.map(assignment => (
@@ -299,7 +366,7 @@ export default function StudentDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2><BellIcon size={20} /> Announcements</h2>
-            <button className={styles.viewAllBtn}>View All</button>
+            <button className={styles.viewAllBtn} onClick={() => window.location.href = '/announcements'}>View All</button>
           </div>
           <div className={styles.announcementList}>
             {announcements.map(announcement => (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./Assessments.module.css";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import { ClipboardIcon, FileTextIcon, HelpCircleIcon, EditIcon, ChartIcon, TrashIcon, XIcon, BookIcon } from "../../components/ui/Icons";
 
 type AssessmentType = "Final" | "Midterm" | "Quiz";
@@ -55,6 +56,8 @@ const ASSESSMENT_TYPES: AssessmentType[] = ["Final", "Midterm", "Quiz"];
 const ASSESSMENT_STATUSES: AssessmentStatus[] = ["SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED"];
 
 export default function Assessments() {
+  const { user } = useAuth();
+  const isStudent = user?.role === 'STUDENT';
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -392,14 +395,16 @@ export default function Assessments() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.titleSection}>
-          <h1><FileTextIcon size={28} /> Assessments</h1>
-          <p>Manage finals, midterms, and quizzes for all courses</p>
+          <h1><FileTextIcon size={28} /> {isStudent ? 'My Assessments' : 'Assessments'}</h1>
+          <p>{isStudent ? 'View your scheduled assessments' : 'Manage finals, midterms, and quizzes for all courses'}</p>
         </div>
-        <div className={styles.headerActions}>
-          <button className={styles.addBtn} onClick={handleAdd}>
-            <span>+</span> Add Assessment
-          </button>
-        </div>
+        {!isStudent && (
+          <div className={styles.headerActions}>
+            <button className={styles.addBtn} onClick={handleAdd}>
+              <span>+</span> Add Assessment
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -514,7 +519,7 @@ export default function Assessments() {
           <p>
             {searchQuery || filterCourse !== "all" || filterStatus !== "all" || activeType !== "all"
               ? "Try adjusting your filters"
-              : "Click 'Add Assessment' to create your first assessment"}
+              : ""}
           </p>
         </div>
       ) : (
@@ -548,7 +553,7 @@ export default function Assessments() {
                   Points <span className={styles.sortIcon}>{sortField === "points" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</span>
                 </th>
                 <th>Status</th>
-                <th>Actions</th>
+                {!isStudent && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -594,31 +599,33 @@ export default function Assessments() {
                       {status.charAt(0) + status.slice(1).toLowerCase()}
                     </span>
                   </td>
-                  <td>
-                    <div className={styles.actions}>
-                      <button
-                        className={`${styles.actionBtn} ${styles.edit}`}
-                        onClick={() => handleEdit(assessment)}
-                        title="Edit"
-                      >
-                        <EditIcon size={16} />
-                      </button>
-                      <button
-                        className={`${styles.actionBtn} ${styles.grades}`}
-                        onClick={() => handleGrades(assessment)}
-                        title="Manage Grades"
-                      >
-                        <ChartIcon size={16} />
-                      </button>
-                      <button
-                        className={`${styles.actionBtn} ${styles.delete}`}
-                        onClick={() => handleDelete(assessment)}
-                        title="Delete"
-                      >
-                        <TrashIcon size={16} />
-                      </button>
-                    </div>
-                  </td>
+                  {!isStudent && (
+                    <td>
+                      <div className={styles.actions}>
+                        <button
+                          className={`${styles.actionBtn} ${styles.edit}`}
+                          onClick={() => handleEdit(assessment)}
+                          title="Edit"
+                        >
+                          <EditIcon size={16} />
+                        </button>
+                        <button
+                          className={`${styles.actionBtn} ${styles.grades}`}
+                          onClick={() => handleGrades(assessment)}
+                          title="Manage Grades"
+                        >
+                          <ChartIcon size={16} />
+                        </button>
+                        <button
+                          className={`${styles.actionBtn} ${styles.delete}`}
+                          onClick={() => handleDelete(assessment)}
+                          title="Delete"
+                        >
+                          <TrashIcon size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               )})}
             </tbody>

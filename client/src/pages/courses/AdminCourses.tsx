@@ -660,13 +660,6 @@ export default function AdminCourses() {
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.info}`}><BuildingIcon size={24} /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.departmentCount}</div>
-              <div className={styles.statLabel}>Departments</div>
-            </div>
-          </div>
-          <div className={styles.statCard}>
             <div className={`${styles.statIcon} ${styles.warning}`}><UsersIcon size={24} /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalEnrollments}</div>
