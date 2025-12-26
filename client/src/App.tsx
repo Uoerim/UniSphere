@@ -33,9 +33,6 @@ import Settings from './pages/settings/Settings';
 
 // Role-based Student page wrapper
 function StudentsPageWrapper() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-// Role-based Student page wrapper - uses auth context
-function StudentsPage() {
   const { user } = useAuth();
   if (user?.role === 'ADMIN') {
     return <StudentManagement />;
@@ -45,7 +42,7 @@ function StudentsPage() {
 
 // Role-based Staff page wrapper
 function StaffPageWrapper() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const { user } = useAuth();
   if (user?.role === 'ADMIN') {
     return <StaffManagement />;
   }
@@ -80,8 +77,8 @@ function AppRoutes() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<Users />} />
-          <Route path="students" element={<StudentsPage />} />
-          <Route path="staff" element={<StaffManagement />} />
+          <Route path="students" element={<StudentsPageWrapper />} />
+          <Route path="staff" element={<StaffPageWrapper />} />
           <Route path="staff-old" element={<Staff />} />
           <Route path="courses" element={<CoursesRouter />} />
           <Route path="facilities" element={<Facilities />} />
@@ -111,40 +108,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="users" element={<Users />} />
-            <Route path="students" element={<StudentsPageWrapper />} />
-            <Route path="staff" element={<StaffPageWrapper />} />
-            <Route path="staff-old" element={<Staff />} />
-            <Route path="courses" element={<CoursesRouter />} />
-            <Route path="departments" element={<Departments />} />
-            <Route path="parents" element={<ParentManagement />} />
-            <Route path="assessments" element={<Assessments />} />
-            <Route path="assignments" element={<Assignments />} />
-            <Route path="manage-courses" element={<ManageCourses />} />
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="submissions" element={<Submissions />} />
-            <Route path="messages" element={<Messages />} />
-            <Route path="class/:courseId" element={<ViewClass />} />
-            <Route path="course-grades/:courseId" element={<CourseGrades />} />
-            <Route path="materials/:courseId" element={<CourseMaterials />} />
-            <Route path="announcements" element={<Announcements />} />
-            <Route path="events" element={<Events />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
         <ThemeProvider>
           <AppRoutes />
         </ThemeProvider>

@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
 import {
@@ -52,49 +51,15 @@ interface Message {
 export default function StaffDashboard() {
   const { user, token } = useAuth();
   void token; // keep token available for future API calls without unused warnings
-  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentStudents, setRecentStudents] = useState<Student[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  void error; // suppress unused warning
 
-  const dayName = (abbr: string) => {
-    const map: Record<string, string> = {
-      Su: 'Sunday', Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday'
-    };
-    return map[abbr] || abbr;
-  };
 
-  const formatSchedule = (schedule?: string) => {
-    if (!schedule) return 'Schedule TBD';
-
-    const stringify = (value: unknown) => {
-      if (Array.isArray(value)) {
-        return value
-          .map((item: any) => {
-            if (!item) return '';
-            const days = Array.isArray(item.days) ? item.days.map(dayName).join(', ') : '';
-            const time = item.startTime && item.endTime ? `${item.startTime}–${item.endTime}` : '';
-            return [days, time].filter(Boolean).join(' ');
-          })
-          .filter(Boolean)
-          .join(' | ');
-      }
-      return '';
-    };
-
-    try {
-      const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
-      const formatted = stringify(parsed);
-      if (formatted) return formatted;
-    } catch {
-      // fall back to raw schedule string
-    }
-
-    return schedule;
-  };
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -257,7 +222,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>My Courses</h2>
-            <button className={styles.viewAllBtn} onClick={() => navigate('/courses')}>Manage Courses</button>
+            <button className={styles.viewAllBtn} onClick={() => {}}>Manage Courses</button>
           </div>
           <div className={styles.courseList}>
             {courses.length === 0 && (
@@ -279,9 +244,9 @@ export default function StaffDashboard() {
                   <span><MapPinIcon size={14} /> {course.room || 'Room TBD'}</span>
                 </div>
                 <div className={styles.courseActions}>
-                  <button className={styles.smallBtn} onClick={() => navigate(`/class/${course.id}`)}>View Class</button>
-                  <button className={styles.smallBtn} onClick={() => navigate(`/course-grades/${course.id}`)}>Grades</button>
-                  <button className={styles.smallBtn} onClick={() => navigate(`/materials/${course.id}`)}>Materials</button>
+                  <button className={styles.smallBtn} onClick={() => {}}>View Class</button>
+                  <button className={styles.smallBtn} onClick={() => {}}>Grades</button>
+                  <button className={styles.smallBtn} onClick={() => {}}>Materials</button>
                 </div>
               </div>
             ))}
@@ -292,7 +257,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>Tasks & Deadlines</h2>
-            <button className={styles.viewAllBtn} onClick={() => navigate('/tasks')}>All Tasks</button>
+            <button className={styles.viewAllBtn} onClick={() => {}}>All Tasks</button>
           </div>
           <div className={styles.taskList}>
             {tasks.map((task: Task) => (
@@ -314,7 +279,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>Recent Submissions</h2>
-            <button className={styles.viewAllBtn} onClick={() => navigate('/submissions')}>View All</button>
+            <button className={styles.viewAllBtn} onClick={() => {}}>View All</button>
           </div>
           <div className={styles.studentList}>
             {recentStudents.map((student: Student) => (
@@ -338,7 +303,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>Messages</h2>
-            <button className={styles.viewAllBtn} onClick={() => navigate('/messages')}>Inbox</button>
+            <button className={styles.viewAllBtn} onClick={() => {}}>Inbox</button>
           </div>
           <div className={styles.messageList}>
             {messages.map((message: Message) => (

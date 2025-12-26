@@ -76,6 +76,7 @@ export default function StudentDashboard() {
   const apiBase = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:4000/api');
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [courseGrades, setCourseGrades] = useState<CourseGrade[]>([]);
+  void courseGrades; // suppress unused warning
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [gpa, setGpa] = useState<string | null>(null);
