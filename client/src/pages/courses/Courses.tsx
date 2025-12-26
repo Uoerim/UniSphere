@@ -151,6 +151,11 @@ export default function Courses() {
                   <div key={course.id} className={styles.courseCard}>
                     <h3>{course.name}</h3>
                     <p>{course.code || 'N/A'}</p>
+                    {course.department && (
+                      <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '4px' }}>
+                        📚 {course.departmentCode ? `${course.departmentCode} - ` : ''}{course.department}
+                      </p>
+                    )}
                     <p className={styles.students}>{course.enrolledStudents || 0} students enrolled</p>
                   </div>
                 ))}
@@ -179,6 +184,11 @@ export default function Courses() {
                       <p className={styles.instructor}>
                         Instructor: {course.instructors?.length > 0 ? course.instructors.map((i: any) => i.name).join(', ') : course.instructor?.name || 'N/A'}
                       </p>
+                      {course.department && (
+                        <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '4px' }}>
+                          📚 {course.departmentCode ? `${course.departmentCode} - ` : ''}{course.department}
+                        </p>
+                      )}
                       <p className={styles.students}>{course.enrolledStudents || 0} students enrolled</p>
                       {user?.role === 'STAFF' && !isAssigned && (
                         <button 

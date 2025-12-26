@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ChartIcon, BookOpenIcon } from '../../components/ui/Icons';
 import styles from './ParentGrades.module.css';
@@ -7,6 +8,7 @@ interface Course {
     id: string;
     name: string;
     code: string;
+    grade?: string | null;
 }
 
 interface Child {
@@ -14,11 +16,15 @@ interface Child {
     name: string;
     avatar: string;
     grade?: string;
+    averageGrade?: string | null;
+    averageGradePoints?: number | null;
     courses: Course[];
 }
 
 export default function ParentGrades() {
     const { token } = useAuth();
+    const apiBase = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:4000/api');
+    const [searchParams] = useSearchParams();
     const [children, setChildren] = useState<Child[]>([]);
     const [selectedChildId, setSelectedChildId] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
@@ -33,7 +39,7 @@ export default function ParentGrades() {
             setIsLoading(true);
             setError('');
 
-            const response = await fetch('http://localhost:4000/api/parents/me/children', {
+            const response = await fetch(`${apiBase}/parents/me/children`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -45,7 +51,9 @@ export default function ParentGrades() {
             setChildren(data);
 
             if (data.length > 0) {
-                setSelectedChildId(data[0].id);
+                const childIdFromQuery = searchParams.get('childId');
+                const match = childIdFromQuery && data.find((c: Child) => c.id === childIdFromQuery);
+                setSelectedChildId(match ? match.id : data[0].id);
             }
         } catch (err: any) {
             setError(err.message || 'Failed to load data');
@@ -56,15 +64,41 @@ export default function ParentGrades() {
 
     const selectedChild = children.find(c => c.id === selectedChildId);
 
-    const getGradeClass = (grade: string | undefined): string => {
-        if (!grade) return styles.gradeNA;
-        const g = grade.toUpperCase();
+    const toLetter = (grade: string | undefined | null): string | null => {
+        if (!grade) return null;
+        // If numeric string, map to letter using 100-scale
+        if (!isNaN(Number(grade))) {
+            const score = Number(grade);
+            if (score >= 90) return 'A';
+            if (score >= 80) return 'B';
+            if (score >= 70) return 'C';
+            if (score >= 60) return 'D';
+            return 'F';
+        }
+        return grade.toUpperCase();
+    };
+
+    const getGradeClass = (grade: string | undefined | null): string => {
+        const letter = toLetter(grade);
+        if (!letter) return styles.gradeNA;
+        const g = letter;
         if (g.startsWith('A')) return styles.gradeA;
         if (g.startsWith('B')) return styles.gradeB;
         if (g.startsWith('C')) return styles.gradeC;
         if (g.startsWith('D')) return styles.gradeD;
         if (g.startsWith('F')) return styles.gradeF;
         return styles.gradeNA;
+    };
+
+    const getGradeColor = (grade: string | undefined | null): string => {
+        const letter = toLetter(grade);
+        if (!letter) return '#9ca3af';
+        if (letter.startsWith('A')) return '#22c55e';
+        if (letter.startsWith('B')) return '#3b82f6';
+        if (letter.startsWith('C')) return '#f59e0b';
+        if (letter.startsWith('D')) return '#ef4444';
+        if (letter.startsWith('F')) return '#dc2626';
+        return '#9ca3af';
     };
 
     if (isLoading) {
@@ -156,7 +190,7 @@ export default function ParentGrades() {
                                 <ChartIcon size={24} />
                             </div>
                             <div className={styles.statInfo}>
-                                <h4>--</h4>
+                                <h4>{selectedChild?.averageGrade || '--'}</h4>
                                 <p>Average Grade</p>
                             </div>
                         </div>
@@ -199,11 +233,23 @@ export default function ParentGrades() {
                                                     <span className={styles.courseCode}>{course.code || 'N/A'}</span>
                                                 </td>
                                                 <td>
-                                                    <span className={`${styles.gradeBadge} ${getGradeClass(undefined)}`}>
-                                                        --
+                                                    <span
+                                                        className={`${styles.gradeBadge} ${getGradeClass(course.grade)}`}
+                                                        style={{
+                                                            background: getGradeColor(course.grade),
+                                                            color: 'white',
+                                                            padding: '6px 12px',
+                                                            borderRadius: '6px',
+                                                            fontWeight: 600,
+                                                            display: 'inline-block'
+                                                        }}
+                                                    >
+                                                        {course.grade || 'N/A'}
                                                     </span>
                                                 </td>
-                                                <td style={{ color: '#22c55e' }}>Active</td>
+                                                    <td style={{ color: course.grade ? '#22c55e' : 'var(--text-secondary)' }}>
+                                                        {course.grade ? 'Graded' : 'Active'}
+                                                    </td>
                                             </tr>
                                         ))}
                                     </tbody>

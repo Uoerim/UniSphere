@@ -167,13 +167,53 @@ router.get("/me/children", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Parent profile not found" });
     }
 
-    const children = parent.entity.relationsFrom
-      .filter(r => r.relationType === 'PARENT_OF')
+    // Collect child account IDs and entity IDs
+    const childRelations = parent.entity.relationsFrom.filter(r => r.relationType === 'PARENT_OF');
+    const childEntityIds = childRelations.map(r => r.toEntity.id);
+    const childAccountIds = childRelations.map(r => r.toEntity.account?.id).filter(Boolean) as string[];
+
+    // Map accountId -> studentId via Student table
+    const students = await prisma.student.findMany({ where: { accountId: { in: childAccountIds } } });
+    const accountToStudentId = new Map<string, string>();
+    students.forEach(s => accountToStudentId.set(s.accountId, s.id));
+
+    const studentIds = students.map(s => s.id);
+
+    // Fetch all grades for these children using studentId from Student table
+    const studentGrades = studentIds.length > 0
+      ? await prisma.studentGrade.findMany({ where: { studentId: { in: studentIds } } })
+      : [];
+
+    // Helper to map letter to numeric for averaging
+    const letterToPoints = (letter?: string | null) => {
+      if (!letter) return null;
+      const l = letter.trim().toUpperCase();
+      if (l.startsWith('A')) return 4;
+      if (l.startsWith('B')) return 3;
+      if (l.startsWith('C')) return 2;
+      if (l.startsWith('D')) return 1;
+      if (l.startsWith('F')) return 0;
+      return null;
+    };
+
+    const pointsToLetter = (points: number) => {
+      if (points >= 3.7) return 'A';
+      if (points >= 3.0) return 'B';
+      if (points >= 2.0) return 'C';
+      if (points >= 1.0) return 'D';
+      return 'F';
+    };
+
+    const children = childRelations
       .map(r => {
         const childAttrs: Record<string, any> = {};
         r.toEntity.values.forEach(v => {
           childAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
         });
+
+        const studentIdForChild = r.toEntity.account?.id
+          ? accountToStudentId.get(r.toEntity.account.id)
+          : undefined;
 
         // Get enrolled courses
         const courses = r.toEntity.relationsFrom
@@ -190,6 +230,43 @@ router.get("/me/children", authenticateToken, async (req, res) => {
             };
           });
 
+        // Grades for this child
+        const gradesForChild = studentGrades.filter(g => g.studentId === studentIdForChild);
+
+        // Per-course grade (latest by createdAt if available, else first)
+        const courseGradeMap = new Map<string, string>();
+        gradesForChild.forEach(g => {
+          const val = g.letter || (typeof g.score === 'number' ? g.score.toFixed(0) : null);
+          if (!val) return;
+          const existing = courseGradeMap.get(g.courseId);
+          if (!existing) courseGradeMap.set(g.courseId, val);
+        });
+
+        // Average grade across all records (using score if present else letter points)
+        let totalPoints = 0;
+        let count = 0;
+        gradesForChild.forEach(g => {
+          if (typeof g.score === 'number') {
+            totalPoints += Math.min(Math.max(g.score / 25, 0), 4); // assume 100 scale -> 4.0
+            count++;
+          } else {
+            const pts = letterToPoints(g.letter);
+            if (pts !== null) {
+              totalPoints += pts;
+              count++;
+            }
+          }
+        });
+
+        const averagePoints = count > 0 ? totalPoints / count : null;
+        const averageLetter = averagePoints !== null ? pointsToLetter(averagePoints) : null;
+
+        // Attach course grades
+        const coursesWithGrades = courses.map(c => ({
+          ...c,
+          grade: courseGradeMap.get(c.id) || null
+        }));
+
         return {
           id: r.toEntity.account?.id || r.toEntity.id,
           entityId: r.toEntity.id,
@@ -201,9 +278,11 @@ router.get("/me/children", authenticateToken, async (req, res) => {
             : r.toEntity.account?.email || 'Unknown',
           email: r.toEntity.account?.email,
           grade: childAttrs.grade || childAttrs.gradeLevel,
+          averageGrade: averageLetter,
+          averageGradePoints: averagePoints,
           dateOfBirth: childAttrs.dateOfBirth,
           avatar: childAttrs.firstName ? childAttrs.firstName.charAt(0).toUpperCase() : 'S',
-          courses,
+          courses: coursesWithGrades,
           courseCount: courses.length
         };
       });
@@ -301,6 +380,7 @@ router.get("/me/children/:childId", authenticateToken, async (req, res) => {
         : child.account?.email || 'Unknown',
       email: child.account?.email,
       grade: childAttrs.grade || childAttrs.gradeLevel,
+      gpa: childAttrs.gpa ?? childAttrs.GPA ?? null,
       dateOfBirth: childAttrs.dateOfBirth,
       phone: childAttrs.phone,
       address: childAttrs.address,

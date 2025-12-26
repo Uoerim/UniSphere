@@ -7,7 +7,6 @@ import {
     ChartIcon,
     MailIcon,
     CalendarIcon,
-    ClipboardIcon,
     UserIcon
 } from '../../components/ui/Icons';
 import styles from './ChildDetails.module.css';
@@ -32,9 +31,44 @@ interface ChildData {
     phone?: string;
     address?: string;
     avatar: string;
+    gpa?: string | number | null;
     courses: Course[];
     courseCount: number;
 }
+
+// Attempt to render schedules in a friendlier, title-cased form
+const formatSchedule = (schedule?: string) => {
+    if (!schedule) return '';
+
+    // Try to parse JSON schedules like { day: 'mon', start: '09:00', end: '10:30' }
+    try {
+        const parsed = JSON.parse(schedule);
+        if (Array.isArray(parsed)) {
+            return parsed
+                .map(part => typeof part === 'string' ? part : `${part.day || ''} ${part.start || ''}-${part.end || ''}`.trim())
+                .filter(Boolean)
+                .map(p => toTitleCase(p))
+                .join(' • ');
+        }
+        if (parsed && typeof parsed === 'object' && parsed.day && parsed.start && parsed.end) {
+            return `${toTitleCase(String(parsed.day))} ${parsed.start} - ${parsed.end}`;
+        }
+    } catch (e) {
+        // Not JSON, fall through to string formatting
+    }
+
+    // Fallback: split on commas/semicolons, replace underscores, and title-case words
+    const parts = schedule
+        .split(/[,;]+/)
+        .map(p => p.trim())
+        .filter(Boolean)
+        .map(p => toTitleCase(p.replace(/_/g, ' ')));
+
+    return parts.join(' • ') || schedule;
+};
+
+const toTitleCase = (value: string) =>
+    value.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1));
 
 export default function ChildDetails() {
     const { childId } = useParams();
@@ -139,17 +173,8 @@ export default function ChildDetails() {
                         <ChartIcon size={24} />
                     </div>
                     <div className={styles.statInfo}>
-                        <h4>--</h4>
+                        <h4>{child.gpa ?? '--'}</h4>
                         <p>Current GPA</p>
-                    </div>
-                </div>
-                <div className={styles.statCard}>
-                    <div className={`${styles.statIcon} ${styles.purple}`}>
-                        <ClipboardIcon size={24} />
-                    </div>
-                    <div className={styles.statInfo}>
-                        <h4>--</h4>
-                        <p>Pending Tasks</p>
                     </div>
                 </div>
             </div>
@@ -163,11 +188,16 @@ export default function ChildDetails() {
                             <BookOpenIcon size={20} />
                             Enrolled Courses
                         </h3>
-                        <button className={styles.viewAllBtn}>View All</button>
+                        <button
+                            className={styles.viewAllBtn}
+                            onClick={() => navigate(`/parent-grades${childId ? `?childId=${childId}` : ''}`)}
+                        >
+                            View All
+                        </button>
                     </div>
 
                     {child.courses.length > 0 ? (
-                        <div className={styles.courseList}>
+                        <div className={styles.courseList} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                             {child.courses.map((course) => (
                                 <div key={course.id} className={styles.courseItem}>
                                     <div className={styles.courseIcon}>
@@ -177,7 +207,7 @@ export default function ChildDetails() {
                                         <h4 className={styles.courseName}>{course.name}</h4>
                                         <p className={styles.courseCode}>
                                             {course.code}
-                                            {course.schedule && ` • ${course.schedule}`}
+                                            {formatSchedule(course.schedule) && ` • ${formatSchedule(course.schedule)}`}
                                         </p>
                                     </div>
                                 </div>
@@ -191,30 +221,8 @@ export default function ChildDetails() {
                     )}
                 </div>
 
-                {/* Quick Actions */}
-                <div className={styles.card}>
-                    <div className={styles.cardHeader}>
-                        <h3 className={styles.cardTitle}>
-                            Quick Actions
-                        </h3>
-                    </div>
-
-                    <div className={styles.actionGrid}>
-                        <button className={styles.actionBtn} onClick={() => navigate('/parent-grades')}>
-                            <ChartIcon size={24} />
-                            <span>View Grades</span>
-                        </button>
-                        <button className={styles.actionBtn}>
-                            <MailIcon size={24} />
-                            <span>Message Teacher</span>
-                        </button>
-                        <button className={styles.actionBtn}>
-                            <CalendarIcon size={24} />
-                            <span>Schedule</span>
-                        </button>
-                    </div>
                 </div>
             </div>
-        </div>
+        
     );
 }
