@@ -249,20 +249,28 @@ export default function StaffDashboard() {
             <button className={styles.viewAllBtn} onClick={() => {}}>View All</button>
           </div>
           <div className={styles.studentList}>
-            {recentStudents.map((student: Student) => (
-              <div key={student.id} className={styles.studentItem}>
-                <div className={styles.studentAvatar}>
-                  {student.name.split(' ').map((n) => n[0]).join('')}
-                </div>
-                <div className={styles.studentInfo}>
-                  <div className={styles.studentName}>{student.name}</div>
-                  <div className={styles.studentMeta}>{student.course} • {student.lastSubmission}</div>
-                </div>
-                <span className={`${styles.badge} ${student.grade === 'Pending' ? styles.warning : styles.success}`}>
-                  {student.grade}
-                </span>
+            {recentStudents.length === 0 ? (
+              <div className={styles.emptyState}>
+                <span>📝</span>
+                <h3>No student submissions yet</h3>
+                <p>Student submissions will appear here as they submit their work.</p>
               </div>
-            ))}
+            ) : (
+              recentStudents.map((student: Student) => (
+                <div key={student.id} className={styles.studentItem}>
+                  <div className={styles.studentAvatar}>
+                    {student.name.split(' ').map((n) => n[0]).join('')}
+                  </div>
+                  <div className={styles.studentInfo}>
+                    <div className={styles.studentName}>{student.name}</div>
+                    <div className={styles.studentMeta}>{student.course} • {student.lastSubmission}</div>
+                  </div>
+                  <span className={`${styles.badge} ${student.grade === 'Pending' ? styles.warning : styles.success}`}>
+                    {student.grade}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

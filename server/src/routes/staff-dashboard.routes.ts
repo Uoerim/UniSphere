@@ -365,7 +365,7 @@ staffDashboardRouter.get("/messages/:staffId", authenticateToken, async (req, re
   }
 });
 
-// Get staff submissions (recent student work from their courses)
+// Get staff submissions - all students enrolled in the staff's courses
 staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req, res) => {
   try {
     const { staffId } = req.params;
@@ -378,42 +378,89 @@ staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req,
 
     console.log('📤 Getting submissions for staff:', staffId);
 
-    // Get staff by accountId
-    const staff = await getStaffByAccountId(staffId);
-
-    // Get all submissions from courses taught by this staff
-    const courses = await prisma.course.findMany({
-      where: { staffId: staff.id },
-      include: {
-        assignments: {
-          include: {
-            submissions: {
-              include: { student: true },
-              orderBy: { submittedAt: "desc" },
-              take: 100,
-            },
-          },
-        },
-      },
+    // Get staff account and entity
+    const account = await prisma.account.findUnique({
+      where: { id: staffId },
+      include: { entity: true }
     });
+
+    if (!account?.entity) {
+      console.log('⚠️  No entity found for staff:', staffId);
+      return res.json([]);
+    }
+
+    const staffEntityId = account.entity.id;
+
+    // Find all courses taught by this staff using EAV model (TEACHES relations)
+    const teachesRelations = await prisma.entityRelation.findMany({
+      where: {
+        fromEntityId: staffEntityId,
+        relationType: 'TEACHES',
+        isActive: true
+      },
+      include: {
+        toEntity: {
+          include: {
+            values: { include: { attribute: true } },
+            relationsTo: {
+              where: { relationType: 'ENROLLED_IN', isActive: true },
+              include: {
+                fromEntity: {
+                  include: {
+                    values: { include: { attribute: true } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    console.log('✅ Found', teachesRelations.length, 'courses taught');
 
     const submissions: any[] = [];
-    courses.forEach((course) => {
-      course.assignments.forEach((assignment) => {
-        assignment.submissions.forEach((submission) => {
-          submissions.push({
-            id: submission.id,
-            name: `${submission.student.firstName} ${submission.student.lastName}`,
-            course: course.code,
-            lastSubmission: assignment.title,
-            grade: "Pending",
-          });
+
+    // For each course, get all enrolled students
+    for (const courseRel of teachesRelations) {
+      const courseEntity = courseRel.toEntity;
+      const courseAttrs: Record<string, any> = {};
+      
+      courseEntity.values.forEach((v: any) => {
+        courseAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+
+      const courseCode = courseAttrs.courseCode || courseAttrs.code || 'COURSE';
+
+      // Get all enrolled students in this course
+      const enrolledStudents = courseEntity.relationsTo.filter(
+        (r: any) => r.relationType === 'ENROLLED_IN' && r.isActive
+      );
+
+      // Create submission entry for each student
+      enrolledStudents.forEach((enrollment: any) => {
+        const studentEntity = enrollment.fromEntity;
+        const studentAttrs: Record<string, any> = {};
+        
+        studentEntity.values.forEach((v: any) => {
+          studentAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+        });
+
+        const firstName = studentAttrs.firstName || 'Unknown';
+        const lastName = studentAttrs.lastName || 'Student';
+
+        submissions.push({
+          id: enrollment.id,
+          name: `${firstName} ${lastName}`,
+          course: courseCode,
+          lastSubmission: 'No recent submission',
+          grade: 'Pending',
         });
       });
-    });
+    }
 
-    console.log('✅ Found', submissions.length, 'submissions');
-    res.json(submissions.slice(0, 50)); // Limit to 50 recent
+    console.log('✅ Found', submissions.length, 'total student enrollments');
+    res.json(submissions.slice(0, 100)); // Limit to 100 recent
   } catch (error: any) {
     console.error("❌ Error fetching submissions:", error);
     res.status(500).json({ error: error.message || "Failed to fetch submissions" });
