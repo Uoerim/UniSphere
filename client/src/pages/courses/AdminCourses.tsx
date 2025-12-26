@@ -51,6 +51,7 @@ interface Course {
   code?: string;
   credits?: number;
   department?: string;
+  departmentId?: string;
   courseType?: string;
   capacity?: number;
   room?: string;
@@ -116,6 +117,7 @@ export default function AdminCourses() {
     code: '',
     credits: 3,
     department: '',
+    departmentId: '',
     courseType: '',
     capacity: 30,
     roomIds: [] as string[],
@@ -195,7 +197,7 @@ export default function AdminCourses() {
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/departments', {
+      const response = await fetch('http://localhost:4000/api/curriculum/departments/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -312,6 +314,7 @@ export default function AdminCourses() {
       code: '',
       credits: 3,
       department: '',
+      departmentId: '',
       courseType: '',
       capacity: 30,
       roomIds: [],
@@ -354,6 +357,7 @@ export default function AdminCourses() {
         body: JSON.stringify({
           ...formData,
           room: roomNames,
+          departmentId: formData.departmentId || undefined,
         }),
       });
 
@@ -399,6 +403,7 @@ export default function AdminCourses() {
         body: JSON.stringify({
           ...formData,
           room: roomNames,
+          departmentId: formData.departmentId || undefined,
         }),
       });
 
@@ -482,6 +487,7 @@ export default function AdminCourses() {
       code: course.code || '',
       credits: course.credits || 3,
       department: course.department || '',
+      departmentId: course.departmentId || '',
       courseType: course.courseType || '',
       capacity: course.capacity || 30,
       roomIds: matchedRoomIds,
@@ -917,12 +923,12 @@ export default function AdminCourses() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    value={formData.departmentId}
+                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                   >
                     <option value="">Select Department</option>
                     {departmentsList.map(dept => (
-                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
                 </div>
@@ -1128,12 +1134,12 @@ export default function AdminCourses() {
                 <div className={styles.formGroup}>
                   <label>Department</label>
                   <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    value={formData.departmentId}
+                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                   >
                     <option value="">Select Department</option>
                     {departmentsList.map(dept => (
-                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
                 </div>
