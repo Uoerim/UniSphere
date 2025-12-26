@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ChangePasswordModal from './components/ui/ChangePasswordModal';
 import Login from './pages/login/Login';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
@@ -39,43 +40,56 @@ function StudentsPage() {
 
 // Main Routes component that uses auth context
 function AppRoutes() {
+  const { user, token, mustChangePassword, clearMustChangePassword } = useAuth();
+
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="users" element={<Users />} />
-        <Route path="students" element={<StudentsPage />} />
-        <Route path="staff" element={<StaffManagement />} />
-        <Route path="staff-old" element={<Staff />} />
-        <Route path="courses" element={<CoursesRouter />} />
-        <Route path="facilities" element={<Facilities />} />
-        <Route path="departments" element={<Departments />} />
-        <Route path="parents" element={<ParentManagement />} />
-        <Route path="assessments" element={<Assessments />} />
-        <Route path="assignments" element={<Assignments />} />
-        <Route path="grades" element={<StudentGrades />} />
-        <Route path="manage-courses" element={<ManageCourses />} />
-        <Route path="tasks" element={<Tasks />} />
-        <Route path="submissions" element={<Submissions />} />
-        <Route path="messages" element={<Messages />} />
-        <Route path="class/:courseId" element={<ViewClass />} />
-        <Route path="course-grades/:courseId" element={<CourseGrades />} />
-        <Route path="materials/:courseId" element={<CourseMaterials />} />
-        <Route path="announcements" element={<Announcements />} />
-        <Route path="events" element={<Events />} />
-        <Route path="settings" element={<Settings />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <>
+      {/* Password change modal - shows when user logged in with temp password */}
+      {user && mustChangePassword && (
+        <ChangePasswordModal
+          isOpen={true}
+          token={token}
+          onSuccess={clearMustChangePassword}
+        />
+      )}
+
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="users" element={<Users />} />
+          <Route path="students" element={<StudentsPage />} />
+          <Route path="staff" element={<StaffManagement />} />
+          <Route path="staff-old" element={<Staff />} />
+          <Route path="courses" element={<CoursesRouter />} />
+          <Route path="facilities" element={<Facilities />} />
+          <Route path="departments" element={<Departments />} />
+          <Route path="parents" element={<ParentManagement />} />
+          <Route path="assessments" element={<Assessments />} />
+          <Route path="assignments" element={<Assignments />} />
+          <Route path="grades" element={<StudentGrades />} />
+          <Route path="manage-courses" element={<ManageCourses />} />
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="submissions" element={<Submissions />} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="class/:courseId" element={<ViewClass />} />
+          <Route path="course-grades/:courseId" element={<CourseGrades />} />
+          <Route path="materials/:courseId" element={<CourseMaterials />} />
+          <Route path="announcements" element={<Announcements />} />
+          <Route path="events" element={<Events />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </>
   );
 }
 
