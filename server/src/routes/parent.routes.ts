@@ -86,11 +86,13 @@ router.get("/", authenticateToken, requireAdmin, async (req, res) => {
             childAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
           });
           return {
-            id: r.toEntity.id,
+            id: r.toEntity.account?.id || r.toEntity.id, // Use account ID for consistency
+            entityId: r.toEntity.id,
             accountId: r.toEntity.account?.id,
             name: childAttrs.firstName && childAttrs.lastName 
               ? `${childAttrs.firstName} ${childAttrs.lastName}` 
               : r.toEntity.account?.email || 'Unknown',
+            studentId: childAttrs.studentId || r.toEntity.account?.email || 'N/A',
             email: r.toEntity.account?.email,
             grade: childAttrs.grade || childAttrs.gradeLevel,
             relationId: r.id
