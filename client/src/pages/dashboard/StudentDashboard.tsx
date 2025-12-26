@@ -7,11 +7,8 @@ interface Course {
   id: string;
   name: string;
   code?: string;
-  courseName?: string;
-  courseCode?: string;
   instructor?: any;
   schedule?: string;
-  scheduleDisplay?: string;
   description?: string;
   isActive?: boolean;
   enrolledStudents?: number;
@@ -43,32 +40,6 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const dayName = (abbr: string) => {
-    const map: Record<string, string> = {
-      Su: 'Sunday', Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday'
-    };
-    return map[abbr] || abbr;
-  };
-
-  const formatSchedule = (schedule?: any): string => {
-    if (!schedule) return 'TBD';
-    try {
-      const arr = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
-      if (Array.isArray(arr)) {
-        return arr
-          .map((item: any) => {
-            if (!item) return '';
-            const days = Array.isArray(item.days) ? item.days.map((d: string) => dayName(d)).join(', ') : '';
-            const time = item.startTime && item.endTime ? `${item.startTime}–${item.endTime}` : '';
-            return [days, time].filter(Boolean).join(' ');
-          })
-          .filter(Boolean)
-          .join(' | ');
-      }
-    } catch {}
-    return typeof schedule === 'string' ? schedule : 'TBD';
-  };
-
   useEffect(() => {
     const fetchCourses = async () => {
       setLoading(true);
@@ -84,22 +55,8 @@ export default function StudentDashboard() {
           headers: { 'Authorization': token ? `Bearer ${token}` : '' },
         });
         const enrolled = await resEnrolled.json();
-        // Normalize all courses
-        const normalizedAll = all.map((c: any) => ({
-          ...c,
-          name: c.name || c.courseName,
-          code: c.code || c.courseCode,
-          schedule: formatSchedule(c.scheduleDisplay || c.schedule)
-        }));
-        // Normalize enrolled courses
-        const normalizedEnrolled = enrolled.map((c: any) => ({
-          ...c,
-          name: c.name || c.courseName,
-          code: c.code || c.courseCode,
-          schedule: formatSchedule(c.scheduleDisplay || c.schedule)
-        }));
-        setAllCourses(normalizedAll);
-        setEnrolledCourses(normalizedEnrolled);
+        setAllCourses(all);
+        setEnrolledCourses(enrolled);
       } catch (err: any) {
         setError('Failed to load courses');
       } finally {
@@ -129,6 +86,7 @@ export default function StudentDashboard() {
     try {
       setLoading(true);
       setError(null);
+      console.log('Enrolling in course:', courseId);
       // Get student entityId (from enrolledCourses or user)
       // Backend uses current user if not provided, so just call API
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/${courseId}/enroll`, {
@@ -139,22 +97,29 @@ export default function StudentDashboard() {
         },
         body: JSON.stringify({ studentId: null }) // null lets backend use current user
       });
-      if (!res.ok) throw new Error('Failed to enroll');
-      // Refresh enrolled courses
-      const resEnrolled = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' },
-      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to enroll');
+      }
+      console.log('Enrollment successful');
+      // Refresh both enrolled and all courses
+      const [resEnrolled, resAll] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/curriculum`, {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' },
+        })
+      ]);
       const enrolled = await resEnrolled.json();
-      // Normalize enrolled courses after refresh
-      const normalizedEnrolled = enrolled.map((c: any) => ({
-        ...c,
-        name: c.name || c.courseName,
-        code: c.code || c.courseCode,
-        schedule: formatSchedule(c.scheduleDisplay || c.schedule)
-      }));
-      setEnrolledCourses(normalizedEnrolled);
+      const all = await resAll.json();
+      console.log('Updated enrolled courses:', enrolled);
+      console.log('Updated all courses:', all);
+      setEnrolledCourses(enrolled);
+      setAllCourses(all);
     } catch (err: any) {
-      setError('Failed to enroll in course');
+      console.error('Enrollment error:', err);
+      setError(err.message || 'Failed to enroll in course');
     } finally {
       setLoading(false);
     }
@@ -248,10 +213,10 @@ export default function StudentDashboard() {
                 <div key={course.id} className={styles.courseItem}>
                   <div className={styles.courseInfo}>
                     <div className={styles.courseCode}>{course.code || course.courseCode || 'N/A'}</div>
-                    <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed'}</div>
+                    <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed Course'}</div>
                     <div className={styles.courseDetails}>
                       <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
-                      <span><CalendarIcon size={14} /> {course.schedule}</span>
+                      <span><CalendarIcon size={14} /> {course.schedule || 'TBD'}</span>
                     </div>
                   </div>
                 </div>
@@ -278,10 +243,10 @@ export default function StudentDashboard() {
                   <div key={course.id} className={styles.courseItem}>
                     <div className={styles.courseInfo}>
                       <div className={styles.courseCode}>{course.code || course.courseCode || 'N/A'}</div>
-                      <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed'}</div>
+                      <div className={styles.courseName}>{course.name || course.courseName || 'Unnamed Course'}</div>
                       <div className={styles.courseDetails}>
                         <span><UserIcon size={14} /> {course.instructor?.name || course.instructor || 'N/A'}</span>
-                        <span><CalendarIcon size={14} /> {course.schedule}</span>
+                        <span><CalendarIcon size={14} /> {course.schedule || 'TBD'}</span>
                       </div>
                     </div>
                     <div>
