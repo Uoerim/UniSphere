@@ -40,6 +40,8 @@ interface Room {
   id: string;
   name: string;
   building?: string;
+  roomType?: string;
+  capacity?: number;
 }
 
 interface Course {
@@ -56,7 +58,8 @@ interface Course {
   scheduleDisplay?: string;
   isActive: boolean;
   createdAt: string;
-  instructor?: Instructor | null;
+  instructor?: Instructor | null;  // Legacy support
+  instructors?: Instructor[];       // Multiple instructors
   enrolledStudents: number;
   prerequisites?: PrerequisiteCourse[];
 }
@@ -102,6 +105,8 @@ export default function AdminCourses() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showInstructorModal, setShowInstructorModal] = useState(false);
+  const [showRoomModal, setShowRoomModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   // Form state
@@ -113,15 +118,16 @@ export default function AdminCourses() {
     department: '',
     courseType: '',
     capacity: 30,
-    room: '',
+    roomIds: [] as string[],
     schedule: '',
     scheduleDisplay: '',
-    instructorId: '',
+    instructorIds: [] as string[],
     prerequisiteIds: [] as string[],
     courseContent: '',
     hasLecture: true,
     hasTutorial: false,
     hasLab: false,
+    isActive: true,
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -205,17 +211,39 @@ export default function AdminCourses() {
   const fetchRooms = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/facilities/rooms', {
+      const response = await fetch('http://localhost:4000/api/facilities', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setRoomsList(data);
+        // Map facilities to Room format
+        const rooms = data.map((f: any) => ({
+          id: String(f.id),
+          name: f.name,
+          building: f.roomNumber || '',
+          roomType: mapFacilityTypeToRoomType(f.type),
+          capacity: f.capacity
+        }));
+        setRoomsList(rooms);
       }
     } catch (err) {
       console.error('Failed to fetch rooms:', err);
     }
+  };
+
+  // Helper to map facility types to room types for grouping
+  const mapFacilityTypeToRoomType = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      'LECTURE_HALL': 'Lecture Hall',
+      'CLASSROOM': 'Classroom',
+      'COMPUTER_LAB': 'Computer Lab',
+      'LABORATORY': 'Laboratory',
+      'TUTORIAL_ROOM': 'Tutorial Room',
+      'CONFERENCE_ROOM': 'Other',
+      'OFFICE': 'Other'
+    };
+    return typeMap[type] || 'Other';
   };
 
   // Filtered and sorted courses
@@ -228,6 +256,7 @@ export default function AdminCourses() {
         c.name.toLowerCase().includes(term) ||
         c.code?.toLowerCase().includes(term) ||
         c.department?.toLowerCase().includes(term) ||
+        c.instructors?.some(i => i.name?.toLowerCase().includes(term)) ||
         c.instructor?.name?.toLowerCase().includes(term)
       );
     }
@@ -285,10 +314,10 @@ export default function AdminCourses() {
       department: '',
       courseType: '',
       capacity: 30,
-      room: '',
+      roomIds: [],
       schedule: '',
       scheduleDisplay: '',
-      instructorId: '',
+      instructorIds: [],
       prerequisiteIds: [],
       courseContent: '',
       hasLecture: true,
@@ -309,13 +338,22 @@ export default function AdminCourses() {
 
     try {
       const token = localStorage.getItem('token');
+      // Convert roomIds to room names for storage
+      const roomNames = formData.roomIds
+        .map(id => roomsList.find(r => r.id === id)?.name)
+        .filter(Boolean)
+        .join(', ');
+      
       const response = await fetch('http://localhost:4000/api/curriculum', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          room: roomNames,
+        }),
       });
 
       if (!response.ok) {
@@ -345,13 +383,22 @@ export default function AdminCourses() {
 
     try {
       const token = localStorage.getItem('token');
+      // Convert roomIds to room names for storage
+      const roomNames = formData.roomIds
+        .map(id => roomsList.find(r => r.id === id)?.name)
+        .filter(Boolean)
+        .join(', ');
+      
       const response = await fetch(`http://localhost:4000/api/curriculum/${selectedCourse.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          room: roomNames,
+        }),
       });
 
       if (!response.ok) {
@@ -422,6 +469,12 @@ export default function AdminCourses() {
 
   const openEditModal = (course: Course) => {
     setSelectedCourse(course);
+    // Parse room names back to IDs for the form
+    const savedRoomNames = course.room ? course.room.split(', ').map(n => n.trim()) : [];
+    const matchedRoomIds = savedRoomNames
+      .map(name => roomsList.find(r => r.name === name)?.id)
+      .filter(Boolean) as string[];
+    
     setFormData({
       name: course.name,
       description: course.description || '',
@@ -430,15 +483,16 @@ export default function AdminCourses() {
       department: course.department || '',
       courseType: course.courseType || '',
       capacity: course.capacity || 30,
-      room: course.room || '',
+      roomIds: matchedRoomIds,
       schedule: course.schedule || '',
       scheduleDisplay: course.scheduleDisplay || '',
-      instructorId: course.instructor?.id || '',
+      instructorIds: course.instructors?.map(i => i.id) || (course.instructor ? [course.instructor.id] : []),
       prerequisiteIds: course.prerequisites?.map(p => p.id) || [],
       courseContent: (course as any).courseContent || '',
       hasLecture: (course as any).hasLecture !== false,
       hasTutorial: (course as any).hasTutorial || false,
       hasLab: (course as any).hasLab || false,
+      isActive: course.isActive,
     });
     setFormError('');
     setShowEditModal(true);
@@ -709,9 +763,11 @@ export default function AdminCourses() {
                 </div>
                 <div className={styles.courseDetails}>
                   <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Instructor:</span>
+                    <span className={styles.detailLabel}>Instructor{(course.instructors?.length || 0) > 1 ? 's' : ''}:</span>
                     <span className={styles.detailValue}>
-                      {course.instructor?.name || 'Not Assigned'}
+                      {course.instructors && course.instructors.length > 0 
+                        ? course.instructors.map(i => i.name).join(', ')
+                        : course.instructor?.name || 'Not Assigned'}
                     </span>
                   </div>
                   <div className={styles.detailRow}>
@@ -795,7 +851,11 @@ export default function AdminCourses() {
                   </td>
                   <td>{course.department || '-'}</td>
                   <td className={styles.creditsCell}>{course.credits || '-'}</td>
-                  <td>{course.instructor?.name || 'Not Assigned'}</td>
+                  <td>
+                    {course.instructors && course.instructors.length > 0 
+                      ? course.instructors.map(i => i.name).join(', ')
+                      : course.instructor?.name || 'Not Assigned'}
+                  </td>
                   <td>
                     <span className={styles.enrollmentBadge}>
                       {course.enrolledStudents}/{course.capacity || 30}
@@ -897,32 +957,60 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Room</label>
-                  <select
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  <label>Rooms</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowRoomModal(true)}
                   >
-                    <option value="">Select Room</option>
-                    {roomsList.map(room => (
-                      <option key={room.id} value={room.name}>
-                        {room.building ? `${room.building} - ${room.name}` : room.name}
-                      </option>
-                    ))}
-                  </select>
+                    {formData.roomIds.length > 0
+                      ? `${formData.roomIds.length} room${formData.roomIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Rooms'}
+                  </button>
+                  {formData.roomIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.roomIds.map(id => {
+                        const room = roomsList.find(r => r.id === id);
+                        return room ? (
+                          <span key={id} className={styles.tag}>
+                            {room.building ? `${room.building} - ${room.name}` : room.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, roomIds: formData.roomIds.filter(r => r !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Instructor</label>
-                  <select
-                    value={formData.instructorId}
-                    onChange={(e) => setFormData({ ...formData, instructorId: e.target.value })}
+                  <label>Instructors</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowInstructorModal(true)}
                   >
-                    <option value="">Select Instructor</option>
-                    {instructors.map(inst => (
-                      <option key={inst.id || inst.accountId} value={inst.id || ''}>
-                        {inst.name} ({inst.email})
-                      </option>
-                    ))}
-                  </select>
+                    {formData.instructorIds.length > 0
+                      ? `${formData.instructorIds.length} instructor${formData.instructorIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Instructors'}
+                  </button>
+                  {formData.instructorIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.instructorIds.map(id => {
+                        const inst = instructors.find(i => i.id === id);
+                        return inst ? (
+                          <span key={id} className={styles.tag}>
+                            {inst.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, instructorIds: formData.instructorIds.filter(i => i !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <SchedulePicker
@@ -1080,32 +1168,60 @@ export default function AdminCourses() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Room</label>
-                  <select
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  <label>Rooms</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowRoomModal(true)}
                   >
-                    <option value="">Select Room</option>
-                    {roomsList.map(room => (
-                      <option key={room.id} value={room.name}>
-                        {room.building ? `${room.building} - ${room.name}` : room.name}
-                      </option>
-                    ))}
-                  </select>
+                    {formData.roomIds.length > 0
+                      ? `${formData.roomIds.length} room${formData.roomIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Rooms'}
+                  </button>
+                  {formData.roomIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.roomIds.map(id => {
+                        const room = roomsList.find(r => r.id === id);
+                        return room ? (
+                          <span key={id} className={styles.tag}>
+                            {room.building ? `${room.building} - ${room.name}` : room.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, roomIds: formData.roomIds.filter(r => r !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Instructor</label>
-                  <select
-                    value={formData.instructorId}
-                    onChange={(e) => setFormData({ ...formData, instructorId: e.target.value })}
+                  <label>Instructors</label>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => setShowInstructorModal(true)}
                   >
-                    <option value="">Select Instructor</option>
-                    {instructors.map(inst => (
-                      <option key={inst.id || inst.accountId} value={inst.id || ''}>
-                        {inst.name} ({inst.email})
-                      </option>
-                    ))}
-                  </select>
+                    {formData.instructorIds.length > 0
+                      ? `${formData.instructorIds.length} instructor${formData.instructorIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Instructors'}
+                  </button>
+                  {formData.instructorIds.length > 0 && (
+                    <div className={styles.selectedTags}>
+                      {formData.instructorIds.map(id => {
+                        const inst = instructors.find(i => i.id === id);
+                        return inst ? (
+                          <span key={id} className={styles.tag}>
+                            {inst.name}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, instructorIds: formData.instructorIds.filter(i => i !== id) })}
+                            >×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                   <SchedulePicker
@@ -1176,6 +1292,20 @@ export default function AdminCourses() {
                       </label>
                     ))}
                     {courses.length <= 1 && <span className={styles.noData}>No other courses available</span>}
+                  </div>
+                </div>
+                <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                  <label>Course Status</label>
+                  <div className={styles.statusToggle}>
+                    <label className={styles.toggleLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      />
+                      <span className={styles.toggleSlider}></span>
+                      <span className={styles.toggleText}>{formData.isActive ? 'Active' : 'Inactive'}</span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1274,16 +1404,20 @@ export default function AdminCourses() {
                 </div>
 
                 <div className={styles.detailsSection}>
-                  <h3>Instructor</h3>
-                  {selectedCourse.instructor ? (
-                    <div className={styles.instructorCard}>
-                      <div className={styles.instructorAvatar}>
-                        {selectedCourse.instructor.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </div>
-                      <div className={styles.instructorInfo}>
-                        <strong>{selectedCourse.instructor.name}</strong>
-                        <span>{selectedCourse.instructor.email}</span>
-                      </div>
+                  <h3>Instructor{(selectedCourse.instructors?.length || 0) > 1 ? 's' : ''}</h3>
+                  {(selectedCourse.instructors && selectedCourse.instructors.length > 0) || selectedCourse.instructor ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {(selectedCourse.instructors || (selectedCourse.instructor ? [selectedCourse.instructor] : [])).map((instr, idx) => (
+                        <div key={instr.id || idx} className={styles.instructorCard}>
+                          <div className={styles.instructorAvatar}>
+                            {instr.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </div>
+                          <div className={styles.instructorInfo}>
+                            <strong>{instr.name}</strong>
+                            <span>{instr.email}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <p className={styles.noInstructor}>No instructor assigned</p>
@@ -1344,6 +1478,121 @@ export default function AdminCourses() {
               <button className={styles.cancelBtn} onClick={() => setShowDetailsModal(false)}>Close</button>
               <button className={styles.editBtn} onClick={() => { setShowDetailsModal(false); openEditModal(selectedCourse); }}>
                 <EditIcon size={14} /> Edit Course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Instructor Selection Modal */}
+      {showInstructorModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowInstructorModal(false)}>
+          <div className={styles.modal} style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Select Instructors</h2>
+              <button className={styles.closeBtn} onClick={() => setShowInstructorModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.instructorSearchList}>
+                {instructors.length > 0 ? (
+                  instructors.map(inst => (
+                    <label key={inst.id || inst.accountId} className={styles.instructorItem}>
+                      <input
+                        type="checkbox"
+                        checked={formData.instructorIds.includes(inst.id || '')}
+                        onChange={(e) => {
+                          const instId = inst.id || '';
+                          if (e.target.checked) {
+                            setFormData({ ...formData, instructorIds: [...formData.instructorIds, instId] });
+                          } else {
+                            setFormData({ ...formData, instructorIds: formData.instructorIds.filter(id => id !== instId) });
+                          }
+                        }}
+                      />
+                      <div className={styles.instructorInfo}>
+                        <span className={styles.instructorName}>{inst.name}</span>
+                        <span className={styles.instructorEmail}>{inst.email}</span>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <p className={styles.noData}>No instructors available</p>
+                )}
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.cancelBtn} onClick={() => setShowInstructorModal(false)}>Cancel</button>
+              <button className={styles.submitBtn} onClick={() => setShowInstructorModal(false)}>
+                Done ({formData.instructorIds.length} selected)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room Selection Modal */}
+      {showRoomModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowRoomModal(false)}>
+          <div className={styles.modal} style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Select Rooms</h2>
+              <button className={styles.closeBtn} onClick={() => setShowRoomModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                Select lecture halls, classrooms, labs, or other rooms for this course.
+              </p>
+              
+              {/* Group rooms by type */}
+              {['Lecture Hall', 'Classroom', 'Computer Lab', 'Laboratory', 'Tutorial Room', 'Other'].map(roomType => {
+                const roomsOfType = roomsList.filter(r => 
+                  (r.roomType === roomType) || 
+                  (!r.roomType && roomType === 'Other')
+                );
+                if (roomsOfType.length === 0) return null;
+                
+                return (
+                  <div key={roomType} style={{ marginBottom: '16px' }}>
+                    <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {roomType}s
+                    </h4>
+                    <div className={styles.instructorSearchList}>
+                      {roomsOfType.map(room => (
+                        <label key={room.id} className={styles.instructorItem}>
+                          <input
+                            type="checkbox"
+                            checked={formData.roomIds.includes(room.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, roomIds: [...formData.roomIds, room.id] });
+                              } else {
+                                setFormData({ ...formData, roomIds: formData.roomIds.filter(id => id !== room.id) });
+                              }
+                            }}
+                          />
+                          <div className={styles.instructorInfo}>
+                            <span className={styles.instructorName}>
+                              {room.building ? `${room.building} - ${room.name}` : room.name}
+                            </span>
+                            <span className={styles.instructorEmail}>
+                              {room.capacity ? `Capacity: ${room.capacity}` : ''}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {roomsList.length === 0 && (
+                <p className={styles.noData}>No rooms available. Please add rooms in Facilities first.</p>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.cancelBtn} onClick={() => setShowRoomModal(false)}>Cancel</button>
+              <button className={styles.submitBtn} onClick={() => setShowRoomModal(false)}>
+                Done ({formData.roomIds.length} selected)
               </button>
             </div>
           </div>

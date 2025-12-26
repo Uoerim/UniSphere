@@ -4,8 +4,8 @@ import { prisma } from "../src/prisma";
 
 // Admin user details
 const adminData = {
-  email: "admin@admin.com",
-  password: "admin",
+  email: "admin@unisphere.edu",
+  password: "admin123",
   role: "ADMIN" as const
 };
 

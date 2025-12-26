@@ -63,7 +63,7 @@ router.get("/", authenticateToken, async (req, res) => {
 
     const assessments = await prisma.entity.findMany({
       where: { 
-        type: 'GRADE', // Using GRADE entity type for assessments
+        type: 'ASSESSMENT',
         ...courseFilter
       },
       include: {
@@ -183,7 +183,7 @@ router.get("/course/:courseId", authenticateToken, async (req, res) => {
 router.get("/stats/overview", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
     const assessments = await prisma.entity.findMany({
-      where: { type: 'GRADE' },
+      where: { type: 'ASSESSMENT' },
       include: {
         values: { include: { attribute: true } }
       }
@@ -299,7 +299,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
     // Create assessment entity
     const assessment = await prisma.entity.create({
       data: {
-        type: 'GRADE', // Using GRADE type for assessments
+        type: 'ASSESSMENT',
         name,
         description
       }
@@ -327,7 +327,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
             data: {
               name: config.name,
               displayName: config.name.charAt(0).toUpperCase() + config.name.slice(1).replace(/([A-Z])/g, ' $1'),
-              entityTypes: JSON.stringify(['GRADE']),
+              entityTypes: JSON.stringify(['ASSESSMENT']),
               dataType: config.dataType,
               category: 'ACADEMIC'
             }

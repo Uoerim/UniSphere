@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import styles from "./Assessments.module.css";
 import api from "../../lib/api";
-import { ClipboardIcon, FileTextIcon, HelpCircleIcon, EditIcon, ChartIcon, TrashIcon, XIcon } from "../../components/ui/Icons";
+import { ClipboardIcon, FileTextIcon, HelpCircleIcon, EditIcon, ChartIcon, TrashIcon, XIcon, BookIcon } from "../../components/ui/Icons";
 
-type AssessmentType = "FINALS" | "MIDTERMS" | "QUIZZES";
+type AssessmentType = "Final" | "Midterm" | "Quiz";
 type AssessmentStatus = "SCHEDULED" | "ONGOING" | "COMPLETED" | "CANCELLED";
 
 interface Course {
@@ -14,21 +14,26 @@ interface Course {
 
 interface Assessment {
   id: string;
-  title: string;
+  name: string;
+  title?: string; // Legacy support
   description?: string;
-  type: AssessmentType;
-  status: AssessmentStatus;
-  courseId: string;
-  course: Course;
+  assessmentType: AssessmentType;
+  type?: AssessmentType; // Legacy support
+  status?: AssessmentStatus;
+  courseId?: string;
+  course: Course | null;
   date: string;
   startTime?: string;
   endTime?: string;
   duration?: number;
-  totalPoints: number;
+  totalMarks: number;
+  totalPoints?: number; // Legacy support
   weight: number;
-  location?: string;
+  room?: string;
+  location?: string; // Legacy support
   instructions?: string;
   createdAt: string;
+  isActive: boolean;
 }
 
 interface EnrolledStudent {
@@ -46,7 +51,7 @@ interface Stats {
   upcoming: number;
 }
 
-const ASSESSMENT_TYPES: AssessmentType[] = ["FINALS", "MIDTERMS", "QUIZZES"];
+const ASSESSMENT_TYPES: AssessmentType[] = ["Final", "Midterm", "Quiz"];
 const ASSESSMENT_STATUSES: AssessmentStatus[] = ["SCHEDULED", "ONGOING", "COMPLETED", "CANCELLED"];
 
 export default function Assessments() {
@@ -74,23 +79,25 @@ export default function Assessments() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showGradesModal, setShowGradesModal] = useState(false);
+  const [showCourseModal, setShowCourseModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
 
   // Form data
   const [formData, setFormData] = useState({
-    title: "",
+    name: "",
     description: "",
-    type: "QUIZZES" as AssessmentType,
+    assessmentType: "Quiz" as AssessmentType,
     status: "SCHEDULED" as AssessmentStatus,
     courseId: "",
+    courseName: "", // Display name for course
     date: "",
     startTime: "",
     endTime: "",
     duration: 60,
-    totalPoints: 100,
+    totalMarks: 100,
     weight: 10,
-    location: "",
+    room: "",
     instructions: "",
   });
   const [gradesData, setGradesData] = useState<Record<string, number>>({});
@@ -118,7 +125,7 @@ export default function Assessments() {
 
   const fetchCourses = async () => {
     try {
-      const res = await api.get<Course[]>("/staff-courses");
+      const res = await api.get<Course[]>("/curriculum");
       setCourses(res.data);
     } catch (err) {
       console.error("Failed to fetch courses:", err);
@@ -132,10 +139,13 @@ export default function Assessments() {
     const newStats = assessments.reduce(
       (acc, assessment) => {
         acc.total++;
-        acc[assessment.type.toLowerCase() as keyof Pick<Stats, "finals" | "midterms" | "quizzes">]++;
+        const type = assessment.assessmentType || assessment.type;
+        if (type === 'Final') acc.finals++;
+        else if (type === 'Midterm') acc.midterms++;
+        else if (type === 'Quiz') acc.quizzes++;
 
         const assessmentDate = new Date(assessment.date);
-        if (assessmentDate >= today && assessment.status === "SCHEDULED") {
+        if (assessmentDate >= today && (!assessment.status || assessment.status === "SCHEDULED")) {
           acc.upcoming++;
         }
 
@@ -149,13 +159,15 @@ export default function Assessments() {
 
   const filteredAssessments = useMemo(() => {
     let filtered = assessments.filter((assessment) => {
-      const matchesType = activeType === "all" || assessment.type === activeType;
+      const type = assessment.assessmentType || assessment.type;
+      const matchesType = activeType === "all" || type === activeType;
+      const title = assessment.name || assessment.title || '';
       const matchesSearch =
         searchQuery === "" ||
-        assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        assessment.course.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        assessment.course.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCourse = filterCourse === "all" || assessment.courseId === filterCourse;
+        title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (assessment.course?.code?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (assessment.course?.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesCourse = filterCourse === "all" || assessment.course?.id === filterCourse;
       const matchesStatus = filterStatus === "all" || assessment.status === filterStatus;
 
       return matchesType && matchesSearch && matchesCourse && matchesStatus;
@@ -169,16 +181,16 @@ export default function Assessments() {
           comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
           break;
         case "title":
-          comparison = a.title.localeCompare(b.title);
+          comparison = (a.name || a.title || '').localeCompare(b.name || b.title || '');
           break;
         case "course":
-          comparison = a.course.code.localeCompare(b.course.code);
+          comparison = (a.course?.code || '').localeCompare(b.course?.code || '');
           break;
         case "points":
-          comparison = a.totalPoints - b.totalPoints;
+          comparison = (a.totalMarks || a.totalPoints || 0) - (b.totalMarks || b.totalPoints || 0);
           break;
         case "weight":
-          comparison = a.weight - b.weight;
+          comparison = (a.weight || 0) - (b.weight || 0);
           break;
         default:
           comparison = 0;
@@ -200,18 +212,19 @@ export default function Assessments() {
 
   const resetForm = () => {
     setFormData({
-      title: "",
+      name: "",
       description: "",
-      type: "QUIZZES",
+      assessmentType: "Quiz",
       status: "SCHEDULED",
-      courseId: courses[0]?.id || "",
+      courseId: "",
+      courseName: "",
       date: "",
       startTime: "",
       endTime: "",
       duration: 60,
-      totalPoints: 100,
+      totalMarks: 100,
       weight: 10,
-      location: "",
+      room: "",
       instructions: "",
     });
   };
@@ -224,18 +237,19 @@ export default function Assessments() {
   const handleEdit = (assessment: Assessment) => {
     setSelectedAssessment(assessment);
     setFormData({
-      title: assessment.title,
+      name: assessment.name || assessment.title || "",
       description: assessment.description || "",
-      type: assessment.type,
-      status: assessment.status,
-      courseId: assessment.courseId,
-      date: assessment.date.split("T")[0],
+      assessmentType: assessment.assessmentType || assessment.type || "Quiz",
+      status: assessment.status || "SCHEDULED",
+      courseId: assessment.course?.id || "",
+      courseName: assessment.course ? `${assessment.course.code} - ${assessment.course.name}` : "",
+      date: assessment.date ? assessment.date.split("T")[0] : "",
       startTime: assessment.startTime || "",
       endTime: assessment.endTime || "",
       duration: assessment.duration || 60,
-      totalPoints: assessment.totalPoints,
-      weight: assessment.weight,
-      location: assessment.location || "",
+      totalMarks: assessment.totalMarks || assessment.totalPoints || 100,
+      weight: assessment.weight || 10,
+      room: assessment.room || assessment.location || "",
       instructions: assessment.instructions || "",
     });
     setShowEditModal(true);
@@ -347,15 +361,26 @@ export default function Assessments() {
     });
   };
 
-  const getTypeIcon = (type: AssessmentType) => {
+  const getTypeIcon = (type: AssessmentType | undefined) => {
     switch (type) {
-      case "FINALS":
+      case "Final":
         return <ClipboardIcon size={16} />;
-      case "MIDTERMS":
+      case "Midterm":
         return <FileTextIcon size={16} />;
-      case "QUIZZES":
+      case "Quiz":
         return <HelpCircleIcon size={16} />;
+      default:
+        return <FileTextIcon size={16} />;
     }
+  };
+
+  const selectCourse = (course: Course) => {
+    setFormData({
+      ...formData,
+      courseId: course.id,
+      courseName: `${course.code} - ${course.name}`
+    });
+    setShowCourseModal(false);
   };
 
   if (loading) {
@@ -410,20 +435,20 @@ export default function Assessments() {
           All <span className={styles.count}>{stats.total}</span>
         </button>
         <button
-          className={`${styles.typeTab} ${activeType === "FINALS" ? styles.active : ""}`}
-          onClick={() => setActiveType("FINALS")}
+          className={`${styles.typeTab} ${activeType === "Final" ? styles.active : ""}`}
+          onClick={() => setActiveType("Final")}
         >
           <ClipboardIcon size={16} /> Finals <span className={styles.count}>{stats.finals}</span>
         </button>
         <button
-          className={`${styles.typeTab} ${activeType === "MIDTERMS" ? styles.active : ""}`}
-          onClick={() => setActiveType("MIDTERMS")}
+          className={`${styles.typeTab} ${activeType === "Midterm" ? styles.active : ""}`}
+          onClick={() => setActiveType("Midterm")}
         >
           <FileTextIcon size={16} /> Midterms <span className={styles.count}>{stats.midterms}</span>
         </button>
         <button
-          className={`${styles.typeTab} ${activeType === "QUIZZES" ? styles.active : ""}`}
-          onClick={() => setActiveType("QUIZZES")}
+          className={`${styles.typeTab} ${activeType === "Quiz" ? styles.active : ""}`}
+          onClick={() => setActiveType("Quiz")}
         >
           <HelpCircleIcon size={16} /> Quizzes <span className={styles.count}>{stats.quizzes}</span>
         </button>
@@ -527,23 +552,28 @@ export default function Assessments() {
               </tr>
             </thead>
             <tbody>
-              {filteredAssessments.map((assessment) => (
+              {filteredAssessments.map((assessment) => {
+                const type = assessment.assessmentType || assessment.type || 'Quiz';
+                const title = assessment.name || assessment.title || 'Untitled';
+                const points = assessment.totalMarks || assessment.totalPoints || 0;
+                const status = assessment.status || 'SCHEDULED';
+                return (
                 <tr key={assessment.id}>
                   <td>
-                    <span className={`${styles.typeBadge} ${styles[assessment.type.toLowerCase()]}`}>
-                      {getTypeIcon(assessment.type)} {assessment.type.charAt(0) + assessment.type.slice(1).toLowerCase()}
+                    <span className={`${styles.typeBadge} ${styles[type.toLowerCase()]}`}>
+                      {getTypeIcon(type as AssessmentType)} {type}
                     </span>
                   </td>
-                  <td>{assessment.title}</td>
+                  <td>{title}</td>
                   <td>
                     <div className={styles.courseInfo}>
-                      <span className={styles.courseCode}>{assessment.course.code}</span>
-                      <span className={styles.courseName}>{assessment.course.name}</span>
+                      <span className={styles.courseCode}>{assessment.course?.code || 'N/A'}</span>
+                      <span className={styles.courseName}>{assessment.course?.name || ''}</span>
                     </div>
                   </td>
                   <td>
                     <div className={styles.dateInfo}>
-                      <span className={styles.date}>{formatDate(assessment.date)}</span>
+                      <span className={styles.date}>{assessment.date ? formatDate(assessment.date) : 'Not set'}</span>
                       {assessment.startTime && (
                         <span className={styles.time}>
                           {assessment.startTime} - {assessment.endTime}
@@ -553,15 +583,15 @@ export default function Assessments() {
                   </td>
                   <td>
                     <div className={styles.pointsInfo}>
-                      <span className={styles.total}>{assessment.totalPoints} pts</span>
-                      <span className={styles.weight}>Weight: {assessment.weight}%</span>
+                      <span className={styles.total}>{points} pts</span>
+                      <span className={styles.weight}>Weight: {assessment.weight || 0}%</span>
                     </div>
                   </td>
                   <td>
                     <span
-                      className={`${styles.statusBadge} ${styles[assessment.status.toLowerCase()]}`}
+                      className={`${styles.statusBadge} ${styles[status.toLowerCase()]}`}
                     >
-                      {assessment.status.charAt(0) + assessment.status.slice(1).toLowerCase()}
+                      {status.charAt(0) + status.slice(1).toLowerCase()}
                     </span>
                   </td>
                   <td>
@@ -590,7 +620,7 @@ export default function Assessments() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -613,8 +643,8 @@ export default function Assessments() {
                     <label>Title *</label>
                     <input
                       type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
                       placeholder="e.g., Final Exam, Midterm 1, Quiz 3"
                     />
@@ -622,15 +652,15 @@ export default function Assessments() {
                   <div className={styles.formGroup}>
                     <label>Type *</label>
                     <select
-                      value={formData.type}
+                      value={formData.assessmentType}
                       onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value as AssessmentType })
+                        setFormData({ ...formData, assessmentType: e.target.value as AssessmentType })
                       }
                       required
                     >
                       {ASSESSMENT_TYPES.map((type) => (
                         <option key={type} value={type}>
-                          {type.charAt(0) + type.slice(1).toLowerCase()}
+                          {type}
                         </option>
                       ))}
                     </select>
@@ -639,18 +669,22 @@ export default function Assessments() {
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
                     <label>Course *</label>
-                    <select
-                      value={formData.courseId}
-                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                      required
-                    >
-                      <option value="">Select a course</option>
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.code} - {course.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={styles.selectWithButton}>
+                      <input
+                        type="text"
+                        value={formData.courseName}
+                        readOnly
+                        placeholder="Select a course..."
+                        required
+                      />
+                      <button
+                        type="button"
+                        className={styles.selectBtn}
+                        onClick={() => setShowCourseModal(true)}
+                      >
+                        <BookIcon size={16} /> Select
+                      </button>
+                    </div>
                   </div>
                   <div className={styles.formGroup}>
                     <label>Status *</label>
@@ -712,9 +746,9 @@ export default function Assessments() {
                     <label>Total Points *</label>
                     <input
                       type="number"
-                      value={formData.totalPoints}
+                      value={formData.totalMarks}
                       onChange={(e) =>
-                        setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })
+                        setFormData({ ...formData, totalMarks: parseInt(e.target.value) || 0 })
                       }
                       required
                       min="1"
@@ -738,8 +772,8 @@ export default function Assessments() {
                   <label>Location</label>
                   <input
                     type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    value={formData.room}
+                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
                     placeholder="e.g., Room 101, Hall A"
                   />
                 </div>
@@ -770,7 +804,7 @@ export default function Assessments() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className={styles.submitBtn} disabled={formLoading}>
+                <button type="submit" className={styles.submitBtn} disabled={formLoading || !formData.courseId}>
                   {formLoading ? "Creating..." : "Create Assessment"}
                 </button>
               </div>
@@ -796,23 +830,23 @@ export default function Assessments() {
                     <label>Title *</label>
                     <input
                       type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
                     />
                   </div>
                   <div className={styles.formGroup}>
                     <label>Type *</label>
                     <select
-                      value={formData.type}
+                      value={formData.assessmentType}
                       onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value as AssessmentType })
+                        setFormData({ ...formData, assessmentType: e.target.value as AssessmentType })
                       }
                       required
                     >
                       {ASSESSMENT_TYPES.map((type) => (
                         <option key={type} value={type}>
-                          {type.charAt(0) + type.slice(1).toLowerCase()}
+                          {type}
                         </option>
                       ))}
                     </select>
@@ -821,17 +855,22 @@ export default function Assessments() {
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
                     <label>Course *</label>
-                    <select
-                      value={formData.courseId}
-                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                      required
-                    >
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.code} - {course.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={styles.selectWithButton}>
+                      <input
+                        type="text"
+                        value={formData.courseName}
+                        readOnly
+                        placeholder="Select a course..."
+                        required
+                      />
+                      <button
+                        type="button"
+                        className={styles.selectBtn}
+                        onClick={() => setShowCourseModal(true)}
+                      >
+                        <BookIcon size={16} /> Select
+                      </button>
+                    </div>
                   </div>
                   <div className={styles.formGroup}>
                     <label>Status *</label>
@@ -893,9 +932,9 @@ export default function Assessments() {
                     <label>Total Points *</label>
                     <input
                       type="number"
-                      value={formData.totalPoints}
+                      value={formData.totalMarks}
                       onChange={(e) =>
-                        setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })
+                        setFormData({ ...formData, totalMarks: parseInt(e.target.value) || 0 })
                       }
                       required
                       min="1"
@@ -919,8 +958,8 @@ export default function Assessments() {
                   <label>Location</label>
                   <input
                     type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    value={formData.room}
+                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
                   />
                 </div>
                 <div className={styles.formGroup}>
@@ -948,7 +987,7 @@ export default function Assessments() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className={styles.submitBtn} disabled={formLoading}>
+                <button type="submit" className={styles.submitBtn} disabled={formLoading || !formData.courseId}>
                   {formLoading ? "Saving..." : "Save Changes"}
                 </button>
               </div>
@@ -969,7 +1008,7 @@ export default function Assessments() {
             </div>
             <div className={styles.modalBody}>
               <p>
-                Are you sure you want to delete <strong>{selectedAssessment.title}</strong>?
+                Are you sure you want to delete <strong>{selectedAssessment.name || selectedAssessment.title}</strong>?
               </p>
               <p style={{ color: "var(--danger)", marginTop: "0.5rem" }}>
                 This will also delete all associated grades. This action cannot be undone.
@@ -1002,7 +1041,7 @@ export default function Assessments() {
           <div className={`${styles.modalContent} ${styles.wide}`}>
             <div className={styles.modalHeader}>
               <h2>
-                Grades for {selectedAssessment.title} ({selectedAssessment.totalPoints} pts)
+                Grades for {selectedAssessment.name || selectedAssessment.title} ({selectedAssessment.totalMarks || selectedAssessment.totalPoints} pts)
               </h2>
               <button className={styles.closeBtn} onClick={() => setShowGradesModal(false)}>
                 <XIcon size={20} />
@@ -1032,9 +1071,9 @@ export default function Assessments() {
                           }
                           placeholder="Score"
                           min="0"
-                          max={selectedAssessment.totalPoints}
+                          max={selectedAssessment.totalMarks || selectedAssessment.totalPoints}
                         />
-                        <span>/ {selectedAssessment.totalPoints}</span>
+                        <span>/ {selectedAssessment.totalMarks || selectedAssessment.totalPoints}</span>
                       </div>
                     ))}
                   </div>
@@ -1056,6 +1095,47 @@ export default function Assessments() {
                 disabled={formLoading || enrolledStudents.length === 0}
               >
                 {formLoading ? "Saving..." : "Save Grades"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Course Selection Modal */}
+      {showCourseModal && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2>Select Course</h2>
+              <button className={styles.closeBtn} onClick={() => setShowCourseModal(false)}>
+                <XIcon size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.courseList}>
+                {courses.length === 0 ? (
+                  <div className={styles.noStudents}>No courses available</div>
+                ) : (
+                  courses.map((course) => (
+                    <div
+                      key={course.id}
+                      className={`${styles.courseItem} ${formData.courseId === course.id ? styles.selected : ''}`}
+                      onClick={() => selectCourse(course)}
+                    >
+                      <div className={styles.courseItemCode}>{course.code}</div>
+                      <div className={styles.courseItemName}>{course.name}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => setShowCourseModal(false)}
+              >
+                Cancel
               </button>
             </div>
           </div>

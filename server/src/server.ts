@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth.routes";
 import { usersRouter } from "./routes/users.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
 import { facilitiesRouter } from "./routes/facilities.routes";
+import roomsRouter from "./routes/rooms.routes";
 import { curriculumRouter } from "./routes/curriculum.routes";
 import { communityRouter } from "./routes/community.routes";
 import { studentRouter } from "./routes/student.routes";
@@ -30,6 +31,7 @@ app.use("/api/staff-courses", staffCoursesRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/facilities", roomsRouter);  // Must come before facilitiesRouter to avoid /:id catching /rooms
 app.use("/api/facilities", facilitiesRouter);
 app.use("/api/curriculum", curriculumRouter);
 app.use("/api/community", communityRouter);

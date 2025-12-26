@@ -85,23 +85,25 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
       });
 
-      // Get instructor
-      const instructorRel = course.relationsTo.find((r: any) => r.relationType === 'TEACHES');
-      let instructor = null;
-      if (instructorRel) {
-        const instrEntity = instructorRel.fromEntity;
+      // Get all instructors
+      const instructorRels = course.relationsTo.filter((r: any) => r.relationType === 'TEACHES' && r.isActive);
+      const instructors = instructorRels.map((ir: any) => {
+        const instrEntity = ir.fromEntity;
         const instrAttrs: Record<string, any> = {};
         instrEntity.values.forEach((v: any) => {
           instrAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
         });
-        instructor = {
+        return {
           id: instrEntity.id,
           name: instrAttrs.firstName && instrAttrs.lastName
             ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
             : instrEntity.account?.email || 'Unknown',
           email: instrEntity.account?.email
         };
-      }
+      });
+      
+      // Legacy support
+      const instructor = instructors.length > 0 ? instructors[0] : null;
 
       return {
         id: course.id,
@@ -115,8 +117,10 @@ router.get("/my-courses", authenticateToken, async (req, res) => {
         courseType: attrs.courseType,
         room: attrs.room,
         schedule: attrs.schedule,
+        scheduleDisplay: attrs.scheduleDisplay,
         capacity: attrs.capacity || 30,
-        instructor
+        instructor,
+        instructors
       };
     });
 
@@ -210,23 +214,25 @@ router.get("/student/:studentId/courses", authenticateToken, async (req, res) =>
         attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
       });
 
-      // Get instructor
-      const instructorRel = course.relationsTo.find((r: any) => r.relationType === 'TEACHES');
-      let instructor = null;
-      if (instructorRel) {
-        const instrEntity = instructorRel.fromEntity;
+      // Get all instructors
+      const instructorRels = course.relationsTo.filter((r: any) => r.relationType === 'TEACHES' && r.isActive);
+      const instructors = instructorRels.map((ir: any) => {
+        const instrEntity = ir.fromEntity;
         const instrAttrs: Record<string, any> = {};
         instrEntity.values.forEach((v: any) => {
           instrAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
         });
-        instructor = {
+        return {
           id: instrEntity.id,
           name: instrAttrs.firstName && instrAttrs.lastName
             ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
             : instrEntity.account?.email || 'Unknown',
           email: instrEntity.account?.email
         };
-      }
+      });
+      
+      // Legacy support
+      const instructor = instructors.length > 0 ? instructors[0] : null;
 
       return {
         id: course.id,
@@ -240,7 +246,9 @@ router.get("/student/:studentId/courses", authenticateToken, async (req, res) =>
         courseType: attrs.courseType,
         room: attrs.room,
         schedule: attrs.schedule,
-        instructor
+        scheduleDisplay: attrs.scheduleDisplay,
+        instructor,
+        instructors
       };
     });
 
@@ -292,23 +300,25 @@ router.get("/", authenticateToken, async (req, res) => {
         attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate || v.valueDateTime || v.valueText;
       });
 
-      // Find instructor (TEACHES relation)
-      const instructorRelation = course.relationsTo.find((r: any) => r.relationType === 'TEACHES');
-      let instructor = null;
-      if (instructorRelation) {
-        const instructorEntity = instructorRelation.fromEntity;
+      // Find all instructors (TEACHES relations)
+      const instructorRelations = course.relationsTo.filter((r: any) => r.relationType === 'TEACHES' && r.isActive);
+      const instructors = instructorRelations.map((rel: any) => {
+        const instructorEntity = rel.fromEntity;
         const instrAttrs: Record<string, any> = {};
         instructorEntity.values.forEach((v: any) => {
           instrAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
         });
-        instructor = {
+        return {
           id: instructorEntity.id,
           name: instrAttrs.firstName && instrAttrs.lastName
             ? `${instrAttrs.firstName} ${instrAttrs.lastName}`
             : instructorEntity.account?.email || 'Unknown',
           email: instructorEntity.account?.email
         };
-      }
+      });
+      
+      // Legacy support: also include single instructor field
+      const instructor = instructors.length > 0 ? instructors[0] : null;
 
       // Count enrolled students
       const enrolledStudents = course.relationsTo.filter((r: any) => r.relationType === 'ENROLLED_IN').length;
@@ -344,6 +354,7 @@ router.get("/", authenticateToken, async (req, res) => {
         room: attrs.room,
         schedule: attrs.schedule,
         instructor,
+        instructors,
         enrolledStudents,
         prerequisites,
         ...attrs
@@ -503,7 +514,12 @@ router.get("/instructors/available", authenticateToken, requireAdminOrStaff, asy
 // CREATE course
 router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
-    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
+    const { name, description, code, credits, department, semester, courseType, capacity, room, schedule, scheduleDisplay, instructorId, instructorIds, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
+    
+    // Support both single instructorId (legacy) and instructorIds array
+    const finalInstructorIds: string[] = instructorIds && Array.isArray(instructorIds) 
+      ? instructorIds 
+      : (instructorId ? [instructorId] : []);
 
     if (!name) {
       return res.status(400).json({ error: "Course name is required" });
@@ -528,6 +544,7 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       { name: 'capacity', value: capacity, dataType: 'NUMBER' },
       { name: 'room', value: room, dataType: 'STRING' },
       { name: 'schedule', value: schedule, dataType: 'STRING' },
+      { name: 'scheduleDisplay', value: scheduleDisplay, dataType: 'STRING' },
       { name: 'courseContent', value: courseContent, dataType: 'TEXT' },
       { name: 'hasLecture', value: hasLecture, dataType: 'BOOLEAN' },
       { name: 'hasTutorial', value: hasTutorial, dataType: 'BOOLEAN' },
@@ -569,16 +586,18 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
       }
     }
 
-    // Assign instructor if provided
-    if (instructorId) {
-      await prisma.entityRelation.create({
-        data: {
-          fromEntityId: instructorId,
-          toEntityId: course.id,
-          relationType: 'TEACHES',
-          startDate: new Date()
-        }
-      });
+    // Assign instructors if provided
+    if (finalInstructorIds.length > 0) {
+      for (const instrId of finalInstructorIds) {
+        await prisma.entityRelation.create({
+          data: {
+            fromEntityId: instrId,
+            toEntityId: course.id,
+            relationType: 'TEACHES',
+            startDate: new Date()
+          }
+        });
+      }
     }
 
     // Create prerequisite relations
@@ -610,7 +629,12 @@ router.post("/", authenticateToken, requireAdminOrStaff, async (req, res) => {
 router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
   try {
     const id = req.params.id as string;
-    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, instructorId, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
+    const { name, description, isActive, code, credits, department, semester, courseType, capacity, room, schedule, scheduleDisplay, instructorId, instructorIds, prerequisiteIds, courseContent, hasLecture, hasTutorial, hasLab } = req.body;
+    
+    // Support both single instructorId (legacy) and instructorIds array
+    const finalInstructorIds: string[] | undefined = instructorIds !== undefined 
+      ? (Array.isArray(instructorIds) ? instructorIds : [])
+      : (instructorId !== undefined ? (instructorId ? [instructorId] : []) : undefined);
 
     if (!id) {
       return res.status(400).json({ error: "Course ID is required" });
@@ -636,6 +660,7 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
       { name: 'capacity', value: capacity, dataType: 'NUMBER' },
       { name: 'room', value: room, dataType: 'STRING' },
       { name: 'schedule', value: schedule, dataType: 'STRING' },
+      { name: 'scheduleDisplay', value: scheduleDisplay, dataType: 'STRING' },
       { name: 'courseContent', value: courseContent, dataType: 'TEXT' },
       { name: 'hasLecture', value: hasLecture, dataType: 'BOOLEAN' },
       { name: 'hasTutorial', value: hasTutorial, dataType: 'BOOLEAN' },
@@ -694,41 +719,39 @@ router.put("/:id", authenticateToken, requireAdminOrStaff, async (req, res) => {
       }
     }
 
-    // Update instructor assignment if provided
-    if (instructorId !== undefined) {
-      // Remove existing instructor
-      await prisma.entityRelation.updateMany({
+    // Update instructor assignments if provided
+    if (finalInstructorIds !== undefined) {
+      // Delete existing instructor relations completely
+      await prisma.entityRelation.deleteMany({
         where: {
           toEntityId: id,
-          relationType: 'TEACHES',
-          isActive: true
-        },
-        data: { isActive: false, endDate: new Date() }
+          relationType: 'TEACHES'
+        }
       });
 
-      // Add new instructor if provided
-      if (instructorId) {
-        await prisma.entityRelation.create({
-          data: {
-            fromEntityId: instructorId,
-            toEntityId: id,
-            relationType: 'TEACHES',
-            startDate: new Date()
-          }
-        });
+      // Add new instructors
+      if (finalInstructorIds.length > 0) {
+        for (const instrId of finalInstructorIds) {
+          await prisma.entityRelation.create({
+            data: {
+              fromEntityId: instrId,
+              toEntityId: id,
+              relationType: 'TEACHES',
+              startDate: new Date()
+            }
+          });
+        }
       }
     }
 
     // Update prerequisite relations if provided
     if (prerequisiteIds !== undefined) {
-      // Remove existing prerequisites
-      await prisma.entityRelation.updateMany({
+      // Delete existing prerequisite relations completely
+      await prisma.entityRelation.deleteMany({
         where: {
           fromEntityId: id,
-          relationType: 'PREREQUISITE',
-          isActive: true
-        },
-        data: { isActive: false, endDate: new Date() }
+          relationType: 'PREREQUISITE'
+        }
       });
 
       // Add new prerequisites
