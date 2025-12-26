@@ -1,0 +1,110 @@
+// UniSphere/client/src/pages/assignments/Assignments.tsx (Student View)
+
+import React, { useState, useCallback } from 'react';
+import { Button, Card, FileInput, Textarea, Alert, Progress } from '@mantine/core'; // Assuming a component library like Mantine/Chakra/etc.
+
+// TypeScript interface for a Submission
+interface Submission {
+  assignmentId: string;
+  studentId: string;
+  file?: File;
+  textSubmission?: string;
+}
+
+const SubmissionForm: React.FC<{ assignmentId: string }> = ({ assignmentId }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = useCallback(async () => {
+    if (!file && !text) {
+      setError('A file or text submission is required.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append('assignmentId', assignmentId);
+    // Assuming studentId is retrieved from context/auth
+    formData.append('studentId', 'current-user-id'); 
+    
+    if (file) {
+      formData.append('submissionFile', file);
+    }
+    if (text) {
+      formData.append('textSubmission', text);
+    }
+
+    try {
+      // API call to the UniSphere server
+      const response = await fetch('/api/submissions/upload', {
+        method: 'POST',
+        // Note: fetch API doesn't easily support progress tracking, 
+        // a dedicated library (like Axios) would be used for real-time updates.
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Submission failed. Please try again.');
+      }
+
+      // Simulate a successful upload
+      setUploadProgress(100);
+      Alert.success('Submission successful!'); // Assuming a notification system
+      // Reset form
+      setFile(null);
+      setText('');
+
+    } catch (err: any) {
+      setError(err.message);
+      setUploadProgress(0);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [file, text, assignmentId]);
+
+  return (
+    <Card shadow="sm" padding="lg">
+      <h3>Submit Assignment: {assignmentId}</h3>
+      {error && <Alert color="red">{error}</Alert>}
+      
+      {/* File Upload */}
+      <FileInput 
+        label="Upload File (e.g., PDF, ZIP)" 
+        placeholder="Choose file"
+        value={file}
+        onChange={setFile}
+        disabled={isSubmitting}
+        clearable
+      />
+      
+      {/* Text Submission Area */}
+      <Textarea
+        label="Text Submission (Optional)"
+        placeholder="Type your response here..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={5}
+        disabled={isSubmitting}
+      />
+
+      {isSubmitting && <Progress value={uploadProgress} label="Uploading..." size="xl" animate />}
+
+      <Button 
+        onClick={handleSubmit} 
+        disabled={isSubmitting || (!file && !text)}
+        loading={isSubmitting}
+        style={{ marginTop: '15px' }}
+      >
+        Submit
+      </Button>
+    </Card>
+  );
+};
+
+export default SubmissionForm;
