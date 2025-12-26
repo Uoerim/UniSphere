@@ -1,19 +1,14 @@
-import { useState, useEffect } from 'react';
-import Modal from '../../components/ui/Modal';
-import styles from '../../styles/pages.module.css';
-import eventStyles from './Events.module.css';
-import modalStyles from '../../components/ui/Modal.module.css';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { 
-  BookOpenIcon, TrophyIcon, TheaterIcon, UsersIcon, 
-  FileTextIcon, PartyIcon, CalendarIcon, MapPinIcon, 
+import styles from './Events.module.css';
+import {
+  BookOpenIcon, TrophyIcon, TheaterIcon, UsersIcon,
+  FileTextIcon, PartyIcon, CalendarIcon, MapPinIcon,
   EditIcon, TrashIcon, XIcon, ClockIcon
 } from '../../components/ui/Icons';
-import styles from './Events.module.css';
 
 // Setup date-fns localizer
 const locales = { 'en-US': enUS };
@@ -63,7 +58,7 @@ export default function Events() {
   const [currentView, setCurrentView] = useState<'calendar' | 'list'>('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<View>(Views.MONTH);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -102,13 +97,13 @@ export default function Events() {
       const eventDate = event.date ? new Date(event.date) : new Date();
       const [startHour = 9, startMin = 0] = (event.time || '09:00').split(':').map(Number);
       const [endHour = 10, endMin = 0] = (event.endTime || event.time || '10:00').split(':').map(Number);
-      
+
       const start = new Date(eventDate);
       start.setHours(startHour, startMin, 0);
-      
+
       const end = new Date(eventDate);
       end.setHours(endHour || startHour + 1, endMin, 0);
-      
+
       return {
         id: event.id,
         title: event.title,
@@ -225,7 +220,7 @@ export default function Events() {
     const eventType = event.resource.eventType || 'general';
     const typeConfig = EVENT_TYPES.find(t => t.value === eventType);
     const backgroundColor = typeConfig?.color || '#6b7280';
-    
+
     return {
       style: {
         backgroundColor,
@@ -268,7 +263,6 @@ export default function Events() {
   };
 
   const upcomingEvents = events.filter(e => isUpcoming(e.date)).slice(0, 5);
-  const typeConfig = selectedEvent ? EVENT_TYPES.find(t => t.value === selectedEvent.eventType) : null;
 
   if (isLoading) {
     return (
@@ -291,13 +285,13 @@ export default function Events() {
         </div>
         <div className={styles.headerRight}>
           <div className={styles.viewToggle}>
-            <button 
+            <button
               className={`${styles.viewBtn} ${currentView === 'calendar' ? styles.active : ''}`}
               onClick={() => setCurrentView('calendar')}
             >
               <CalendarIcon size={16} /> Calendar
             </button>
-            <button 
+            <button
               className={`${styles.viewBtn} ${currentView === 'list' ? styles.active : ''}`}
               onClick={() => setCurrentView('list')}
             >
@@ -342,70 +336,6 @@ export default function Events() {
         </div>
       </div>
 
-      {/* Events List */}
-      {isLoading ? (
-        <div className={styles.loading}>Loading events...</div>
-      ) : events.length === 0 ? (
-        <div className={styles.card}>
-          <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>🎉</div>
-            <div className={styles.emptyTitle}>No Events Scheduled</div>
-            <div className={styles.emptyText}>Create your first event to get started</div>
-            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setIsModalOpen(true)}>
-              Create Event
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className={styles.card}>
-          {events.map((event) => (
-            <div key={event.id} style={{
-              padding: '20px',
-              borderBottom: '1px solid #f3f4f6',
-              display: 'flex',
-              gap: '16px'
-            }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: '#eef1fe',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px',
-                flexShrink: 0
-              }}>
-                {getEventIcon(event.eventType)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1f36', margin: 0 }}>
-                    {event.title}
-                  </h3>
-                  <span className={`${styles.badge} ${isUpcoming(event.date) ? styles.success : styles.secondary}`}>
-                    {isUpcoming(event.date) ? 'Upcoming' : 'Past'}
-                  </span>
-                  {event.eventType && (
-                    <span className={`${styles.badge} ${styles.primary}`}>
-                      {event.eventType}
-                    </span>
-                  )}
-                </div>
-                <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 12px 0' }}>
-                  {event.description || 'No description provided'}
-                </p>
-                <div style={{ fontSize: '12px', color: '#9ca3af', display: 'flex', gap: '16px' }}>
-                  <span>📅 {formatDate(event.date)}</span>
-                  {event.time && <span>🕐 {event.time}</span>}
-                  {event.location && <span>📍 {event.location}</span>}
-                </div>
-              </div>
-              <div className={styles.actions}>
-                <button className={styles.iconBtn} onClick={() => openEditModal(event)}>✏️</button>
-                <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(event.id)}>
-                  🗑️
-                </button>
       {/* Main Content */}
       <div className={styles.mainGrid}>
         {/* Calendar / List View */}
@@ -447,13 +377,13 @@ export default function Events() {
                   {events.map(event => {
                     const eventTypeConfig = EVENT_TYPES.find(t => t.value === event.eventType);
                     return (
-                      <div 
-                        key={event.id} 
+                      <div
+                        key={event.id}
                         className={styles.eventListItem}
                         onClick={() => { setSelectedEvent(event); setShowEventModal(true); }}
                       >
-                        <div 
-                          className={styles.eventColorBar} 
+                        <div
+                          className={styles.eventColorBar}
                           style={{ backgroundColor: eventTypeConfig?.color || '#6b7280' }}
                         />
                         <div className={styles.eventListIcon}>
@@ -467,7 +397,7 @@ export default function Events() {
                             {event.location && <span><MapPinIcon size={14} /> {event.location}</span>}
                           </div>
                         </div>
-                        <span 
+                        <span
                           className={styles.eventTypeBadge}
                           style={{ backgroundColor: eventTypeConfig?.color || '#6b7280' }}
                         >
@@ -493,12 +423,12 @@ export default function Events() {
                 {upcomingEvents.map(event => {
                   const eventTypeConfig = EVENT_TYPES.find(t => t.value === event.eventType);
                   return (
-                    <div 
-                      key={event.id} 
+                    <div
+                      key={event.id}
                       className={styles.upcomingItem}
                       onClick={() => { setSelectedEvent(event); setShowEventModal(true); }}
                     >
-                      <div 
+                      <div
                         className={styles.upcomingDot}
                         style={{ backgroundColor: eventTypeConfig?.color || '#6b7280' }}
                       />
@@ -537,14 +467,18 @@ export default function Events() {
       {showEventModal && selectedEvent && (
         <div className={styles.modal} onClick={() => setShowEventModal(false)}>
           <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader} style={{ borderColor: typeConfig?.color }}>
-              <div className={styles.modalEventIcon} style={{ backgroundColor: typeConfig?.color }}>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalEventIcon} style={{
+                backgroundColor: EVENT_TYPES.find(t => t.value === selectedEvent.eventType)?.color || '#6b7280'
+              }}>
                 {getEventIcon(selectedEvent.eventType)}
               </div>
               <div className={styles.modalEventInfo}>
                 <h2>{selectedEvent.title}</h2>
-                <span className={styles.eventTypeBadge} style={{ backgroundColor: typeConfig?.color }}>
-                  {typeConfig?.label || 'General'}
+                <span className={styles.eventTypeBadge} style={{
+                  backgroundColor: EVENT_TYPES.find(t => t.value === selectedEvent.eventType)?.color || '#6b7280'
+                }}>
+                  {EVENT_TYPES.find(t => t.value === selectedEvent.eventType)?.label || 'General'}
                 </span>
               </div>
               <button className={styles.closeBtn} onClick={() => setShowEventModal(false)}>
@@ -671,8 +605,8 @@ export default function Events() {
                 <button type="button" className={styles.cancelBtn} onClick={closeModal}>
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className={styles.submitBtn}
                   disabled={isSubmitting || !formData.title}
                 >

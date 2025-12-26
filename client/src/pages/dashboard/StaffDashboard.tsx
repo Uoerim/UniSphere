@@ -51,7 +51,6 @@ interface Message {
 
 export default function StaffDashboard() {
   const { user, token } = useAuth();
-  void token; // keep token available for future API calls without unused warnings
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -108,7 +107,7 @@ export default function StaffDashboard() {
         });
         if (!res.ok) throw new Error('Failed to load courses');
         const allCourses = await res.json();
-        
+
         const normalized: Course[] = allCourses.map((c: any) => ({
           id: c.id,
           name: c.name,
@@ -119,49 +118,8 @@ export default function StaffDashboard() {
           students: c.enrolledStudents ?? 0,
         }));
         setCourses(normalized);
-    const loadDashboardData = async () => {
-      if (!user?.id) return;
-      
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch courses
-        const coursesRes = await fetch(`http://localhost:4000/api/staff-dashboard/courses/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (coursesRes.ok) {
-          const coursesData = await coursesRes.json();
-          setCourses(coursesData);
-        }
-
-        // Fetch tasks
-        const tasksRes = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (tasksRes.ok) {
-          const tasksData = await tasksRes.json();
-          setTasks(tasksData);
-        }
-
-        // Fetch submissions (recent student grades)
-        const submissionsRes = await fetch(`http://localhost:4000/api/staff-dashboard/submissions/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (submissionsRes.ok) {
-          const submissionsData = await submissionsRes.json();
-          setRecentStudents(submissionsData);
-        }
-
-        // Fetch messages
-        const messagesRes = await fetch(`http://localhost:4000/api/staff-dashboard/messages/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (messagesRes.ok) {
-          const messagesData = await messagesRes.json();
-          setMessages(messagesData);
-        }
       } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard data');
+        setError(err.message || 'Failed to load courses');
       } finally {
         setLoading(false);
       }
@@ -169,6 +127,7 @@ export default function StaffDashboard() {
 
     loadCourses();
 
+    // Sample data for tasks and messages
     setTasks([
       { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
       { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
@@ -183,8 +142,6 @@ export default function StaffDashboard() {
       { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
     ]);
   }, [token, user]);
-    loadDashboardData();
-  }, [user?.id, token]);
 
   // Helpers
   const getPriorityColor = (priority: Task['priority']) => {
