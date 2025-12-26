@@ -141,8 +141,7 @@ export default function StaffDashboard() {
   }, [token, user]);
 
   // Helpers for calculating dashboard stats
-  const totalStudents = courses.reduce((sum: number, c: Course) => sum + (c.students || 0), 0);
-  const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Submitted').length;
+  const pendingGrading = recentStudents.filter((s: Student) => s.grade === 'Pending').length;
   const highPriorityTasks = tasks.filter((t: Task) => t.priority === 'high').length;
 
   if (loading) {
@@ -160,16 +159,12 @@ export default function StaffDashboard() {
       <div className={`${styles.welcomeBanner} ${styles.staffBanner}`}>
         <div className={styles.welcomeContent}>
           <h1>Welcome, {user?.email?.split('@')[0] || 'Professor'}</h1>
-          <p>You have {highPriorityTasks} high-priority tasks and {pendingGrading} assignments to grade.</p>
+          <p>Manage your courses and review student submissions with ease.</p>
         </div>
         <div className={styles.welcomeStats}>
           <div className={styles.welcomeStat}>
             <span className={styles.statNumber}>{courses.length}</span>
             <span className={styles.statLabel}>Courses</span>
-          </div>
-          <div className={styles.welcomeStat}>
-            <span className={styles.statNumber}>{recentStudents.length}</span>
-            <span className={styles.statLabel}>Students</span>
           </div>
           <div className={styles.welcomeStat}>
             <span className={styles.statNumber}>{pendingGrading}</span>
@@ -188,24 +183,10 @@ export default function StaffDashboard() {
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.success}`}><UsersIcon size={24} /></div>
-          <div className={styles.statInfo}>
-            <div className={styles.statValue}>{recentStudents.length}</div>
-            <div className={styles.statTitle}>Total Students</div>
-          </div>
-        </div>
-        <div className={styles.statCard}>
           <div className={`${styles.statIcon} ${styles.warning}`}><FileTextIcon size={24} /></div>
           <div className={styles.statInfo}>
             <div className={styles.statValue}>{pendingGrading}</div>
             <div className={styles.statTitle}>Pending Grades</div>
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.info}`}><ClipboardIcon size={24} /></div>
-          <div className={styles.statInfo}>
-            <div className={styles.statValue}>{tasks.length}</div>
-            <div className={styles.statTitle}>Total Tasks</div>
           </div>
         </div>
       </div>
@@ -229,7 +210,6 @@ export default function StaffDashboard() {
               <div key={course.id} className={styles.staffCourseItem}>
                 <div className={styles.courseHeader}>
                   <span className={styles.courseCode}>{course.code || '—'}</span>
-                  <span className={styles.studentCount}>{course.students} students</span>
                 </div>
                 <div className={styles.courseName}>{course.name}</div>
                 {course.department && (
@@ -242,9 +222,18 @@ export default function StaffDashboard() {
                   <span><MapPinIcon size={14} /> {course.room || 'Room TBD'}</span>
                 </div>
                 <div className={styles.courseActions}>
-                  <button className={styles.smallBtn} onClick={() => {}}>View Class</button>
-                  <button className={styles.smallBtn} onClick={() => {}}>Grades</button>
-                  <button className={styles.smallBtn} onClick={() => {}}>Materials</button>
+                  <button
+                    className={styles.smallBtn}
+                    onClick={() => navigate(`/course-grades/${course.id}`)}
+                  >
+                    Grades
+                  </button>
+                  <button
+                    className={styles.smallBtn}
+                    onClick={() => navigate(`/materials/${course.id}`)}
+                  >
+                    Materials
+                  </button>
                 </div>
               </div>
             ))}
@@ -255,7 +244,7 @@ export default function StaffDashboard() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2>Recent Submissions</h2>
-            <button className={styles.viewAllBtn} onClick={() => {}}>View All</button>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/submissions')}>View All</button>
           </div>
           <div className={styles.studentList}>
             {recentStudents.length === 0 ? (
