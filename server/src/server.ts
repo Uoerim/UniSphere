@@ -20,7 +20,9 @@ import cors from "cors";
 
 
 const app = express();
-app.use(express.json());
+// Increase body size limits to support large data URLs (e.g., PDF uploads)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
 
