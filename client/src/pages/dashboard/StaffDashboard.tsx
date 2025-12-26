@@ -48,67 +48,57 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const formatSchedule = (schedule?: string) => {
-    if (!schedule) return 'Schedule TBD';
-    try {
-      const parsed = JSON.parse(schedule);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item: any) => {
-          const days = Array.isArray(item.days) ? item.days.join(', ') : '';
-          return `${days}${item.startTime && item.endTime ? `, ${item.startTime}–${item.endTime}` : ''}`;
-        }).join(' | ');
-      }
-    } catch {
-      // fall back to raw schedule string
-    }
-    return schedule;
-  };
-
   useEffect(() => {
-    const loadCourses = async () => {
-      if (!token) return;
+    const loadDashboardData = async () => {
+      if (!user?.id) return;
+      
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/curriculum/my-courses`, {
+        // Fetch courses
+        const coursesRes = await fetch(`http://localhost:4000/api/staff-dashboard/courses/${user.id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!res.ok) throw new Error('Failed to load courses');
-        const data = await res.json();
-        const normalized: Course[] = data.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          code: c.code,
-          schedule: formatSchedule(c.schedule),
-          room: c.room || 'TBD',
-          capacity: c.capacity,
-          students: c.enrolledStudents ?? 0,
-        }));
-        setCourses(normalized);
+        if (coursesRes.ok) {
+          const coursesData = await coursesRes.json();
+          setCourses(coursesData);
+        }
+
+        // Fetch tasks
+        const tasksRes = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          setTasks(tasksData);
+        }
+
+        // Fetch submissions (recent student grades)
+        const submissionsRes = await fetch(`http://localhost:4000/api/staff-dashboard/submissions/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (submissionsRes.ok) {
+          const submissionsData = await submissionsRes.json();
+          setRecentStudents(submissionsData);
+        }
+
+        // Fetch messages
+        const messagesRes = await fetch(`http://localhost:4000/api/staff-dashboard/messages/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (messagesRes.ok) {
+          const messagesData = await messagesRes.json();
+          setMessages(messagesData);
+        }
       } catch (err: any) {
-        setError(err.message || 'Failed to load courses');
-        setCourses([]);
+        setError(err.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
     };
 
-    loadCourses();
-
-    setTasks([
-      { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
-      { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
-      { id: '3', title: 'Prepare Spring Syllabus', type: 'preparation', dueDate: '2025-12-30', priority: 'medium' },
-      { id: '4', title: 'Submit Research Grant', type: 'admin', dueDate: '2026-01-05', priority: 'medium' },
-      { id: '5', title: 'Review TA Applications', type: 'admin', dueDate: '2026-01-10', priority: 'low' },
-    ]);
-    setRecentStudents([]);
-    setMessages([
-      { id: '1', from: 'Dean Wilson', subject: 'Spring Planning', preview: 'Please review the attached...', time: '2h ago', unread: true },
-      { id: '2', from: 'John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
-      { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
-    ]);
-  }, [token]);
+    loadDashboardData();
+  }, [user?.id, token]);
 
   // Helpers
   const getPriorityColor = (priority: Task['priority']) => {

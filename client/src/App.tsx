@@ -6,10 +6,12 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Students from './pages/students/Students';
 import StudentManagement from './pages/students/StudentManagement';
+import StudentPage from './pages/students/StudentPage';
 import CoursesRouter from './pages/courses/CoursesRouter';
 import Users from './pages/users/Users';
 import Staff from './pages/staff/Staff';
 import StaffManagement from './pages/staff/StaffManagement';
+import StaffPage from './pages/staff/StaffPage';
 import Departments from './pages/departments/Departments';
 import ParentManagement from './pages/parents/ParentManagement';
 import Assessments from './pages/assessments/Assessments';
@@ -26,12 +28,21 @@ import Events from './pages/events/Events';
 import Settings from './pages/settings/Settings';
 
 // Role-based Student page wrapper
-function StudentsPage() {
+function StudentsPageWrapper() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   if (user?.role === 'ADMIN') {
     return <StudentManagement />;
   }
-  return <Students />;
+  return <StudentPage />;
+}
+
+// Role-based Staff page wrapper
+function StaffPageWrapper() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (user?.role === 'ADMIN') {
+    return <StaffManagement />;
+  }
+  return <StaffPage />;
 }
 
 export default function App() {
@@ -51,8 +62,8 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<Users />} />
-            <Route path="students" element={<StudentsPage />} />
-            <Route path="staff" element={<StaffManagement />} />
+            <Route path="students" element={<StudentsPageWrapper />} />
+            <Route path="staff" element={<StaffPageWrapper />} />
             <Route path="staff-old" element={<Staff />} />
             <Route path="courses" element={<CoursesRouter />} />
             <Route path="departments" element={<Departments />} />

@@ -1,49 +1,108 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import styles from '../../styles/pages.module.css';
 
-const initialTasks = [
-  { id: '1', title: 'Grade CS101 Projects', type: 'grading', dueDate: '2025-12-26', priority: 'high' },
-  { id: '2', title: 'Department Meeting', type: 'meeting', dueDate: '2025-12-24', priority: 'high' },
-  { id: '3', title: 'Prepare Spring Syllabus', type: 'preparation', dueDate: '2025-12-30', priority: 'medium' },
-  { id: '4', title: 'Submit Research Grant', type: 'admin', dueDate: '2026-01-05', priority: 'medium' },
-  { id: '5', title: 'Review TA Applications', type: 'admin', dueDate: '2026-01-10', priority: 'low' },
-];
+interface Task {
+  id: string;
+  title: string;
+  type: string;
+  dueDate: string;
+  priority: string;
+}
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState(initialTasks);
+  const { user, token } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: '', dueDate: '', priority: 'medium' });
   const [isAdding, setIsAdding] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', dueDate: '', priority: 'medium' });
+  const [loading, setLoading] = useState(true);
 
-  const handleEdit = (task: typeof initialTasks[0]) => {
+  useEffect(() => {
+    const loadTasks = async () => {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setTasks(data);
+        }
+      } catch (err) {
+        console.error('Failed to load tasks:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTasks();
+  }, [user?.id, token]);
+
+  const handleEdit = (task: Task) => {
     setEditingId(task.id);
     setEditForm({ title: task.title, dueDate: task.dueDate, priority: task.priority });
   };
 
-  const handleSave = (id: string) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, ...editForm } : t));
-    setEditingId(null);
-  };
-
-  const handleDelete = (id: string) => {
-    setTasks(tasks.filter(t => t.id !== id));
-  };
-
-  const handleAddTask = () => {
-    if (newTask.title.trim()) {
-      const task = {
-        id: Date.now().toString(),
-        title: newTask.title,
-        type: 'admin' as const,
-        dueDate: newTask.dueDate,
-        priority: newTask.priority as 'high' | 'medium' | 'low',
-      };
-      setTasks([...tasks, task]);
-      setNewTask({ title: '', dueDate: '', priority: 'medium' });
-      setIsAdding(false);
+  const handleSave = async (id: string) => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editForm)
+      });
+      if (res.ok) {
+        setTasks(tasks.map(t => t.id === id ? { ...t, ...editForm } : t));
+        setEditingId(null);
+      }
+    } catch (err) {
+      console.error('Failed to save task:', err);
     }
   };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setTasks(tasks.filter(t => t.id !== id));
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
+  };
+
+  const handleAddTask = async () => {
+    if (!newTask.title.trim() || !user?.id) return;
+    try {
+      const res = await fetch(`http://localhost:4000/api/staff-dashboard/tasks/${user.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newTask)
+      });
+      if (res.ok) {
+        const task = await res.json();
+        setTasks([...tasks, task]);
+        setNewTask({ title: '', dueDate: '', priority: 'medium' });
+        setIsAdding(false);
+      }
+    } catch (err) {
+      console.error('Failed to create task:', err);
+    }
+  };
+
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading tasks...</div>;
 
   return (
     <div className={styles.container}>

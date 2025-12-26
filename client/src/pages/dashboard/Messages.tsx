@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import styles from './RoleDashboard.module.css';
 
 interface Message {
@@ -11,11 +12,33 @@ interface Message {
 }
 
 export default function Messages() {
-  const [messages] = useState<Message[]>([
-    { id: '1', from: 'Dean Wilson', subject: 'Spring Planning', preview: 'Please review the attached...', time: '2h ago', unread: true },
-    { id: '2', from: 'John Smith', subject: 'Question about Project', preview: 'Hi Professor, I had a question...', time: '4h ago', unread: true },
-    { id: '3', from: 'HR', subject: 'Benefits Update', preview: 'Annual benefits enrollment...', time: 'Yesterday', unread: false },
-  ]);
+  const { user, token } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`http://localhost:4000/api/staff-dashboard/messages/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data);
+        }
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMessages();
+  }, [user?.id, token]);
+
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading messages...</div>;
 
   return (
     <div className={styles.container}>
