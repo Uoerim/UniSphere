@@ -1,27 +1,69 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import styles from '../../styles/pages.module.css';
 
-const initialSubmissions = [
-  { id: '1', name: 'John Smith', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
-  { id: '2', name: 'Emily Chen', course: 'CS201', lastSubmission: 'Assignment 5', grade: 'A' },
-  { id: '3', name: 'Michael Brown', course: 'CS101', lastSubmission: 'Project 3', grade: 'Pending' },
-  { id: '4', name: 'Sarah Davis', course: 'CS301', lastSubmission: 'Lab Report', grade: 'B+' },
-];
+interface Submission {
+  id: string;
+  name: string;
+  course: string;
+  lastSubmission: string;
+  grade: string;
+}
 
 export default function Submissions() {
-  const [submissions, setSubmissions] = useState(initialSubmissions);
+  const { user, token } = useAuth();
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrade, setEditGrade] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const handleEdit = (submission: typeof initialSubmissions[0]) => {
+  useEffect(() => {
+    const loadSubmissions = async () => {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`http://localhost:4000/api/staff-dashboard/submissions/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSubmissions(data);
+        }
+      } catch (err) {
+        console.error('Failed to load submissions:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSubmissions();
+  }, [user?.id, token]);
+
+  const handleEdit = (submission: Submission) => {
     setEditingId(submission.id);
     setEditGrade(submission.grade);
   };
 
-  const handleSave = (id: string) => {
-    setSubmissions(submissions.map(s => s.id === id ? { ...s, grade: editGrade } : s));
-    setEditingId(null);
+  const handleSave = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/staff-dashboard/submissions/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ grade: editGrade })
+      });
+      if (res.ok) {
+        setSubmissions(submissions.map(s => s.id === id ? { ...s, grade: editGrade } : s));
+        setEditingId(null);
+      }
+    } catch (err) {
+      console.error('Failed to save grade:', err);
+    }
   };
+
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading submissions...</div>;
 
   return (
     <div className={styles.container}>
