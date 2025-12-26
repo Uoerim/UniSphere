@@ -81,8 +81,10 @@ export default function Assignments() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [showStudentSubmitModal, setShowStudentSubmitModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<Record<string, { submitted: boolean; submittedAt?: string; status?: string; isLate?: boolean }>>({});
 
   // Form data
   const [formData, setFormData] = useState({
@@ -102,6 +104,8 @@ export default function Assignments() {
   });
   const [gradesData, setGradesData] = useState<Record<string, { grade: number; feedback: string }>>({});
   const [formLoading, setFormLoading] = useState(false);
+  const [studentSubmitLoading, setStudentSubmitLoading] = useState(false);
+  const [studentSubmitData, setStudentSubmitData] = useState<{ content: string; fileUrl: string }>({ content: "", fileUrl: "" });
 
   useEffect(() => {
     fetchAssignments();
@@ -115,7 +119,25 @@ export default function Assignments() {
   const fetchAssignments = async () => {
     try {
       const res = await api.get<Assignment[]>("/assignments");
-      setAssignments(res.data);
+      const list = res.data;
+      setAssignments(list);
+
+      // For students, also fetch my submission status per assignment
+      if (isStudent && list.length > 0) {
+        const entries = await Promise.all(
+          list.map(async (a) => {
+            try {
+              const s = await api.get<{ submitted: boolean; submittedAt?: string; status?: string; isLate?: boolean }>(`/assignments/${a.id}/my-submission`);
+              return [a.id, s.data] as const;
+            } catch {
+              return [a.id, { submitted: false }] as const;
+            }
+          })
+        );
+        setMySubmissions(Object.fromEntries(entries));
+      } else {
+        setMySubmissions({});
+      }
     } catch (err) {
       console.error("Failed to fetch assignments:", err);
     } finally {
@@ -287,6 +309,35 @@ export default function Assignments() {
     } catch (err) {
       console.error("Failed to fetch submissions:", err);
       alert("Failed to load submissions");
+    }
+  };
+
+  // Student: open submit modal
+  const handleOpenStudentSubmit = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setStudentSubmitData({ content: "", fileUrl: "" });
+    setShowStudentSubmitModal(true);
+  };
+
+  // Student: submit assignment
+  const handleStudentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAssignment) return;
+    try {
+      setStudentSubmitLoading(true);
+      await api.post(`/assignments/${selectedAssignment.id}/submit`, {
+        content: studentSubmitData.content || undefined,
+        fileUrl: studentSubmitData.fileUrl || undefined,
+      });
+      setShowStudentSubmitModal(false);
+      // Refresh assignments to update submission counts
+      fetchAssignments();
+      alert("Submission uploaded successfully");
+    } catch (err) {
+      console.error("Failed to submit assignment:", err);
+      alert("Failed to submit assignment");
+    } finally {
+      setStudentSubmitLoading(false);
     }
   };
 
@@ -554,6 +605,16 @@ export default function Assignments() {
                       {assignment.submissionCount} / {assignment.totalStudents}
                     </span>
                   </div>
+                  {isStudent && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.label}>My Status</span>
+                      <span className={styles.value}>
+                        {mySubmissions[assignment.id]?.submitted
+                          ? `Submitted ${formatDateTime(mySubmissions[assignment.id]?.submittedAt as string)}`
+                          : 'Not submitted'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {assignment.description && (
@@ -595,6 +656,13 @@ export default function Assignments() {
                   </button>
                 </div>
               )}
+                {isStudent && (
+                  <div className={styles.cardFooter}>
+                    <button className={styles.submitBtn} onClick={() => handleOpenStudentSubmit(assignment)}>
+                      {mySubmissions[assignment.id]?.submitted ? 'Resubmit' : 'Submit Assignment'}
+                    </button>
+                  </div>
+                )}
             </div>
           ))}
         </div>
@@ -936,6 +1004,54 @@ export default function Assignments() {
                 </button>
                 <button type="submit" className={styles.submitBtn} disabled={formLoading}>
                   {formLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Student Submit Modal */}
+      {isStudent && showStudentSubmitModal && selectedAssignment && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2>Submit: {selectedAssignment.title}</h2>
+              <button className={styles.closeBtn} onClick={() => setShowStudentSubmitModal(false)}>
+                <XIcon />
+              </button>
+            </div>
+            <form onSubmit={handleStudentSubmit}>
+              <div className={styles.modalBody}>
+                <div className={styles.formGroup}>
+                  <label>Submission Text</label>
+                  <textarea
+                    rows={5}
+                    placeholder="Write your answer or notes (optional if providing a file/link)"
+                    value={studentSubmitData.content}
+                    onChange={(e) => setStudentSubmitData({ ...studentSubmitData, content: e.target.value })}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>File URL (optional)</label>
+                  <input
+                    type="url"
+                    placeholder="https://... (Drive, GitHub, etc.)"
+                    value={studentSubmitData.fileUrl}
+                    onChange={(e) => setStudentSubmitData({ ...studentSubmitData, fileUrl: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => setShowStudentSubmitModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={styles.submitBtn} disabled={studentSubmitLoading}>
+                  {studentSubmitLoading ? 'Submitting...' : 'Submit'}
                 </button>
               </div>
             </form>

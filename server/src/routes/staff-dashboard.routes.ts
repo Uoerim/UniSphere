@@ -376,7 +376,7 @@ staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req,
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    console.log('📤 Getting submissions for staff:', staffId);
+    console.log('📤 Getting recent assignment submissions for staff:', staffId);
 
     // Get staff account and entity
     const account = await prisma.account.findUnique({
@@ -391,76 +391,95 @@ staffDashboardRouter.get("/submissions/:staffId", authenticateToken, async (req,
 
     const staffEntityId = account.entity.id;
 
-    // Find all courses taught by this staff using EAV model (TEACHES relations)
-    const teachesRelations = await prisma.entityRelation.findMany({
-      where: {
-        fromEntityId: staffEntityId,
-        relationType: 'TEACHES',
-        isActive: true
-      },
+    // 1) Courses taught by staff
+    const teaches = await prisma.entityRelation.findMany({
+      where: { fromEntityId: staffEntityId, relationType: 'TEACHES', isActive: true },
       include: {
-        toEntity: {
-          include: {
-            values: { include: { attribute: true } },
-            relationsTo: {
-              where: { relationType: 'ENROLLED_IN', isActive: true },
-              include: {
-                fromEntity: {
-                  include: {
-                    values: { include: { attribute: true } }
-                  }
-                }
-              }
-            }
-          }
-        }
+        toEntity: { include: { values: { include: { attribute: true } } } }
       }
     });
 
-    console.log('✅ Found', teachesRelations.length, 'courses taught');
+    const courseIds = teaches.map(t => t.toEntityId);
+    if (courseIds.length === 0) return res.json([]);
 
-    const submissions: any[] = [];
+    // Build course code map
+    const courseCodeById = new Map<string, string>();
+    teaches.forEach(t => {
+      const attrs: Record<string, any> = {};
+      t.toEntity.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      courseCodeById.set(t.toEntityId, attrs.courseCode || attrs.code || t.toEntity.name || 'COURSE');
+    });
 
-    // For each course, get all enrolled students
-    for (const courseRel of teachesRelations) {
-      const courseEntity = courseRel.toEntity;
-      const courseAttrs: Record<string, any> = {};
-      
-      courseEntity.values.forEach((v: any) => {
-        courseAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+    // 2) Assignments for those courses
+    const assignmentRels = await prisma.entityRelation.findMany({
+      where: { relationType: 'ASSIGNMENT_FOR', isActive: true, toEntityId: { in: courseIds } },
+      include: {
+        fromEntity: { include: { values: { include: { attribute: true } } } }, // assignment
+        toEntity: true // course
+      }
+    });
+
+    const assignmentIds = assignmentRels.map(r => r.fromEntityId);
+    if (assignmentIds.length === 0) return res.json([]);
+
+    // Map assignment -> courseId and title
+    const assignmentInfo = new Map<string, { courseId: string; title: string }>();
+    assignmentRels.forEach(r => {
+      const attrs: Record<string, any> = {};
+      r.fromEntity.values.forEach((v: any) => {
+        attrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
+      });
+      const title = attrs.title || r.fromEntity.name || 'Assignment';
+      assignmentInfo.set(r.fromEntityId, { courseId: r.toEntityId, title });
+    });
+
+    // 3) Submissions to those assignments
+    const submissions = await prisma.entityRelation.findMany({
+      where: { relationType: 'SUBMITTED_FOR', isActive: true, toEntityId: { in: assignmentIds } },
+      include: {
+        fromEntity: { // student
+          include: {
+            values: { include: { attribute: true } },
+            account: { select: { email: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+
+    // Format response for dashboard
+    const result = submissions.map((rel) => {
+      const student = rel.fromEntity as any;
+      const sAttrs: Record<string, any> = {};
+      student.values.forEach((v: any) => {
+        sAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
       });
 
-      const courseCode = courseAttrs.courseCode || courseAttrs.code || 'COURSE';
+      const info = assignmentInfo.get(rel.toEntityId);
+      const courseCode = info ? (courseCodeById.get(info.courseId) || 'COURSE') : 'COURSE';
 
-      // Get all enrolled students in this course
-      const enrolledStudents = courseEntity.relationsTo.filter(
-        (r: any) => r.relationType === 'ENROLLED_IN' && r.isActive
-      );
+      let meta: any = {};
+      if (rel.metadata) {
+        try { meta = JSON.parse(rel.metadata); } catch {}
+      }
 
-      // Create submission entry for each student
-      enrolledStudents.forEach((enrollment: any) => {
-        const studentEntity = enrollment.fromEntity;
-        const studentAttrs: Record<string, any> = {};
-        
-        studentEntity.values.forEach((v: any) => {
-          studentAttrs[v.attribute.name] = v.valueString || v.valueNumber || v.valueBool || v.valueDate;
-        });
+      const submittedAt = meta.submittedAt ? new Date(meta.submittedAt) : rel.createdAt;
+      const status = meta.status || 'submitted';
+      const gradeText = status === 'graded' ? 'Graded' : 'Submitted';
 
-        const firstName = studentAttrs.firstName || 'Unknown';
-        const lastName = studentAttrs.lastName || 'Student';
+      return {
+        id: rel.id,
+        name: sAttrs.firstName && sAttrs.lastName ? `${sAttrs.firstName} ${sAttrs.lastName}` : (student.account?.email || 'Unknown'),
+        course: courseCode,
+        lastSubmission: formatTime(submittedAt),
+        grade: gradeText,
+      };
+    });
 
-        submissions.push({
-          id: enrollment.id,
-          name: `${firstName} ${lastName}`,
-          course: courseCode,
-          lastSubmission: 'No recent submission',
-          grade: 'Pending',
-        });
-      });
-    }
-
-    console.log('✅ Found', submissions.length, 'total student enrollments');
-    res.json(submissions.slice(0, 100)); // Limit to 100 recent
+    res.json(result);
   } catch (error: any) {
     console.error("❌ Error fetching submissions:", error);
     res.status(500).json({ error: error.message || "Failed to fetch submissions" });

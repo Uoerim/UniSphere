@@ -698,4 +698,49 @@ router.post("/:id/submissions/:submissionId/grade", authenticateToken, requireAd
   }
 });
 
+// Get current student's submission for an assignment
+router.get("/:id/my-submission", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+
+    // Get student's entity
+    const account = await prisma.account.findUnique({
+      where: { id: user.id },
+      include: { entity: true }
+    });
+
+    if (!account?.entity) {
+      return res.json({ submitted: false });
+    }
+
+    const relation = await prisma.entityRelation.findFirst({
+      where: {
+        fromEntityId: account.entity.id,
+        toEntityId: id,
+        relationType: 'SUBMITTED_FOR'
+      }
+    });
+
+    if (!relation) {
+      return res.json({ submitted: false });
+    }
+
+    let meta: any = {};
+    if (relation.metadata) {
+      try { meta = JSON.parse(relation.metadata); } catch {}
+    }
+
+    return res.json({
+      submitted: true,
+      submittedAt: meta.submittedAt || relation.createdAt,
+      status: meta.status || 'submitted',
+      isLate: Boolean(meta.isLate),
+    });
+  } catch (error) {
+    console.error('Get my submission error:', error);
+    res.status(500).json({ error: 'Failed to fetch submission status' });
+  }
+});
+
 export const assignmentRouter = router;

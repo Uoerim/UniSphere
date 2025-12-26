@@ -73,7 +73,7 @@ export default function StaffDashboard() {
     if (!token || !user) return;
     try {
       const base = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${base}/api/curriculum/my-courses`, {
+      const res = await fetch(`${base}/curriculum/my-courses`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to load courses');
@@ -102,8 +102,8 @@ export default function StaffDashboard() {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [tasksRes, submissionsRes] = await Promise.all([
-        fetch(`${base}/api/staff-dashboard/tasks/${user.id}`, { headers }),
-        fetch(`${base}/api/staff-dashboard/submissions/${user.id}`, { headers }),
+        fetch(`${base}/staff-dashboard/tasks/${user.id}`, { headers }),
+        fetch(`${base}/staff-dashboard/submissions/${user.id}`, { headers }),
       ]);
 
       if (tasksRes.ok) {
@@ -164,7 +164,7 @@ export default function StaffDashboard() {
             <span className={styles.statLabel}>Courses</span>
           </div>
           <div className={styles.welcomeStat}>
-            <span className={styles.statNumber}>{totalStudents}</span>
+            <span className={styles.statNumber}>{recentStudents.length}</span>
             <span className={styles.statLabel}>Students</span>
           </div>
           <div className={styles.welcomeStat}>
@@ -186,7 +186,7 @@ export default function StaffDashboard() {
         <div className={styles.statCard}>
           <div className={`${styles.statIcon} ${styles.success}`}><UsersIcon size={24} /></div>
           <div className={styles.statInfo}>
-            <div className={styles.statValue}>{totalStudents}</div>
+            <div className={styles.statValue}>{recentStudents.length}</div>
             <div className={styles.statTitle}>Total Students</div>
           </div>
         </div>
