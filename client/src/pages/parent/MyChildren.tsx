@@ -143,10 +143,6 @@ export default function MyChildren() {
                                     <div className={styles.statValue}>--</div>
                                     <div className={styles.statLabel}>GPA</div>
                                 </div>
-                                <div className={styles.stat}>
-                                    <div className={styles.statValue}>--</div>
-                                    <div className={styles.statLabel}>Attendance</div>
-                                </div>
                             </div>
 
                             {/* Courses Preview */}

@@ -5,7 +5,6 @@ import {
     ChevronLeftIcon,
     BookOpenIcon,
     ChartIcon,
-    CheckCircleIcon,
     MailIcon,
     CalendarIcon,
     ClipboardIcon,
@@ -145,15 +144,6 @@ export default function ChildDetails() {
                     </div>
                 </div>
                 <div className={styles.statCard}>
-                    <div className={`${styles.statIcon} ${styles.warning}`}>
-                        <CheckCircleIcon size={24} />
-                    </div>
-                    <div className={styles.statInfo}>
-                        <h4>--</h4>
-                        <p>Attendance %</p>
-                    </div>
-                </div>
-                <div className={styles.statCard}>
                     <div className={`${styles.statIcon} ${styles.purple}`}>
                         <ClipboardIcon size={24} />
                     </div>
@@ -210,13 +200,9 @@ export default function ChildDetails() {
                     </div>
 
                     <div className={styles.actionGrid}>
-                        <button className={styles.actionBtn} onClick={() => navigate('/grades')}>
+                        <button className={styles.actionBtn} onClick={() => navigate('/parent-grades')}>
                             <ChartIcon size={24} />
                             <span>View Grades</span>
-                        </button>
-                        <button className={styles.actionBtn} onClick={() => navigate('/attendance')}>
-                            <CheckCircleIcon size={24} />
-                            <span>Attendance</span>
                         </button>
                         <button className={styles.actionBtn}>
                             <MailIcon size={24} />
