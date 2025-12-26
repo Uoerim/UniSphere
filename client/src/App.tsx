@@ -31,6 +31,7 @@ import Settings from './pages/settings/Settings';
 // Parent portal pages
 import MyChildren from './pages/parent/MyChildren';
 import ChildDetails from './pages/parent/ChildDetails';
+import ParentGrades from './pages/parent/ParentGrades';
 
 // Role-based Student page wrapper - uses auth context
 function StudentsPage() {
@@ -92,6 +93,7 @@ function AppRoutes() {
           {/* Parent Portal Routes */}
           <Route path="children" element={<MyChildren />} />
           <Route path="children/:childId" element={<ChildDetails />} />
+          <Route path="parent-grades" element={<ParentGrades />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
