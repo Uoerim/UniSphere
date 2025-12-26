@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { SocketProvider } from './context/SocketContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ChangePasswordModal from './components/ui/ChangePasswordModal';
 import Login from './pages/login/Login';
@@ -115,7 +116,9 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
-          <AppRoutes />
+          <SocketProvider>
+            <AppRoutes />
+          </SocketProvider>
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
