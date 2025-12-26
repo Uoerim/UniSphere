@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import Modal from "../../components/ui/Modal";
 import styles from "../../styles/pages.module.css";
 import modalStyles from "../../components/ui/Modal.module.css";
 
@@ -90,7 +91,6 @@ export default function Assignments() {
           course.instructor?.accountId === user?.id || 
           course.instructor?.email === user?.email
         );
-        // Show filtered courses if available, otherwise show all courses
         setCourses(myCourses.length > 0 ? myCourses : allCourses);
       }
     } catch (err) {
@@ -103,7 +103,7 @@ export default function Assignments() {
       title: "",
       description: "",
       status: "Draft",
-      courseId: courses[0]?.id || "",
+      courseId: courses && courses.length > 0 ? courses[0].id : "",
       dueDate: "",
       dueTime: "",
       totalPoints: 100,
@@ -279,7 +279,6 @@ export default function Assignments() {
     draft: assignments.filter(a => a.status === 'Draft').length,
     published: assignments.filter(a => a.status === 'Published').length,
     closed: assignments.filter(a => a.status === 'Closed').length,
-    archived: assignments.filter(a => a.status === 'Archived').length,
   };
 
   const getStatusIcon = (status?: string) => {
@@ -289,16 +288,6 @@ export default function Assignments() {
       case 'Closed': return '🔒';
       case 'Archived': return '📦';
       default: return '📄';
-    }
-  };
-
-  const getStatusColor = (status?: string) => {
-    switch(status) {
-      case 'Published': return '#10b981';
-      case 'Draft': return '#f59e0b';
-      case 'Closed': return '#ef4444';
-      case 'Archived': return '#9ca3af';
-      default: return '#6b7280';
     }
   };
 
@@ -314,16 +303,92 @@ export default function Assignments() {
     return time ? `${formatted} at ${time}` : formatted;
   };
 
-  const getDaysUntilDue = (date?: string) => {
-    if (!date) return null;
-    const due = new Date(date);
-    const now = new Date();
-    const diff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return `${Math.abs(diff)} days overdue`;
-    if (diff === 0) return 'Due today';
-    if (diff === 1) return 'Due tomorrow';
-    return `Due in ${diff} days`;
-  };
+  const renderFormContent = () => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Title *</label>
+        <input
+          type="text"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          required
+          placeholder="Assignment title"
+          style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+        />
+      </div>
+      <div>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Status *</label>
+        <select
+          value={formData.status}
+          onChange={(e) => setFormData({ ...formData, status: e.target.value as AssignmentStatus })}
+          required
+          style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+        >
+          <option value="Draft">Draft</option>
+          <option value="Published">Published</option>
+          <option value="Closed">Closed</option>
+          <option value="Archived">Archived</option>
+        </select>
+      </div>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Course *</label>
+        <select
+          value={formData.courseId}
+          onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+          required
+          style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+        >
+          <option value="">Select a course</option>
+          {courses.map((course) => (
+            <option key={course.id} value={course.id}>
+              {course.code} - {course.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Due Date *</label>
+        <input
+          type="date"
+          value={formData.dueDate}
+          onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+          required
+          style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+        />
+      </div>
+      <div>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Total Points *</label>
+        <input
+          type="number"
+          value={formData.totalPoints}
+          onChange={(e) => setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })}
+          required
+          min="1"
+          style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+        />
+      </div>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={formData.allowLateSubmission}
+            onChange={(e) => setFormData({ ...formData, allowLateSubmission: e.target.checked })}
+          />
+          Allow Late Submission
+        </label>
+      </div>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={2}
+          placeholder="Brief description"
+          style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className={styles.container}>
@@ -407,7 +472,7 @@ export default function Assignments() {
                     fontSize: '12px',
                     fontWeight: '600',
                     backgroundColor: '#f3f4f6',
-                    color: getStatusColor(assignment.status)
+                    color: '#6b7280'
                   }}>
                     {assignment.status || 'N/A'}
                   </span>
@@ -416,20 +481,13 @@ export default function Assignments() {
                   {assignment.course?.code} - {assignment.course?.name}
                 </p>
                 {assignment.description && (
-                  <p style={{ margin: '8px 0', fontSize: '14px', color: '#6b7280', lineHeight: '1.5' }}>
-                    {assignment.description.substring(0, 100)}{assignment.description.length > 100 ? '...' : ''}
+                  <p style={{ margin: '8px 0', fontSize: '14px', color: '#6b7280' }}>
+                    {assignment.description}
                   </p>
                 )}
-                <div style={{ display: 'flex', gap: '24px', marginTop: '8px', fontSize: '13px', color: '#9ca3af', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '24px', marginTop: '8px', fontSize: '13px', color: '#9ca3af' }}>
                   <span>📅 {formatDate(assignment.dueDate, assignment.dueTime)}</span>
                   {assignment.totalPoints && <span>⭐ {assignment.totalPoints} points</span>}
-                  {getDaysUntilDue(assignment.dueDate) && (
-                    <span style={{ 
-                      color: new Date(assignment.dueDate!) < new Date() ? '#dc2626' : '#6b7280'
-                    }}>
-                      ⏰ {getDaysUntilDue(assignment.dueDate)}
-                    </span>
-                  )}
                   {assignment.allowLateSubmission && <span>🕐 Late submission allowed</span>}
                 </div>
               </div>
@@ -476,329 +534,106 @@ export default function Assignments() {
         </div>
       )}
 
-      {/* Add Modal */}
-      {showAddModal && (
-        <div className={modalStyles.modalOverlay} onClick={() => setShowAddModal(false)}>
-          <div className={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={modalStyles.modalHeader}>
-              <h2>Create Assignment</h2>
-              <button className={modalStyles.closeBtn} onClick={() => setShowAddModal(false)}>✕</button>
-            </div>
-            {formError && <div style={{ padding: '12px', background: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '16px', margin: '16px' }}>{formError}</div>}
-            <form onSubmit={handleSubmitAdd}>
-              <div className={modalStyles.modalBody}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Title *</label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      required
-                      placeholder="Assignment title"
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Status *</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as AssignmentStatus })}
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    >
-                      <option value="Draft">Draft</option>
-                      <option value="Published">Published</option>
-                      <option value="Closed">Closed</option>
-                      <option value="Archived">Archived</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Course *</label>
-                    <select
-                      value={formData.courseId}
-                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    >
-                      <option value="">Select a course</option>
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.code} - {course.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Due Date *</label>
-                    <input
-                      type="date"
-                      value={formData.dueDate}
-                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Due Time</label>
-                    <input
-                      type="time"
-                      value={formData.dueTime}
-                      onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Total Points *</label>
-                    <input
-                      type="number"
-                      value={formData.totalPoints}
-                      onChange={(e) => setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })}
-                      required
-                      min="1"
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.allowLateSubmission}
-                      onChange={(e) => setFormData({ ...formData, allowLateSubmission: e.target.checked })}
-                    />
-                    Allow Late Submission
-                  </label>
-                  {formData.allowLateSubmission && (
-                    <div style={{ marginTop: '8px' }}>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Late Penalty (%)</label>
-                      <input
-                        type="number"
-                        value={formData.latePenalty}
-                        onChange={(e) => setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })}
-                        min="0"
-                        max="100"
-                        style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={2}
-                    placeholder="Brief description"
-                    style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Instructions</label>
-                  <textarea
-                    value={formData.instructions}
-                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                    rows={3}
-                    placeholder="Assignment instructions for students"
-                    style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-              <div className={modalStyles.modalFooter}>
-                <button type="button" className={modalStyles.secondaryBtn} onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={modalStyles.primaryBtn} disabled={formLoading}>
-                  {formLoading ? "Creating..." : "Create Assignment"}
-                </button>
-              </div>
-            </form>
+      {/* Modals */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Create Assignment"
+        size="lg"
+        footer={
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className={modalStyles.btn}
+              onClick={() => setShowAddModal(false)}
+              style={{ backgroundColor: '#f3f4f6', color: '#1a1f36', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={modalStyles.btn}
+              onClick={handleSubmitAdd}
+              disabled={formLoading}
+              style={{ backgroundColor: '#4f6ef7', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              {formLoading ? "Creating..." : "Create Assignment"}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <form onSubmit={handleSubmitAdd}>
+          {formError && <div style={{ padding: '12px', background: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '16px' }}>{formError}</div>}
+          {renderFormContent()}
+        </form>
+      </Modal>
 
-      {/* Edit Modal */}
-      {showEditModal && selectedAssignment && (
-        <div className={modalStyles.modalOverlay} onClick={() => setShowEditModal(false)}>
-          <div className={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={modalStyles.modalHeader}>
-              <h2>Edit Assignment</h2>
-              <button className={modalStyles.closeBtn} onClick={() => setShowEditModal(false)}>✕</button>
-            </div>
-            {formError && <div style={{ padding: '12px', background: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '16px', margin: '16px' }}>{formError}</div>}
-            <form onSubmit={handleSubmitEdit}>
-              <div className={modalStyles.modalBody}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Title *</label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Status *</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as AssignmentStatus })}
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    >
-                      <option value="Draft">Draft</option>
-                      <option value="Published">Published</option>
-                      <option value="Closed">Closed</option>
-                      <option value="Archived">Archived</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Course *</label>
-                    <select
-                      value={formData.courseId}
-                      onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    >
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.code} - {course.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Due Date *</label>
-                    <input
-                      type="date"
-                      value={formData.dueDate}
-                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Due Time</label>
-                    <input
-                      type="time"
-                      value={formData.dueTime}
-                      onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Total Points *</label>
-                    <input
-                      type="number"
-                      value={formData.totalPoints}
-                      onChange={(e) => setFormData({ ...formData, totalPoints: parseInt(e.target.value) || 0 })}
-                      required
-                      min="1"
-                      style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.allowLateSubmission}
-                      onChange={(e) => setFormData({ ...formData, allowLateSubmission: e.target.checked })}
-                    />
-                    Allow Late Submission
-                  </label>
-                  {formData.allowLateSubmission && (
-                    <div style={{ marginTop: '8px' }}>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Late Penalty (%)</label>
-                      <input
-                        type="number"
-                        value={formData.latePenalty}
-                        onChange={(e) => setFormData({ ...formData, latePenalty: parseInt(e.target.value) || 0 })}
-                        min="0"
-                        max="100"
-                        style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={2}
-                    style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Instructions</label>
-                  <textarea
-                    value={formData.instructions}
-                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                    rows={3}
-                    style={{ width: '100%', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-              <div className={modalStyles.modalFooter}>
-                <button type="button" className={modalStyles.secondaryBtn} onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={modalStyles.primaryBtn} disabled={formLoading}>
-                  {formLoading ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Assignment"
+        size="lg"
+        footer={
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className={modalStyles.btn}
+              onClick={() => setShowEditModal(false)}
+              style={{ backgroundColor: '#f3f4f6', color: '#1a1f36', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={modalStyles.btn}
+              onClick={handleSubmitEdit}
+              disabled={formLoading}
+              style={{ backgroundColor: '#4f6ef7', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              {formLoading ? "Saving..." : "Save Changes"}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <form onSubmit={handleSubmitEdit}>
+          {formError && <div style={{ padding: '12px', background: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '16px' }}>{formError}</div>}
+          {renderFormContent()}
+        </form>
+      </Modal>
 
-      {/* Delete Modal */}
-      {showDeleteModal && selectedAssignment && (
-        <div className={modalStyles.modalOverlay} onClick={() => setShowDeleteModal(false)}>
-          <div className={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={modalStyles.modalHeader}>
-              <h2>Delete Assignment</h2>
-              <button className={modalStyles.closeBtn} onClick={() => setShowDeleteModal(false)}>✕</button>
-            </div>
-            <div className={modalStyles.modalBody}>
-              <p>Are you sure you want to delete <strong>{selectedAssignment.name || selectedAssignment.title}</strong>?</p>
-              <p style={{ color: '#dc2626' }}>This action cannot be undone.</p>
-            </div>
-            <div className={modalStyles.modalFooter}>
-              <button className={modalStyles.secondaryBtn} onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-              <button
-                className={modalStyles.dangerBtn}
-                onClick={handleSubmitDelete}
-                disabled={formLoading}
-              >
-                {formLoading ? "Deleting..." : "Delete Assignment"}
-              </button>
-            </div>
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Assignment"
+        footer={
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className={modalStyles.btn}
+              onClick={() => setShowDeleteModal(false)}
+              style={{ backgroundColor: '#f3f4f6', color: '#1a1f36', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={modalStyles.btn}
+              onClick={handleSubmitDelete}
+              disabled={formLoading}
+              style={{ backgroundColor: '#dc2626', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              {formLoading ? "Deleting..." : "Delete"}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        {selectedAssignment && (
+          <div>
+            <p>Are you sure you want to delete <strong>{selectedAssignment.name || selectedAssignment.title}</strong>?</p>
+            <p style={{ color: '#dc2626' }}>This action cannot be undone.</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
