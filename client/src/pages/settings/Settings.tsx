@@ -1,90 +1,252 @@
-import { useState } from 'react';
-import styles from '../../styles/pages.module.css';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme, type Theme, type AccentColor } from '../../context/ThemeContext';
 import {
   SettingsIcon,
   BellIcon,
   LockIcon,
   PaletteIcon,
-  LinkIcon,
-  CalendarIcon,
-  BriefcaseIcon,
-  MessageIcon,
-  VideoIcon,
-  CheckIcon
+  CheckIcon,
+  XIcon,
+  MonitorIcon,
+  SunIcon,
+  MoonIcon,
+  ShieldIcon,
+  GlobeIcon,
+  ClockIcon
 } from '../../components/ui/Icons';
+import styles from './Settings.module.css';
+
+interface Session {
+  id: string;
+  device: string;
+  browser: string;
+  location: string;
+  ip: string;
+  lastActive: string;
+  isCurrent: boolean;
+}
 
 export default function Settings() {
+  const { user } = useAuth();
+  const { theme, accentColor, compactMode, setTheme, setAccentColor, setCompactMode } = useTheme();
   const [activeTab, setActiveTab] = useState('general');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // General Settings
   const [generalSettings, setGeneralSettings] = useState({
     universityName: 'UniSphere University',
-    email: 'admin@unisphere.edu',
+    email: user?.email || 'admin@unisphere.edu',
     phone: '+1 (555) 123-4567',
     address: '123 University Ave, Education City',
     timezone: 'America/New_York',
-    language: 'en'
+    language: 'en',
+    dateFormat: 'MM/DD/YYYY',
+    academicYear: '2024-2025'
   });
+
+  // Notification Settings
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
     pushNotifications: true,
-    smsNotifications: false,
     eventReminders: true,
-    systemAlerts: true
+    systemAlerts: true,
+    weeklyDigest: false,
+    announcementAlerts: true
   });
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+
+  // Security - Sessions
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
+
+  // Load sessions on security tab
+  useEffect(() => {
+    if (activeTab === 'security') {
+      loadSessions();
+    }
+  }, [activeTab]);
+
+  const loadSessions = async () => {
+    setIsLoadingSessions(true);
+    try {
+      // Get current session info from browser
+      const userAgent = navigator.userAgent;
+      const browser = getBrowserName(userAgent);
+      const device = getDeviceName(userAgent);
+      
+      // Create current session
+      const currentSession: Session = {
+        id: 'current',
+        device,
+        browser,
+        location: 'Current Location',
+        ip: 'Your IP',
+        lastActive: 'Now',
+        isCurrent: true
+      };
+
+      // Simulated other sessions (in a real app, these would come from the backend)
+      const mockSessions: Session[] = [
+        currentSession,
+        // You could add more sessions here from an API call
+      ];
+
+      setSessions(mockSessions);
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  const getBrowserName = (ua: string): string => {
+    if (ua.includes('Firefox')) return 'Firefox';
+    if (ua.includes('Chrome')) return 'Chrome';
+    if (ua.includes('Safari')) return 'Safari';
+    if (ua.includes('Edge')) return 'Edge';
+    if (ua.includes('Opera')) return 'Opera';
+    return 'Unknown Browser';
+  };
+
+  const getDeviceName = (ua: string): string => {
+    if (ua.includes('Windows')) return 'Windows';
+    if (ua.includes('Mac')) return 'macOS';
+    if (ua.includes('Linux')) return 'Linux';
+    if (ua.includes('Android')) return 'Android';
+    if (ua.includes('iPhone') || ua.includes('iPad')) return 'iOS';
+    return 'Unknown Device';
+  };
+
+  const handleTerminateSession = async (sessionId: string) => {
+    if (sessionId === 'current') {
+      // This would log out the user
+      if (!confirm('This will log you out. Are you sure?')) return;
+    }
+    
+    setSessions(sessions.filter(s => s.id !== sessionId));
+    showNotification('success', 'Session terminated successfully');
+  };
+
+  const handleTerminateAllOtherSessions = async () => {
+    if (!confirm('This will terminate all other sessions. Are you sure?')) return;
+    setSessions(sessions.filter(s => s.isCurrent));
+    showNotification('success', 'All other sessions terminated');
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      if (response.ok) {
+        setShowPasswordModal(false);
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        showNotification('success', 'Password changed successfully');
+      } else {
+        const data = await response.json();
+        setPasswordError(data.error || 'Failed to change password');
+      }
+    } catch (error) {
+      setPasswordError('Failed to change password. Please try again.');
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
-    setSaveMessage('');
+    setSaveMessage(null);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsSaving(false);
-    setSaveMessage('Settings saved successfully!');
-    setTimeout(() => setSaveMessage(''), 3000);
+    try {
+      // In a real app, save to backend
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Save settings to localStorage for persistence
+      localStorage.setItem('generalSettings', JSON.stringify(generalSettings));
+      localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
+      
+      showNotification('success', 'Settings saved successfully!');
+    } catch (error) {
+      showNotification('error', 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const tabs: { id: string; label: string; icon: React.ReactNode }[] = [
+  const showNotification = (type: 'success' | 'error', text: string) => {
+    setSaveMessage({ type, text });
+    setTimeout(() => setSaveMessage(null), 4000);
+  };
+
+  const tabs = [
     { id: 'general', label: 'General', icon: <SettingsIcon size={18} /> },
     { id: 'notifications', label: 'Notifications', icon: <BellIcon size={18} /> },
     { id: 'security', label: 'Security', icon: <LockIcon size={18} /> },
-    { id: 'appearance', label: 'Appearance', icon: <PaletteIcon size={18} /> },
-    { id: 'integrations', label: 'Integrations', icon: <LinkIcon size={18} /> }
+    { id: 'appearance', label: 'Appearance', icon: <PaletteIcon size={18} /> }
+  ];
+
+  const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: 'light', label: 'Light', icon: <SunIcon size={20} /> },
+    { value: 'dark', label: 'Dark', icon: <MoonIcon size={20} /> },
+    { value: 'system', label: 'System', icon: <MonitorIcon size={20} /> }
+  ];
+
+  const accentColors: { value: AccentColor; label: string }[] = [
+    { value: '#2fda90', label: 'Green' },
+    { value: '#3b82f6', label: 'Blue' },
+    { value: '#8b5cf6', label: 'Purple' },
+    { value: '#f59e0b', label: 'Orange' },
+    { value: '#ef4444', label: 'Red' }
   ];
 
   return (
     <div className={styles.container}>
-      <div className={styles.pageHeader}>
-        <div>
-          <h1 className={styles.pageTitle}>Settings</h1>
-          <p className={styles.pageSubtitle}>Manage your university system preferences</p>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.headerContent}>
+          <h1><SettingsIcon size={28} /> Settings</h1>
+          <p>Manage your system preferences and account settings</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px' }}>
+      <div className={styles.settingsLayout}>
         {/* Sidebar */}
-        <div className={styles.card} style={{ width: '240px', padding: '16px', height: 'fit-content' }}>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div className={styles.sidebar}>
+          <nav className={styles.nav}>
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  border: 'none',
-                  background: activeTab === tab.id ? '#eef1fe' : 'transparent',
-                  color: activeTab === tab.id ? '#4f6ef7' : '#6b7280',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: activeTab === tab.id ? '600' : '400',
-                  textAlign: 'left',
-                  transition: 'all 0.2s'
-                }}
+                className={`${styles.navItem} ${activeTab === tab.id ? styles.active : ''}`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -94,133 +256,112 @@ export default function Settings() {
         </div>
 
         {/* Content */}
-        <div className={styles.card} style={{ flex: 1, padding: '24px' }}>
+        <div className={styles.content}>
+          {/* General Settings */}
           {activeTab === 'general' && (
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px' }}>
-                General Settings
-              </h2>
-              
-              <div style={{ display: 'grid', gap: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-                    University Name
-                  </label>
+            <div className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>General Settings</h2>
+                <p>Configure basic system information</p>
+              </div>
+
+              <div className={styles.formGrid}>
+                <div className={styles.formGroup}>
+                  <label>University Name</label>
                   <input
                     type="text"
                     value={generalSettings.universityName}
                     onChange={(e) => setGeneralSettings({ ...generalSettings, universityName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontSize: '14px'
-                    }}
+                    placeholder="Enter university name"
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-                      Email Address
-                    </label>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Email Address</label>
                     <input
                       type="email"
                       value={generalSettings.email}
                       onChange={(e) => setGeneralSettings({ ...generalSettings, email: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '14px'
-                      }}
+                      placeholder="admin@university.edu"
                     />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-                      Phone Number
-                    </label>
+                  <div className={styles.formGroup}>
+                    <label>Phone Number</label>
                     <input
                       type="tel"
                       value={generalSettings.phone}
                       onChange={(e) => setGeneralSettings({ ...generalSettings, phone: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '14px'
-                      }}
+                      placeholder="+1 (555) 123-4567"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-                    Address
-                  </label>
+                <div className={styles.formGroup}>
+                  <label>Address</label>
                   <textarea
                     value={generalSettings.address}
                     onChange={(e) => setGeneralSettings({ ...generalSettings, address: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      minHeight: '80px',
-                      resize: 'vertical'
-                    }}
+                    placeholder="Enter university address"
+                    rows={3}
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-                      Timezone
-                    </label>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label><GlobeIcon size={16} /> Timezone</label>
                     <select
                       value={generalSettings.timezone}
                       onChange={(e) => setGeneralSettings({ ...generalSettings, timezone: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        background: 'white'
-                      }}
                     >
                       <option value="America/New_York">Eastern Time (ET)</option>
                       <option value="America/Chicago">Central Time (CT)</option>
                       <option value="America/Denver">Mountain Time (MT)</option>
                       <option value="America/Los_Angeles">Pacific Time (PT)</option>
                       <option value="UTC">UTC</option>
+                      <option value="Europe/London">London (GMT)</option>
+                      <option value="Europe/Paris">Paris (CET)</option>
+                      <option value="Asia/Dubai">Dubai (GST)</option>
+                      <option value="Asia/Tokyo">Tokyo (JST)</option>
                     </select>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>
-                      Language
-                    </label>
+                  <div className={styles.formGroup}>
+                    <label>Language</label>
                     <select
                       value={generalSettings.language}
                       onChange={(e) => setGeneralSettings({ ...generalSettings, language: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        background: 'white'
-                      }}
                     >
                       <option value="en">English</option>
                       <option value="es">Spanish</option>
                       <option value="fr">French</option>
                       <option value="de">German</option>
                       <option value="ar">Arabic</option>
+                      <option value="zh">Chinese</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label><ClockIcon size={16} /> Date Format</label>
+                    <select
+                      value={generalSettings.dateFormat}
+                      onChange={(e) => setGeneralSettings({ ...generalSettings, dateFormat: e.target.value })}
+                    >
+                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    </select>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Academic Year</label>
+                    <select
+                      value={generalSettings.academicYear}
+                      onChange={(e) => setGeneralSettings({ ...generalSettings, academicYear: e.target.value })}
+                    >
+                      <option value="2024-2025">2024-2025</option>
+                      <option value="2025-2026">2025-2026</option>
+                      <option value="2023-2024">2023-2024</option>
                     </select>
                   </div>
                 </div>
@@ -228,36 +369,30 @@ export default function Settings() {
             </div>
           )}
 
+          {/* Notifications */}
           {activeTab === 'notifications' && (
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px' }}>
-                Notification Preferences
-              </h2>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Notification Preferences</h2>
+                <p>Choose how you want to be notified</p>
+              </div>
+
+              <div className={styles.settingsList}>
                 {[
-                  { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive notifications via email' },
-                  { key: 'pushNotifications', label: 'Push Notifications', desc: 'Browser push notifications' },
-                  { key: 'smsNotifications', label: 'SMS Notifications', desc: 'Text message alerts' },
-                  { key: 'eventReminders', label: 'Event Reminders', desc: 'Get reminded about upcoming events' },
-                  { key: 'systemAlerts', label: 'System Alerts', desc: 'Important system notifications' }
+                  { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive important updates via email', icon: <BellIcon size={20} /> },
+                  { key: 'pushNotifications', label: 'Push Notifications', desc: 'Browser push notifications for real-time alerts', icon: <BellIcon size={20} /> },
+                  { key: 'eventReminders', label: 'Event Reminders', desc: 'Get reminded about upcoming events and deadlines', icon: <ClockIcon size={20} /> },
+                  { key: 'systemAlerts', label: 'System Alerts', desc: 'Critical system notifications and maintenance updates', icon: <ShieldIcon size={20} /> },
+                  { key: 'announcementAlerts', label: 'Announcements', desc: 'Notifications for new announcements', icon: <BellIcon size={20} /> },
+                  { key: 'weeklyDigest', label: 'Weekly Digest', desc: 'Receive a weekly summary of activities', icon: <BellIcon size={20} /> }
                 ].map(item => (
-                  <div 
-                    key={item.key}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '16px',
-                      background: '#f9fafb',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: '500', marginBottom: '4px' }}>{item.label}</div>
-                      <div style={{ fontSize: '13px', color: '#6b7280' }}>{item.desc}</div>
+                  <div key={item.key} className={styles.settingItem}>
+                    <div className={styles.settingIcon}>{item.icon}</div>
+                    <div className={styles.settingInfo}>
+                      <span className={styles.settingLabel}>{item.label}</span>
+                      <span className={styles.settingDesc}>{item.desc}</span>
                     </div>
-                    <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
+                    <label className={styles.toggle}>
                       <input
                         type="checkbox"
                         checked={notificationSettings[item.key as keyof typeof notificationSettings]}
@@ -265,33 +400,8 @@ export default function Settings() {
                           ...notificationSettings, 
                           [item.key]: e.target.checked 
                         })}
-                        style={{ opacity: 0, width: 0, height: 0 }}
                       />
-                      <span style={{
-                        position: 'absolute',
-                        cursor: 'pointer',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: notificationSettings[item.key as keyof typeof notificationSettings] 
-                          ? '#4f6ef7' : '#e5e7eb',
-                        transition: '0.4s',
-                        borderRadius: '24px'
-                      }}>
-                        <span style={{
-                          position: 'absolute',
-                          content: '""',
-                          height: '18px',
-                          width: '18px',
-                          left: notificationSettings[item.key as keyof typeof notificationSettings] 
-                            ? '27px' : '3px',
-                          bottom: '3px',
-                          backgroundColor: 'white',
-                          transition: '0.4s',
-                          borderRadius: '50%'
-                        }} />
-                      </span>
+                      <span className={styles.toggleSlider}></span>
                     </label>
                   </div>
                 ))}
@@ -299,188 +409,199 @@ export default function Settings() {
             </div>
           )}
 
+          {/* Security */}
           {activeTab === 'security' && (
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px' }}>
-                Security Settings
-              </h2>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ padding: '20px', background: '#f9fafb', borderRadius: '8px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
-                    Change Password
-                  </h3>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
-                    Update your password to keep your account secure
-                  </p>
-                  <button className={`${styles.actionBtn} ${styles.secondary}`}>
-                    Change Password
-                  </button>
-                </div>
-
-                <div style={{ padding: '20px', background: '#f9fafb', borderRadius: '8px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
-                    Two-Factor Authentication
-                  </h3>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
-                    Add an extra layer of security to your account
-                  </p>
-                  <button className={`${styles.actionBtn} ${styles.primary}`}>
-                    Enable 2FA
-                  </button>
-                </div>
-
-                <div style={{ padding: '20px', background: '#f9fafb', borderRadius: '8px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
-                    Active Sessions
-                  </h3>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
-                    Manage your active login sessions
-                  </p>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    padding: '12px',
-                    background: 'white',
-                    borderRadius: '6px',
-                    marginBottom: '12px'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: '500' }}>Current Session</div>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>Windows • Chrome</div>
-                    </div>
-                    <span className={`${styles.badge} ${styles.success}`}>Active</span>
-                  </div>
-                </div>
+            <div className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Security Settings</h2>
+                <p>Manage your account security and sessions</p>
               </div>
-            </div>
-          )}
 
-          {activeTab === 'appearance' && (
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px' }}>
-                Appearance
-              </h2>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '12px' }}>
-                    Theme
-                  </label>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    {['Light', 'Dark', 'System'].map(theme => (
-                      <button
-                        key={theme}
-                        style={{
-                          padding: '12px 24px',
-                          border: theme === 'Light' ? '2px solid #4f6ef7' : '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          background: theme === 'Light' ? '#eef1fe' : 'white',
-                          color: theme === 'Light' ? '#4f6ef7' : '#6b7280',
-                          cursor: 'pointer',
-                          fontWeight: '500'
-                        }}
-                      >
-                        {theme}
-                      </button>
-                    ))}
+              {/* Password Section */}
+              <div className={styles.securityCard}>
+                <div className={styles.securityCardHeader}>
+                  <div className={styles.securityIcon}><LockIcon size={24} /></div>
+                  <div>
+                    <h3>Password</h3>
+                    <p>Change your account password</p>
                   </div>
                 </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '12px' }}>
-                    Accent Color
-                  </label>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    {['#4f6ef7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'].map(color => (
-                      <button
-                        key={color}
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          border: color === '#4f6ef7' ? '3px solid #1a1f36' : '2px solid transparent',
-                          background: color,
-                          cursor: 'pointer'
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <button 
+                  className={styles.secondaryBtn}
+                  onClick={() => setShowPasswordModal(true)}
+                >
+                  Change Password
+                </button>
               </div>
-            </div>
-          )}
 
-          {activeTab === 'integrations' && (
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px' }}>
-                Integrations
-              </h2>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {([
-                  { name: 'Google Calendar', desc: 'Sync events with Google Calendar', connected: true, icon: <CalendarIcon size={24} /> },
-                  { name: 'Microsoft Teams', desc: 'Enable Teams integration', connected: false, icon: <BriefcaseIcon size={24} /> },
-                  { name: 'Slack', desc: 'Send notifications to Slack', connected: false, icon: <MessageIcon size={24} /> },
-                  { name: 'Zoom', desc: 'Schedule Zoom meetings', connected: true, icon: <VideoIcon size={24} /> }
-                ] as { name: string; desc: string; connected: boolean; icon: React.ReactNode }[]).map(integration => (
-                  <div
-                    key={integration.name}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
-                      padding: '16px',
-                      background: '#f9fafb',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '12px',
-                      background: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#4f6ef7'
-                    }}>
-                      {integration.icon}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '500', marginBottom: '4px' }}>{integration.name}</div>
-                      <div style={{ fontSize: '13px', color: '#6b7280' }}>{integration.desc}</div>
-                    </div>
+              {/* Active Sessions */}
+              <div className={styles.securityCard}>
+                <div className={styles.securityCardHeader}>
+                  <div className={styles.securityIcon}><MonitorIcon size={24} /></div>
+                  <div>
+                    <h3>Active Sessions</h3>
+                    <p>Manage devices where you're logged in</p>
+                  </div>
+                  {sessions.length > 1 && (
                     <button 
-                      className={`${styles.actionBtn} ${integration.connected ? styles.secondary : styles.primary}`}
-                      style={{ minWidth: '100px' }}
+                      className={styles.dangerBtn}
+                      onClick={handleTerminateAllOtherSessions}
                     >
-                      {integration.connected ? 'Disconnect' : 'Connect'}
+                      Terminate All Others
                     </button>
+                  )}
+                </div>
+
+                <div className={styles.sessionsList}>
+                  {isLoadingSessions ? (
+                    <div className={styles.loadingState}>
+                      <div className={styles.spinner}></div>
+                      <p>Loading sessions...</p>
+                    </div>
+                  ) : sessions.length === 0 ? (
+                    <div className={styles.emptyState}>
+                      <p>No active sessions found</p>
+                    </div>
+                  ) : (
+                    sessions.map(session => (
+                      <div key={session.id} className={styles.sessionItem}>
+                        <div className={styles.sessionIcon}>
+                          <MonitorIcon size={24} />
+                        </div>
+                        <div className={styles.sessionInfo}>
+                          <div className={styles.sessionDevice}>
+                            {session.device} • {session.browser}
+                            {session.isCurrent && (
+                              <span className={styles.currentBadge}>Current</span>
+                            )}
+                          </div>
+                          <div className={styles.sessionMeta}>
+                            <span>{session.location}</span>
+                            <span>•</span>
+                            <span>Last active: {session.lastActive}</span>
+                          </div>
+                        </div>
+                        {!session.isCurrent && (
+                          <button 
+                            className={styles.terminateBtn}
+                            onClick={() => handleTerminateSession(session.id)}
+                          >
+                            Terminate
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Account Info */}
+              <div className={styles.securityCard}>
+                <div className={styles.securityCardHeader}>
+                  <div className={styles.securityIcon}><ShieldIcon size={24} /></div>
+                  <div>
+                    <h3>Account Information</h3>
+                    <p>Your account details and security status</p>
                   </div>
-                ))}
+                </div>
+                <div className={styles.accountInfo}>
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>Email</span>
+                    <span className={styles.infoValue}>{user?.email || generalSettings.email}</span>
+                  </div>
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>Role</span>
+                    <span className={styles.infoValue}>{user?.role || 'Admin'}</span>
+                  </div>
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>Account Created</span>
+                    <span className={styles.infoValue}>
+                      {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Appearance */}
+          {activeTab === 'appearance' && (
+            <div className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Appearance</h2>
+                <p>Customize the look and feel of the application</p>
+              </div>
+
+              {/* Theme Selection */}
+              <div className={styles.appearanceCard}>
+                <h3>Theme</h3>
+                <p>Choose your preferred color scheme</p>
+                <div className={styles.themeOptions}>
+                  {themeOptions.map(option => (
+                    <button
+                      key={option.value}
+                      className={`${styles.themeOption} ${theme === option.value ? styles.selected : ''}`}
+                      onClick={() => setTheme(option.value)}
+                    >
+                      <div className={styles.themeIcon}>{option.icon}</div>
+                      <span>{option.label}</span>
+                      {theme === option.value && (
+                        <CheckIcon size={16} className={styles.checkIcon} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Accent Color */}
+              <div className={styles.appearanceCard}>
+                <h3>Accent Color</h3>
+                <p>Choose your primary accent color</p>
+                <div className={styles.colorOptions}>
+                  {accentColors.map(color => (
+                    <button
+                      key={color.value}
+                      className={`${styles.colorOption} ${accentColor === color.value ? styles.selected : ''}`}
+                      style={{ backgroundColor: color.value }}
+                      onClick={() => setAccentColor(color.value)}
+                      title={color.label}
+                    >
+                      {accentColor === color.value && <CheckIcon size={16} color="white" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Compact Mode */}
+              <div className={styles.appearanceCard}>
+                <div className={styles.appearanceRow}>
+                  <div>
+                    <h3>Compact Mode</h3>
+                    <p>Reduce spacing for a more compact interface</p>
+                  </div>
+                  <label className={styles.toggle}>
+                    <input
+                      type="checkbox"
+                      checked={compactMode}
+                      onChange={(e) => setCompactMode(e.target.checked)}
+                    />
+                    <span className={styles.toggleSlider}></span>
+                  </label>
+                </div>
               </div>
             </div>
           )}
 
           {/* Save Button */}
-          <div style={{ 
-            marginTop: '32px', 
-            paddingTop: '24px', 
-            borderTop: '1px solid #e5e7eb',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
+          <div className={styles.footer}>
             {saveMessage && (
-              <span style={{ color: '#10b981', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckIcon size={16} color="#10b981" /> {saveMessage}
-              </span>
+              <div className={`${styles.notification} ${styles[saveMessage.type]}`}>
+                {saveMessage.type === 'success' ? <CheckIcon size={16} /> : <XIcon size={16} />}
+                {saveMessage.text}
+              </div>
             )}
             <button 
-              className={`${styles.actionBtn} ${styles.primary}`}
+              className={styles.saveBtn}
               onClick={handleSave}
               disabled={isSaving}
             >
@@ -489,6 +610,68 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className={styles.modal} onClick={() => setShowPasswordModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Change Password</h2>
+              <button className={styles.closeBtn} onClick={() => setShowPasswordModal(false)}>
+                <XIcon size={20} />
+              </button>
+            </div>
+            <form onSubmit={handlePasswordChange}>
+              <div className={styles.modalBody}>
+                {passwordError && (
+                  <div className={styles.errorAlert}>{passwordError}</div>
+                )}
+                <div className={styles.formGroup}>
+                  <label>Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    required
+                    minLength={8}
+                  />
+                  <span className={styles.hint}>Must be at least 8 characters</span>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button 
+                  type="button" 
+                  className={styles.cancelBtn}
+                  onClick={() => setShowPasswordModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={styles.saveBtn}>
+                  Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
