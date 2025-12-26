@@ -84,6 +84,43 @@ type TabType = 'overview' | 'courses' | 'students' | 'schedule' | 'performance';
 type SortField = 'email' | 'role' | 'department' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
+// Format schedule JSON/array/string into human-readable text
+const dayName = (abbr: string) => {
+  const map: Record<string, string> = {
+    Su: 'Sunday', Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday'
+  };
+  return map[abbr] || abbr;
+};
+
+const formatSchedule = (schedule?: any): string => {
+  if (!schedule) return 'Schedule TBD';
+
+  const toText = (value: any): string => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item: any) => {
+          if (!item) return '';
+          const days = Array.isArray(item.days) ? item.days.map((d: string) => dayName(d)).join(', ') : '';
+          const time = item.startTime && item.endTime ? `${item.startTime}–${item.endTime}` : '';
+          return [days, time].filter(Boolean).join(' ');
+        })
+        .filter(Boolean)
+        .join(' | ');
+    }
+    return '';
+  };
+
+  try {
+    const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+    const result = toText(parsed);
+    if (result) return result;
+  } catch {
+    // ignore parse errors and fall back
+  }
+
+  return typeof schedule === 'string' ? schedule : 'Schedule TBD';
+};
+
 export default function StaffManagement() {
   // Staff list state
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -187,7 +224,7 @@ export default function StaffManagement() {
         code: c.code || c.courseCode || 'N/A',
         department: c.department || '—',
         students: c.enrolledStudents || 0,
-        schedule: c.schedule || 'TBD',
+        schedule: formatSchedule(c.schedule || c.metadata?.schedule),
         semester: c.semester || 'Current'
       })));
     } catch (err) {
@@ -280,7 +317,7 @@ export default function StaffManagement() {
           code: c.courseCode || c.code || 'N/A',
           department: c.department || 'Not Assigned',
           students: c.enrolledStudents || c.students || 0,
-          schedule: c.metadata?.schedule || c.schedule || 'TBD',
+          schedule: formatSchedule(c.metadata?.schedule || c.schedule),
           semester: c.metadata?.semester || 'Current'
         })));
       } else {
@@ -301,9 +338,9 @@ export default function StaffManagement() {
         const students = await studentsResponse.json();
         setStaffStudents(students.map((s: any) => ({
           id: s.id,
-          name: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : s.name || 'Unknown',
+          name: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : s.name || s.email || 'Unknown',
           email: s.email || 'No email',
-          course: s.course?.code || 'N/A',
+          course: s.course?.code || s.course?.name || 'N/A',
           grade: s.enrollmentMetadata?.grade || 'N/A',
           attendance: s.enrollmentMetadata?.attendance || 0
         })));
@@ -950,39 +987,30 @@ export default function StaffManagement() {
                 {activeTab === 'schedule' && (
                   <div className={styles.scheduleTab}>
                     <div className={styles.tabHeader}>
-                      <h3>Weekly Schedule</h3>
+                      <h3>Schedule</h3>
                     </div>
-                    <div className={styles.scheduleGrid}>
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
-                        <div key={day} className={styles.scheduleDay}>
-                          <div className={styles.dayHeader}>{day}</div>
-                          <div className={styles.daySlots}>
-                            {day === 'Monday' || day === 'Wednesday' ? (
-                              <>
-                                <div className={styles.scheduleSlot}>
-                                  <div className={styles.slotTime}>9:00 - 10:30 AM</div>
-                                  <div className={styles.slotCourse}>CS101</div>
-                                  <div className={styles.slotRoom}>Room 201</div>
-                                </div>
-                                <div className={styles.scheduleSlot}>
-                                  <div className={styles.slotTime}>2:00 - 3:30 PM</div>
-                                  <div className={styles.slotCourse}>CS301</div>
-                                  <div className={styles.slotRoom}>Room 305</div>
-                                </div>
-                              </>
-                            ) : day === 'Tuesday' || day === 'Thursday' ? (
-                              <div className={styles.scheduleSlot}>
-                                <div className={styles.slotTime}>11:00 - 12:30 PM</div>
-                                <div className={styles.slotCourse}>CS201</div>
-                                <div className={styles.slotRoom}>Room 102</div>
+                    {staffCourses.length === 0 ? (
+                      <div className={styles.emptyList}>
+                        <span>📅</span>
+                        <p>No scheduled courses</p>
+                      </div>
+                    ) : (
+                      <div className={styles.coursesList}>
+                        {staffCourses.map(course => (
+                          <div key={course.id} className={styles.courseCard}>
+                            <div className={styles.courseInfo}>
+                              <div className={styles.courseCode}>{course.code}</div>
+                              <div className={styles.courseName}>{course.name}</div>
+                              <div className={styles.courseMeta}>
+                                <span><CalendarIcon /> {course.schedule || 'Schedule TBD'}</span>
+                                <span><BookOpenIcon /> {course.department}</span>
+                                <span><UsersIcon /> {course.students} students</span>
                               </div>
-                            ) : (
-                              <div className={styles.noClasses}>Office Hours</div>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

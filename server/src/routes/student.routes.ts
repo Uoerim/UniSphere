@@ -138,8 +138,14 @@ studentRouter.get("/", authenticateToken, requireAdmin, async (_req, res) => {
       const enrolledCourses = entity?.relationsFrom?.map((rel: any) => {
         const course = normalizeEntity(rel.toEntity);
         const metadata = rel.metadata ? JSON.parse(rel.metadata) : {};
+        const courseName = course.name || course.courseName || course.title;
+        const courseCode = course.courseCode || course.code || course.course_code;
         return {
           ...course,
+          name: courseName,
+          courseName,
+          code: courseCode,
+          courseCode,
           enrollmentId: rel.id,
           grade: metadata.grade,
           attendance: metadata.attendance,
@@ -240,8 +246,14 @@ studentRouter.get("/:id", authenticateToken, requireAdmin, async (req, res) => {
       ?.map((rel: any) => {
         const course = normalizeEntity(rel.toEntity);
         const metadata = rel.metadata ? JSON.parse(rel.metadata) : {};
+        const courseName = course.name || course.courseName || course.title;
+        const courseCode = course.courseCode || course.code || course.course_code;
         return {
           ...course,
+          name: courseName,
+          courseName,
+          code: courseCode,
+          courseCode,
           enrollmentId: rel.id,
           grade: metadata.grade,
           attendance: metadata.attendance,
